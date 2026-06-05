@@ -1,4 +1,4 @@
-package com.myorderlynk.app.web.error;
+package com.myorderlynk.app.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

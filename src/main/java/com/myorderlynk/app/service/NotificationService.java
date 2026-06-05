@@ -2,7 +2,7 @@ package com.myorderlynk.app.service;
 
 import com.myorderlynk.app.domain.NotificationLog;
 import com.myorderlynk.app.domain.Order;
-import com.myorderlynk.app.repo.NotificationLogRepository;
+import com.myorderlynk.app.repository.NotificationLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

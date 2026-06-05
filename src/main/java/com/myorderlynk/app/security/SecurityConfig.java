@@ -26,6 +26,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 @Configuration
@@ -37,8 +39,18 @@ public class SecurityConfig {
 
     public SecurityConfig(@Value("${app.jwt.secret}") String secret,
                           @Value("${app.cors.allowed-origins}") List<String> corsOrigins) {
-        this.secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        // Derive a fixed 256-bit HMAC key from the configured secret so HS256 works
+        // regardless of the secret's length (HS256 requires >= 256 bits).
+        this.secretKey = new SecretKeySpec(sha256(secret), "HmacSHA256");
         this.corsOrigins = corsOrigins;
+    }
+
+    private static byte[] sha256(String secret) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(secret.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 
     @Bean

@@ -1,4 +1,4 @@
-package com.myorderlynk.app.web;
+package com.myorderlynk.app.controller;
 
 import com.myorderlynk.app.domain.enums.FulfillmentStatus;
 import com.myorderlynk.app.domain.enums.FulfillmentType;

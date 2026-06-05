@@ -1,4 +1,4 @@
-package com.myorderlynk.app.repo;
+package com.myorderlynk.app.repository;
 
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.VendorStatus;

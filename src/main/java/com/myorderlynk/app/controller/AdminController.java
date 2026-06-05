@@ -1,4 +1,4 @@
-package com.myorderlynk.app.web;
+package com.myorderlynk.app.controller;
 
 import com.myorderlynk.app.domain.NotificationLog;
 import com.myorderlynk.app.domain.StatusChangeLog;

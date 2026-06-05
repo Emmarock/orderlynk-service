@@ -4,23 +4,56 @@ import com.myorderlynk.app.domain.Product;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
-import com.myorderlynk.app.repo.ProductRepository;
-import com.myorderlynk.app.web.error.ApiException;
+import com.myorderlynk.app.repository.ProductRepository;
+import com.myorderlynk.app.exception.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class ProductService {
 
+    /** Image types we accept for product photos, mapped to their canonical file extension. */
+    private static final Map<String, String> ALLOWED_IMAGE_TYPES = Map.of(
+            "image/jpeg", "jpg",
+            "image/png", "png",
+            "image/webp", "webp",
+            "image/gif", "gif");
+
     private final ProductRepository products;
     private final Mapper mapper;
+    private final S3StorageService storage;
 
-    public ProductService(ProductRepository products, Mapper mapper) {
+    public ProductService(ProductRepository products, Mapper mapper, S3StorageService storage) {
         this.products = products;
         this.mapper = mapper;
+        this.storage = storage;
+    }
+
+    /**
+     * Store a product image uploaded from the vendor's device in S3 and return its
+     * public URL. The vendor saves this URL as the product's {@code productImageUrl}.
+     */
+    public String uploadProductImage(UUID vendorId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("No image file was provided");
+        }
+        String contentType = file.getContentType();
+        String ext = contentType == null ? null : ALLOWED_IMAGE_TYPES.get(contentType.toLowerCase());
+        if (ext == null) {
+            throw ApiException.badRequest("Unsupported image type. Use JPEG, PNG, WebP or GIF.");
+        }
+        String key = "products/" + vendorId + "/" + UUID.randomUUID() + "." + ext;
+        try {
+            return storage.uploadPublic(file.getBytes(), contentType, key);
+        } catch (IOException e) {
+            throw ApiException.badRequest("Could not read the uploaded image");
+        }
     }
 
     @Transactional(readOnly = true)

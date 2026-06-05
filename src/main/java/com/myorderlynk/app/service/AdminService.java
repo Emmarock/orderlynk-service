@@ -8,9 +8,9 @@ import com.myorderlynk.app.domain.enums.VendorStatus;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
-import com.myorderlynk.app.repo.OrderRepository;
-import com.myorderlynk.app.repo.VendorRepository;
-import com.myorderlynk.app.web.error.ApiException;
+import com.myorderlynk.app.repository.OrderRepository;
+import com.myorderlynk.app.repository.VendorRepository;
+import com.myorderlynk.app.exception.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

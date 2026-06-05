@@ -1,7 +1,7 @@
 package com.myorderlynk.app.security;
 
 import com.myorderlynk.app.domain.enums.UserRole;
-import com.myorderlynk.app.web.error.ApiException;
+import com.myorderlynk.app.exception.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

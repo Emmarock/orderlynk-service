@@ -1,7 +1,7 @@
 package com.myorderlynk.app.service;
 
 import com.myorderlynk.app.domain.StatusChangeLog;
-import com.myorderlynk.app.repo.StatusChangeLogRepository;
+import com.myorderlynk.app.repository.StatusChangeLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

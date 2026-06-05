@@ -21,6 +21,11 @@ spring:
           preferred_uuid_jdbc_type: CHAR
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  servlet:
+    multipart:
+      # Vendor product photos; keep modest to avoid abuse.
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 server:
   # Render (and most PaaS) inject the listening port via $PORT.
@@ -40,6 +45,19 @@ app:
   cors:
     allowed-origins: ${APP_CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
+  # AWS S3 for product images. Leave the bucket/credentials blank to disable uploads
+  # (the app still boots; the upload endpoint then returns 503). The bucket must allow
+  # public reads — either keep public-read-acl=true with ACLs enabled, or set it false
+  # and grant read via a bucket policy. Set public-base-url to a CloudFront/CDN domain
+  # to serve the same objects through it.
+  aws:
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region: ${AWS_REGION:}
+    s3-bucket: ${AWS_S3_BUCKET:}
+    endpoint-url: ${AWS_S3_ENDPOINT:}
+    public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
+    public-read-acl: ${AWS_S3_PUBLIC_READ_ACL:true}
   payout:
     weekly-cron: "0 0 6 * * MON"
   fees:

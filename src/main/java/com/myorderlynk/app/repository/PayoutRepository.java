@@ -1,4 +1,4 @@
-package com.myorderlynk.app.repo;
+package com.myorderlynk.app.repository;
 
 import com.myorderlynk.app.domain.Payout;
 import org.springframework.data.jpa.repository.JpaRepository;

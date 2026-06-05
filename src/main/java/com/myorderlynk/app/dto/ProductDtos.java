@@ -30,6 +30,9 @@ public final class ProductDtos {
             Boolean active) {
     }
 
+    public record ImageUploadResponse(String url) {
+    }
+
     public record ProductResponse(
             UUID id,
             UUID vendorId,

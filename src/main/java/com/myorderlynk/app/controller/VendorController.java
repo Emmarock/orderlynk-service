@@ -1,9 +1,10 @@
-package com.myorderlynk.app.web;
+package com.myorderlynk.app.controller;
 
 import com.myorderlynk.app.dto.OrderDtos.FulfillmentUpdateRequest;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.OrderDtos.PaymentUpdateRequest;
 import com.myorderlynk.app.dto.PayoutDtos.PayoutResponse;
+import com.myorderlynk.app.dto.ProductDtos.ImageUploadResponse;
 import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
 import com.myorderlynk.app.dto.VendorDtos.ApplyResponse;
@@ -17,7 +18,7 @@ import com.myorderlynk.app.service.OrderService;
 import com.myorderlynk.app.service.PayoutService;
 import com.myorderlynk.app.service.ProductService;
 import com.myorderlynk.app.service.VendorService;
-import com.myorderlynk.app.web.error.ApiException;
+import com.myorderlynk.app.exception.ApiException;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,7 +30,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -91,6 +94,13 @@ public class VendorController {
     @PreAuthorize("hasRole('VENDOR')")
     public ProductResponse createProduct(@Valid @RequestBody ProductRequest req) {
         return productService.create(vendorId(), req);
+    }
+
+    /** Upload a product image from the vendor's device; returns the public URL to store as productImageUrl. */
+    @PostMapping(value = "/products/image", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ImageUploadResponse uploadProductImage(@RequestPart("file") MultipartFile file) {
+        return new ImageUploadResponse(productService.uploadProductImage(vendorId(), file));
     }
 
     @PutMapping("/products/{id}")

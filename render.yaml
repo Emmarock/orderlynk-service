@@ -32,3 +32,17 @@ services:
         sync: false   # frontend static-site URL, e.g. https://orderlynk-frontend.onrender.com
       - key: APP_PUBLIC_BASE_URL
         sync: false   # frontend static-site URL, used to build share links
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_S3_ENDPOINT
+        sync: false
+      - key: AWS_S3_PUBLIC_BASE_URL
+        sync: false
+      - key: AWS_S3_PUBLIC_READ_ACL
+        sync: false

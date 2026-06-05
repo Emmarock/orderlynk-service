@@ -32,7 +32,7 @@ public class JwtService {
     public String issueToken(User user) {
         Instant now = Instant.now();
         JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
-                .issuer("orderlynk")
+                .issuer("myorderlynk")
                 .issuedAt(now)
                 .expiresAt(now.plus(ttlSeconds, ChronoUnit.SECONDS))
                 .subject(user.getId().toString())

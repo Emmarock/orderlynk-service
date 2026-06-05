@@ -6,9 +6,10 @@ import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.PaymentStatus;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.PayoutDtos.PayoutResponse;
-import com.myorderlynk.app.repo.OrderRepository;
-import com.myorderlynk.app.repo.PayoutRepository;
-import com.myorderlynk.app.repo.VendorRepository;
+import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.repository.OrderRepository;
+import com.myorderlynk.app.repository.PayoutRepository;
+import com.myorderlynk.app.repository.VendorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -89,7 +90,7 @@ public class PayoutService {
     @Transactional
     public PayoutResponse markPaid(UUID payoutId) {
         Payout payout = payouts.findById(payoutId)
-                .orElseThrow(() -> com.myorderlynk.app.web.error.ApiException.notFound("Payout not found"));
+                .orElseThrow(() -> ApiException.notFound("Payout not found"));
         payout.setPayoutStatus("PAID");
         payout.setPaidDate(Instant.now());
         return mapper.payout(payouts.save(payout));
