@@ -57,7 +57,7 @@ app:
     s3-bucket: ${AWS_S3_BUCKET:}
     endpoint-url: ${AWS_S3_ENDPOINT:}
     public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
-    public-read-acl: ${AWS_S3_PUBLIC_READ_ACL:true}
+    public-read-acl: ${AWS_S3_PUBLIC_READ_ACL:false}
   payout:
     weekly-cron: "0 0 6 * * MON"
   fees:

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -40,10 +41,18 @@ public class S3StorageService {
 
     @PostConstruct
     public void init() {
-        if (configured) {
-            ensureBucketExists();
-        } else {
+        if (!configured) {
             log.warn("S3 storage is not configured (app.aws.* unset) — image uploads are disabled.");
+            return;
+        }
+        // Best-effort: a verification/creation failure (wrong region, missing permission,
+        // bucket owned by another account) must NOT stop the application from booting.
+        // Uploads will surface a clear error at request time instead.
+        try {
+            ensureBucketExists();
+        } catch (SdkException e) {
+            log.warn("Could not verify S3 bucket '{}' in region '{}' at startup ({}). "
+                    + "Image uploads may fail until this is resolved.", bucket, region, e.getMessage());
         }
     }
 
@@ -55,6 +64,9 @@ public class S3StorageService {
             @Value("${app.aws.endpoint-url:}") String endpointUrl,
             @Value("${app.aws.public-base-url:}") String publicBaseUrl,
             @Value("${app.aws.public-read-acl:true}") boolean publicReadAcl) {
+
+        // A blank region yields an invalid Region.of("") and breaks request signing; fall back to a sane default.
+        region = region == null || region.isBlank() ? "weur" : region;
 
         this.bucket = bucket;
         this.region = region;
@@ -174,9 +186,26 @@ public class S3StorageService {
             log.info("S3 bucket '{}' already exists.", bucket);
         } catch (NoSuchBucketException e) {
             log.info("S3 bucket '{}' not found — creating it.", bucket);
-            s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
+            createBucket();
             log.info("S3 bucket '{}' created.", bucket);
+        } catch (S3Exception e) {
+            // headBucket returns 404→NoSuchBucket, but 403 (no permission / wrong owner) and
+            // 301 (bucket lives in another region) come back as generic S3Exceptions. The bucket
+            // may well exist and be usable; don't try to create it — just note it and move on.
+            log.warn("Could not HEAD S3 bucket '{}' (status {}): {}. Assuming it exists.",
+                    bucket, e.statusCode(), e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : e.getMessage());
         }
+    }
+
+    private void createBucket() {
+        CreateBucketRequest.Builder req = CreateBucketRequest.builder().bucket(bucket);
+        // Every region except us-east-1 requires an explicit location constraint on creation.
+        if (!"us-east-1".equals(region)) {
+            req.createBucketConfiguration(CreateBucketConfiguration.builder()
+                    .locationConstraint(region)
+                    .build());
+        }
+        s3Client.createBucket(req.build());
     }
 
     public boolean exists(String s3Url) {
