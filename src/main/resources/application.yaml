@@ -58,6 +58,12 @@ app:
     endpoint-url: ${AWS_S3_ENDPOINT:}
     public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
     public-read-acl: ${AWS_S3_PUBLIC_READ_ACL:false}
+  # OpenAI for AI-generated product descriptions. Leave api-key blank to disable
+  # (the app still boots; the generate endpoint then returns 503).
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
   payout:
     weekly-cron: "0 0 6 * * MON"
   fees:

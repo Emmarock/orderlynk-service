@@ -1,6 +1,7 @@
 package com.myorderlynk.app.service;
 
 import com.myorderlynk.app.domain.Product;
+import com.myorderlynk.app.domain.enums.ProductCategory;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,14 +27,57 @@ public class ProductService {
             "image/webp", "webp",
             "image/gif", "gif");
 
+    private static final int MAX_DESCRIPTION_WORDS = 100;
+
     private final ProductRepository products;
     private final Mapper mapper;
     private final S3StorageService storage;
+    private final OpenAiService openAi;
 
-    public ProductService(ProductRepository products, Mapper mapper, S3StorageService storage) {
+    public ProductService(ProductRepository products, Mapper mapper, S3StorageService storage, OpenAiService openAi) {
         this.products = products;
         this.mapper = mapper;
         this.storage = storage;
+        this.openAi = openAi;
+    }
+
+    /**
+     * Generate a captivating, marketing-grade product description (under 100 words)
+     * from the product name via OpenAI. The word limit is enforced server-side as a
+     * safety net regardless of what the model returns.
+     */
+    public String generateDescription(String name, ProductCategory category) {
+        if (name == null || name.isBlank()) {
+            throw ApiException.badRequest("Enter a product name first");
+        }
+        String system = "You are an expert e-commerce copywriter. Write a single, captivating product "
+                + "description for an online storefront. It MUST be fewer than 100 words. Use vivid, "
+                + "persuasive, sensory language that builds desire and drives the shopper to buy. Output "
+                + "plain prose only — no markdown, no headings, no bullet points, no surrounding quotes, "
+                + "and do not repeat the product name as a title.";
+        String categoryHint = category == null ? "" : " Category: " + category.name().replace('_', ' ').toLowerCase() + ".";
+        String user = "Product name: " + name.trim() + "." + categoryHint + " Write the description.";
+
+        String text = openAi.complete(system, user, 220, 0.85);
+        return limitWords(stripWrappingQuotes(text), MAX_DESCRIPTION_WORDS);
+    }
+
+    private static String stripWrappingQuotes(String s) {
+        String t = s.trim();
+        if (t.length() >= 2 && (t.startsWith("\"") && t.endsWith("\"") || t.startsWith("'") && t.endsWith("'"))) {
+            return t.substring(1, t.length() - 1).trim();
+        }
+        return t;
+    }
+
+    private static String limitWords(String text, int maxWords) {
+        String[] words = text.trim().split("\\s+");
+        if (words.length <= maxWords) {
+            return text.trim();
+        }
+        // Truncate to the limit and tidy trailing punctuation so it ends cleanly.
+        String truncated = String.join(" ", Arrays.copyOf(words, maxWords));
+        return truncated.replaceAll("[\\s,;:]+$", "") + "…";
     }
 
     /**

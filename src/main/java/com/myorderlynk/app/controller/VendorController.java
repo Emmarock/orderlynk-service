@@ -4,6 +4,8 @@ import com.myorderlynk.app.dto.OrderDtos.FulfillmentUpdateRequest;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.OrderDtos.PaymentUpdateRequest;
 import com.myorderlynk.app.dto.PayoutDtos.PayoutResponse;
+import com.myorderlynk.app.dto.ProductDtos.DescriptionRequest;
+import com.myorderlynk.app.dto.ProductDtos.DescriptionResponse;
 import com.myorderlynk.app.dto.ProductDtos.ImageUploadResponse;
 import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
@@ -101,6 +103,13 @@ public class VendorController {
     @PreAuthorize("hasRole('VENDOR')")
     public ImageUploadResponse uploadProductImage(@RequestPart("file") MultipartFile file) {
         return new ImageUploadResponse(productService.uploadProductImage(vendorId(), file));
+    }
+
+    /** Generate a captivating, under-100-word product description from the name via AI. */
+    @PostMapping("/products/description")
+    @PreAuthorize("hasRole('VENDOR')")
+    public DescriptionResponse generateDescription(@Valid @RequestBody DescriptionRequest req) {
+        return new DescriptionResponse(productService.generateDescription(req.name(), req.category()));
     }
 
     @PutMapping("/products/{id}")

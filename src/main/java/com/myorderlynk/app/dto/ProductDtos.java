@@ -33,6 +33,14 @@ public final class ProductDtos {
     public record ImageUploadResponse(String url) {
     }
 
+    public record DescriptionRequest(
+            @NotBlank String name,
+            ProductCategory category) {
+    }
+
+    public record DescriptionResponse(String description) {
+    }
+
     public record ProductResponse(
             UUID id,
             UUID vendorId,
