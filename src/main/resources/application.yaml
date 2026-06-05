@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: orderlynk
+  # Primary datastore is MySQL. Connection is overridable via env vars; the
+  # database is auto-created on first connect for convenience in dev.
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/orderlynk?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:Password123$}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    # Liquibase owns the schema; Hibernate never alters it.
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        # Store UUIDs as readable CHAR(36) rather than binary(16), on every dialect.
+        type:
+          preferred_uuid_jdbc_type: CHAR
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  # Render (and most PaaS) inject the listening port via $PORT.
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  # 256-bit+ secret for HS256 token signing. Override in production via APP_JWT_SECRET.
+  jwt:
+    secret: ${APP_JWT_SECRET:orderlynk-dev-secret-change-me-please-0123456789abcdef}
+    ttl-seconds: 86400
+  cors:
+    allowed-origins: ${APP_CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
+  payout:
+    weekly-cron: "0 0 6 * * MON"
+  fees:
+    service-fee-rate: 0.03
+    processing-rate: 0.029
+    processing-fixed: 0.30
+    logistics-margin-rate: 0.00
+
+logging:
+  level:
+    com.myorderlynk: INFO
+
+---
+# Test profile: in-memory H2 so `./mvnw test` runs with no external database.
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    # H2 in MySQL-compatibility mode so the same Liquibase changelog applies.
+    url: jdbc:h2:mem:orderlynk;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+---
+# Production profile: MySQL/TiDB, no demo seeding (DataSeeder is disabled under prod).
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    hibernate:
+      ddl-auto: none

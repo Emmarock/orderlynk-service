@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Initial Orderlynk schema. Dialect-portable so it applies identically on
+      MySQL, TiDB (MySQL-compatible) and H2 (tests). Design choices for TiDB:
+        * String UUID primary keys (no AUTO_INCREMENT hotspots).
+        * Enums persisted as VARCHAR.
+        * No database-level foreign-key constraints — relationships are by id
+          column + index, which keeps the schema portable across TiDB versions.
+      The precondition lets this baseline adopt a database that already has the
+      tables (e.g. one previously created by Hibernate) by marking it as run.
+    -->
+    <changeSet id="001-initial-schema" author="orderlynk">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not>
+                <tableExists tableName="users"/>
+            </not>
+        </preConditions>
+
+        <!-- users -->
+        <createTable tableName="users">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="full_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone" type="VARCHAR(255)"/>
+            <column name="city" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="role" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(36)"/>
+            <column name="admin" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="users" indexName="idx_user_email" unique="true">
+            <column name="email"/>
+        </createIndex>
+
+        <!-- vendors -->
+        <createTable tableName="vendors">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="business_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="owner_user_id" type="VARCHAR(36)"/>
+            <column name="description" type="VARCHAR(2000)"/>
+            <column name="city" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="whatsapp_number" type="VARCHAR(255)"/>
+            <column name="instagram_handle" type="VARCHAR(255)"/>
+            <column name="logo_url" type="VARCHAR(1024)"/>
+            <column name="verification_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="store_slug" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rating" type="DECIMAL(4,2)"/>
+            <column name="commission_rate" type="DECIMAL(12,4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="vendors" indexName="idx_vendor_slug" unique="true">
+            <column name="store_slug"/>
+        </createIndex>
+
+        <!-- vendor_fulfillment_types (element collection) -->
+        <createTable tableName="vendor_fulfillment_types">
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fulfillment_type" type="VARCHAR(40)"/>
+        </createTable>
+        <createIndex tableName="vendor_fulfillment_types" indexName="idx_vft_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <!-- products -->
+        <createTable tableName="products">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(2000)"/>
+            <column name="category" type="VARCHAR(40)"/>
+            <column name="price" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency" type="VARCHAR(8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity_available" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_image_url" type="VARCHAR(1024)"/>
+            <column name="fulfillment_type" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="origin_country" type="VARCHAR(255)"/>
+            <column name="available_now" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="batch_id" type="VARCHAR(36)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="products" indexName="idx_product_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <!-- batches -->
+        <createTable tableName="batches">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="batch_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="route" type="VARCHAR(255)"/>
+            <column name="origin_country" type="VARCHAR(255)"/>
+            <column name="destination_country" type="VARCHAR(255)"/>
+            <column name="destination_city" type="VARCHAR(255)"/>
+            <column name="open_date" type="DATE"/>
+            <column name="close_date" type="DATE"/>
+            <column name="estimated_arrival" type="DATE"/>
+            <column name="batch_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(36)"/>
+        </createTable>
+
+        <!-- orders -->
+        <createTable tableName="orders">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="public_order_id" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="customer_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_phone" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_email" type="VARCHAR(255)"/>
+            <column name="customer_city" type="VARCHAR(255)"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_subtotal" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="logistics_fee" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="platform_fee" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processing_fee" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_amount" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_payable" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="logistics_payable" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="platform_revenue" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refunded_amount" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency" type="VARCHAR(8)"/>
+            <column name="payment_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fulfillment_type" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fulfillment_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="batch_id" type="VARCHAR(36)"/>
+            <column name="pickup_code" type="VARCHAR(16)"/>
+            <column name="source_channel" type="VARCHAR(40)"/>
+            <column name="campaign" type="VARCHAR(255)"/>
+            <column name="notes" type="VARCHAR(2000)"/>
+        </createTable>
+        <createIndex tableName="orders" indexName="idx_order_public_id" unique="true">
+            <column name="public_order_id"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_order_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <!-- order_items -->
+        <createTable tableName="order_items">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_name_snapshot" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="line_total" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="order_items" indexName="idx_order_item_order">
+            <column name="order_id"/>
+        </createIndex>
+
+        <!-- payment_records -->
+        <createTable tableName="payment_records">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount_paid" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_method" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_reference" type="VARCHAR(255)"/>
+            <column name="stripe_payment_id" type="VARCHAR(255)"/>
+            <column name="paid_date" type="DATETIME"/>
+            <column name="refund_status" type="VARCHAR(40)"/>
+        </createTable>
+        <createIndex tableName="payment_records" indexName="idx_payment_order">
+            <column name="order_id"/>
+        </createIndex>
+
+        <!-- payouts -->
+        <createTable tableName="payouts">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_start" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_end" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gross_sales" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="platform_fees" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="logistics_fees" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refunds" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="net_payout" type="DECIMAL(19,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payout_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="paid_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="payouts" indexName="idx_payout_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <!-- notification_logs -->
+        <createTable tableName="notification_logs">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="user_id" type="VARCHAR(36)"/>
+            <column name="order_id" type="VARCHAR(36)"/>
+            <column name="channel" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient" type="VARCHAR(255)"/>
+            <column name="body" type="VARCHAR(2000)"/>
+            <column name="status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_date" type="DATETIME"/>
+        </createTable>
+
+        <!-- status_change_logs -->
+        <createTable tableName="status_change_logs">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status_type" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_status" type="VARCHAR(40)"/>
+            <column name="to_status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="VARCHAR(64)"/>
+            <column name="note" type="VARCHAR(500)"/>
+        </createTable>
+        <createIndex tableName="status_change_logs" indexName="idx_statuslog_order">
+            <column name="order_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

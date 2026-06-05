@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Seeds the initial platform admin so the app is usable immediately on a
+      fresh database (all profiles, including prod).
+
+        email:    admin@orderlynk.app
+        password: admin12345   (BCrypt hash below)
+
+      SECURITY: change this password right after the first sign-in in any real
+      environment. The password is a normal BCrypt hash in the users table, so
+      changing it (via an admin endpoint or a follow-up migration) does NOT
+      require touching this changeset. The precondition makes the insert
+      idempotent: if an admin@orderlynk.app row already exists (e.g. a database
+      that previously had demo data), the seed is skipped and any changed
+      password is preserved.
+    -->
+    <changeSet id="002-seed-admin" author="orderlynk">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM users WHERE email = 'admin@orderlynk.app'
+            </sqlCheck>
+        </preConditions>
+
+        <insert tableName="users">
+            <column name="id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="email" value="admin@orderlynk.app"/>
+            <!-- BCrypt hash of "admin12345" -->
+            <column name="password_hash" value="$2y$10$kC9ClId81lj9Se83vr7Ss.s8vNGpXmnk0Rflzd8u.ymo4gyn5ZDHC"/>
+            <column name="full_name" value="Orderlynk Admin"/>
+            <column name="role" value="ADMIN"/>
+            <column name="admin" valueBoolean="true"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="users">
+                <where>email = 'admin@orderlynk.app'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
