@@ -84,6 +84,20 @@ resend:
   from-email: ${RESEND_FROM_EMAIL:noreply@myorderlynk.com}
   from-name: ${RESEND_FROM_NAME:MyOrderLynk}
 
+whatsapp:
+  # Channel provider: "twilio" (default) or "meta". Leave the chosen provider's
+  # credentials blank to disable WhatsApp (messages are skipped + logged).
+  provider: ${WHATSAPP_PROVIDER:twilio}
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:}
+    auth-token: ${TWILIO_AUTH_TOKEN:}
+    from: ${TWILIO_WHATSAPP_FROM:}        # e.g. +14155238886 (Twilio sandbox sender)
+    api-base-url: ${TWILIO_API_BASE_URL:https://api.twilio.com}
+  meta:
+    access-token: ${WHATSAPP_ACCESS_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    api-base-url: ${WHATSAPP_API_BASE_URL:https://graph.facebook.com/v21.0}
+
 logging:
   level:
     com.myorderlynk: INFO

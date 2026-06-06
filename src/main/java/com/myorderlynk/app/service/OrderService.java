@@ -26,6 +26,7 @@ import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.service.notification.EmailService;
+import com.myorderlynk.app.service.notification.WhatsAppService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -53,12 +54,13 @@ public class OrderService {
     private final AuditService audit;
     private final Mapper mapper;
     private final EmailService emailService;
+    private final WhatsAppService whatsAppService;
     private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
                         PaymentRecordRepository payments, UserRepository users, FeeCalculator feeCalculator,
                         NotificationService notifications, AuditService audit, Mapper mapper,
-                        EmailService emailService,
+                        EmailService emailService, WhatsAppService whatsAppService,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
@@ -70,6 +72,7 @@ public class OrderService {
         this.audit = audit;
         this.mapper = mapper;
         this.emailService = emailService;
+        this.whatsAppService = whatsAppService;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -154,6 +157,7 @@ public class OrderService {
                 "Order created");
         notifyOrderReceived(order, vendor);
         emailService.sendOrderCreated(order, vendor.getBusinessName());
+        whatsAppService.orderCreated(order, vendor);
         notifications.notifyOrder(order, "DASHBOARD", "NEW_ORDER_ALERT", vendor.getBusinessName(),
                 "New order " + order.getPublicOrderId() + " for " + order.getTotalAmount() + " " + order.getCurrency() + ".");
         if (!lowStockHits.isEmpty()) {
@@ -224,6 +228,7 @@ public class OrderService {
         audit.logChange(orderId, "FULFILLMENT", from.name(), to.name(), actor, req.note());
         notifyFulfillment(order, to);
         emailService.sendOrderStatusChange(order, vendorName(vendorId), to);
+        vendors.findById(vendorId).ifPresent(v -> whatsAppService.fulfillmentUpdated(order, v, to));
         return mapper.order(order, vendorName(vendorId));
     }
 
@@ -268,6 +273,9 @@ public class OrderService {
             notifications.notifyOrder(order, "EMAIL", "PAYMENT_CONFIRMED", order.getCustomerEmail(),
                     "Payment confirmed for order " + order.getPublicOrderId() + ".");
             emailService.sendPaymentReceived(order, vendorName(order.getVendorId()), amount);
+        }
+        if (from != to) {
+            vendors.findById(order.getVendorId()).ifPresent(v -> whatsAppService.paymentUpdated(order, v, to));
         }
         return mapper.order(order, vendorName(order.getVendorId()));
     }

@@ -100,7 +100,7 @@ public class CustomerAddressService {
     }
 
     private CustomerAddressResponse toResponse(CustomerAddress a) {
-        Address ad = a.getAddress();
+        Address ad = a.getAddress() == null ? new Address() : a.getAddress();
         return new CustomerAddressResponse(a.getId(), a.getLabel(),
                 new AddressDto(ad.getHouseNumber(), ad.getStreet(), ad.getCity(), ad.getPostcode(), ad.getCountry()),
                 a.isDefault());

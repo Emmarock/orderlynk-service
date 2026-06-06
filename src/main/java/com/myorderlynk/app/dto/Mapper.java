@@ -15,9 +15,14 @@ import java.util.List;
 @Component
 public class Mapper {
 
+    /** Hibernate maps an all-null @Embedded address to null on read; treat that as an empty address. */
+    private static Address orEmpty(Address a) {
+        return a == null ? new Address() : a;
+    }
+
     /** Full vendor view, including private payout details — for the vendor's own console and admins. */
     public VendorDtos.VendorResponse vendor(Vendor v) {
-        Address a = v.getAddress();
+        Address a = orEmpty(v.getAddress());
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
                 a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
@@ -35,7 +40,7 @@ public class Mapper {
      * Customers see payment details only on their own order (see {@link #order(Order, Vendor)}).
      */
     public VendorDtos.VendorResponse publicVendor(Vendor v) {
-        Address a = v.getAddress();
+        Address a = orEmpty(v.getAddress());
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
                 a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
@@ -73,7 +78,7 @@ public class Mapper {
 
     private OrderDtos.OrderResponse buildOrder(Order o, String vendorName, OrderDtos.PaymentInstructions payment) {
         List<OrderDtos.OrderItemResponse> items = o.getItems().stream().map(this::orderItem).toList();
-        Address d = o.getDeliveryAddress();
+        Address d = orEmpty(o.getDeliveryAddress());
         return new OrderDtos.OrderResponse(
                 o.getId(), o.getPublicOrderId(), o.getCustomerName(), o.getCustomerPhone(),
                 o.getCustomerEmail(), d.getHouseNumber(), d.getStreet(), d.getCity(),
