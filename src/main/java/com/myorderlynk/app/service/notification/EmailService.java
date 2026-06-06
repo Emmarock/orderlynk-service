@@ -1,6 +1,7 @@
 package com.myorderlynk.app.service.notification;
 
 import com.myorderlynk.app.domain.Order;
+import com.myorderlynk.app.service.OrderLinks;
 import com.myorderlynk.app.domain.enums.FulfillmentStatus;
 import com.myorderlynk.app.dto.AnalyticsDtos.ProductSalesSummary;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +28,13 @@ import java.util.Map;
 public class EmailService {
 
     private final ApplicationEventPublisher events;
+    private final OrderLinks orderLinks;
     private final String baseUrl;
 
-    public EmailService(ApplicationEventPublisher events,
+    public EmailService(ApplicationEventPublisher events, OrderLinks orderLinks,
                         @Value("${app.public-base-url:http://localhost:5173}") String baseUrl) {
         this.events = events;
+        this.orderLinks = orderLinks;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
@@ -137,7 +140,7 @@ public class EmailService {
     }
 
     private String trackUrl(Order order) {
-        return baseUrl + "/track?orderId=" + enc(order.getPublicOrderId()) + "&contact=" + enc(order.getCustomerEmail());
+        return orderLinks.trackUrl(order);
     }
 
     private static String topProductRows(List<ProductSalesSummary> products) {

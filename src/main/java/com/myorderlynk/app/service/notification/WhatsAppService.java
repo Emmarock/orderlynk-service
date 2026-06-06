@@ -4,6 +4,7 @@ import com.myorderlynk.app.domain.Order;
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.FulfillmentStatus;
 import com.myorderlynk.app.domain.enums.PaymentStatus;
+import com.myorderlynk.app.service.OrderLinks;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,11 +38,13 @@ import java.util.UUID;
 public class WhatsAppService {
 
     private final ApplicationEventPublisher events;
+    private final OrderLinks orderLinks;
     private final String baseUrl;
 
-    public WhatsAppService(ApplicationEventPublisher events,
+    public WhatsAppService(ApplicationEventPublisher events, OrderLinks orderLinks,
                            @Value("${app.public-base-url:http://localhost:5173}") String baseUrl) {
         this.events = events;
+        this.orderLinks = orderLinks;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
@@ -115,7 +118,7 @@ public class WhatsAppService {
     }
 
     private String trackUrl(Order order) {
-        return baseUrl + "/track?orderId=" + enc(order.getPublicOrderId()) + "&contact=" + enc(order.getCustomerPhone());
+        return orderLinks.trackUrl(order);
     }
 
     private String dashboardUrl() {

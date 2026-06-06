@@ -69,6 +69,11 @@ public final class OrderDtos {
             @NotBlank String contact) {
     }
 
+    /** Tracking via a signed token from an order link (keeps order id + contact out of the URL). */
+    public record TrackTokenRequest(
+            @NotBlank String token) {
+    }
+
     public record FulfillmentUpdateRequest(
             @NotNull FulfillmentStatus status,
             String note) {

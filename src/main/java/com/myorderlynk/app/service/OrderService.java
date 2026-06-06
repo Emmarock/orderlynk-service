@@ -25,6 +25,7 @@ import com.myorderlynk.app.repository.ProductRepository;
 import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.service.notification.EmailService;
 import com.myorderlynk.app.service.notification.WhatsAppService;
 import lombok.extern.slf4j.Slf4j;
@@ -55,12 +56,15 @@ public class OrderService {
     private final Mapper mapper;
     private final EmailService emailService;
     private final WhatsAppService whatsAppService;
+    private final OrderLinks orderLinks;
+    private final JwtService jwtService;
     private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
                         PaymentRecordRepository payments, UserRepository users, FeeCalculator feeCalculator,
                         NotificationService notifications, AuditService audit, Mapper mapper,
                         EmailService emailService, WhatsAppService whatsAppService,
+                        OrderLinks orderLinks, JwtService jwtService,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
@@ -73,7 +77,16 @@ public class OrderService {
         this.mapper = mapper;
         this.emailService = emailService;
         this.whatsAppService = whatsAppService;
+        this.orderLinks = orderLinks;
+        this.jwtService = jwtService;
         this.publicBaseUrl = publicBaseUrl;
+    }
+
+    /** Resolve a signed track token to its order (keeps order id + contact out of the URL). */
+    @Transactional(readOnly = true)
+    public OrderResponse trackByToken(String token) {
+        JwtService.OrderTrackToken claims = jwtService.parseOrderTrackToken(token);
+        return track(claims.publicOrderId(), claims.contact());
     }
 
     @Transactional(readOnly = true)
@@ -346,7 +359,7 @@ public class OrderService {
                 .append("Hi ").append(order.getCustomerName()).append(",\n\n")
                 .append("Your order ").append(order.getPublicOrderId())
                 .append(" with ").append(vendor.getBusinessName()).append(" has been received.\n\n")
-                .append("Track your order here: ").append(trackLink(order, recipient)).append("\n");
+                .append("Track your order here: ").append(orderLinks.trackUrl(order)).append("\n");
         if (!registered) {
             body.append("\nNew to Orderlynk? Create an account to track all your orders in one place: ")
                     .append(registerLink(order));
@@ -355,11 +368,6 @@ public class OrderService {
         log.info("Order-received notification for {} via {} (registerLinkIncluded={})",
                 order.getPublicOrderId(), channel, !registered);
         notifications.notifyOrder(order, channel, "ORDER_RECEIVED", recipient, body.toString());
-    }
-
-    /** Deep link that pre-fills the track form with this order's id and the contact we notified. */
-    private String trackLink(Order order, String contact) {
-        return base() + "/track?orderId=" + enc(order.getPublicOrderId()) + "&contact=" + enc(contact);
     }
 
     /** Registration link, pre-filling the customer's email when we have it. */

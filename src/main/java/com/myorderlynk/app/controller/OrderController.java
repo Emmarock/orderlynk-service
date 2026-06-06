@@ -5,6 +5,7 @@ import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.OrderDtos.QuoteRequest;
 import com.myorderlynk.app.dto.OrderDtos.QuoteResponse;
 import com.myorderlynk.app.dto.OrderDtos.TrackOrderRequest;
+import com.myorderlynk.app.dto.OrderDtos.TrackTokenRequest;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.OrderService;
@@ -50,6 +51,12 @@ public class OrderController {
     @PostMapping("/track")
     public OrderResponse track(@Valid @RequestBody TrackOrderRequest req) {
         return orderService.track(req.orderId(), req.contact());
+    }
+
+    /** Resolve a signed tracking token (from an order link) to the order. */
+    @PostMapping("/track-token")
+    public OrderResponse trackByToken(@Valid @RequestBody TrackTokenRequest req) {
+        return orderService.trackByToken(req.token());
     }
 
     @GetMapping("/mine")
