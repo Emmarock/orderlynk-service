@@ -70,6 +70,9 @@ app:
     require-purchase: ${APP_RATINGS_REQUIRE_PURCHASE:true}
   payout:
     weekly-cron: "0 0 6 * * MON"
+  tokens:
+    # Purge of used/expired email-verification & password-reset tokens.
+    cleanup-cron: "0 30 3 * * *"
   fees:
     service-fee-rate: 0.03
     processing-rate: 0.029

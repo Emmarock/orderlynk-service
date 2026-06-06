@@ -17,6 +17,7 @@ import com.myorderlynk.app.service.util.CodeGenerator;
 import com.myorderlynk.app.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,6 +124,16 @@ public class AuthService {
         record.setUsedAt(Instant.now());
         userTokens.save(record);
         log.info("Password reset completed for user {}", user.getId());
+    }
+
+    /** Scheduled cleanup of consumed/expired verification + reset tokens (default: daily at 03:30 UTC). */
+    @Scheduled(cron = "${app.tokens.cleanup-cron:0 30 3 * * *}")
+    @Transactional
+    public void purgeExpiredTokens() {
+        int removed = userTokens.deleteUsedOrExpired(Instant.now());
+        if (removed > 0) {
+            log.info("Purged {} used/expired user tokens", removed);
+        }
     }
 
     private String createToken(User user, String type, Duration ttl) {
