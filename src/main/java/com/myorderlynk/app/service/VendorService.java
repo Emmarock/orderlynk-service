@@ -93,6 +93,7 @@ public class VendorService {
     @Transactional
     public VendorResponse updateStorefront(UUID vendorId, VendorUpdateRequest req) {
         Vendor vendor = require(vendorId);
+        if (req.businessName() != null && !req.businessName().isBlank()) vendor.setBusinessName(req.businessName());
         if (req.description() != null) vendor.setDescription(req.description());
         if (req.city() != null) vendor.setCity(req.city());
         if (req.country() != null) vendor.setCountry(req.country());
@@ -103,6 +104,16 @@ public class VendorService {
             vendor.getFulfillmentTypes().clear();
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
         }
+        // Payout details
+        if (req.payoutMethod() != null) vendor.setPayoutMethod(req.payoutMethod());
+        if (req.payoutAccountName() != null) vendor.setPayoutAccountName(req.payoutAccountName());
+        if (req.payoutAccountNumber() != null) vendor.setPayoutAccountNumber(req.payoutAccountNumber());
+        if (req.payoutBankName() != null) vendor.setPayoutBankName(req.payoutBankName());
+        if (req.payoutEmail() != null) vendor.setPayoutEmail(req.payoutEmail());
+        // Notification preferences
+        if (req.notifyByEmail() != null) vendor.setNotifyByEmail(req.notifyByEmail());
+        if (req.notifyByWhatsapp() != null) vendor.setNotifyByWhatsapp(req.notifyByWhatsapp());
+        if (req.lowStockAlerts() != null) vendor.setLowStockAlerts(req.lowStockAlerts());
         return mapper.vendor(vendors.save(vendor));
     }
 

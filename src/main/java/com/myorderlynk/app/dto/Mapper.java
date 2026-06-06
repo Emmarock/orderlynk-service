@@ -19,15 +19,19 @@ public class Mapper {
                 v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
-                v.getRatingCount(), v.getCommissionRate());
+                v.getRatingCount(), v.getCommissionRate(),
+                v.getPayoutMethod(), v.getPayoutAccountName(), v.getPayoutAccountNumber(),
+                v.getPayoutBankName(), v.getPayoutEmail(),
+                v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts());
     }
 
     public ProductDtos.ProductResponse product(Product p) {
+        boolean lowStock = p.getLowStockThreshold() > 0 && p.getQuantityAvailable() <= p.getLowStockThreshold();
         return new ProductDtos.ProductResponse(
                 p.getId(), p.getVendorId(), p.getName(), p.getDescription(), p.getCategory(),
-                p.getPrice(), p.getCurrency(), p.getQuantityAvailable(), p.getProductImageUrl(),
-                p.getFulfillmentType(), p.getOriginCountry(), p.isAvailableNow(), p.getBatchId(),
-                p.isActive());
+                p.getPrice(), p.getCurrency(), p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
+                p.getProductImageUrl(), p.getFulfillmentType(), p.getOriginCountry(), p.isAvailableNow(),
+                p.getBatchId(), p.isActive());
     }
 
     public OrderDtos.OrderItemResponse orderItem(OrderItem i) {

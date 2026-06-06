@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Prototype improvements: low-stock alerts, vendor payout/notification settings, support tickets. -->
+
+    <changeSet id="004-product-low-stock" author="orderlynk">
+        <addColumn tableName="products">
+            <column name="low_stock_threshold" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="004-vendor-settings" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="payout_method" type="VARCHAR(40)"/>
+            <column name="payout_account_name" type="VARCHAR(255)"/>
+            <column name="payout_account_number" type="VARCHAR(255)"/>
+            <column name="payout_bank_name" type="VARCHAR(255)"/>
+            <column name="payout_email" type="VARCHAR(255)"/>
+            <column name="notify_by_email" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notify_by_whatsapp" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="low_stock_alerts" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="004-support-tickets" author="orderlynk">
+        <createTable tableName="support_tickets">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="VARCHAR(4000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="support_tickets" indexName="idx_support_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

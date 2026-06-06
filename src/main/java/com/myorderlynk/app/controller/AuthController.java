@@ -1,9 +1,11 @@
 package com.myorderlynk.app.controller;
 
 import com.myorderlynk.app.dto.AuthDtos.AuthResponse;
+import com.myorderlynk.app.dto.AuthDtos.ChangeEmailRequest;
 import com.myorderlynk.app.dto.AuthDtos.ChangePasswordRequest;
 import com.myorderlynk.app.dto.AuthDtos.LoginRequest;
 import com.myorderlynk.app.dto.AuthDtos.RegisterRequest;
+import com.myorderlynk.app.dto.AuthDtos.UpdateProfileRequest;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.AuthService;
 import jakarta.validation.Valid;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,5 +51,19 @@ public class AuthController {
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         authService.changePassword(currentUser.require().userId(), req);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Update the signed-in user's profile (name, phone, city, country). */
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public AuthResponse updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
+        return authService.updateProfile(currentUser.require().userId(), req);
+    }
+
+    /** Change the signed-in user's email; returns a refreshed token. */
+    @PostMapping("/change-email")
+    @PreAuthorize("isAuthenticated()")
+    public AuthResponse changeEmail(@Valid @RequestBody ChangeEmailRequest req) {
+        return authService.changeEmail(currentUser.require().userId(), req);
     }
 }

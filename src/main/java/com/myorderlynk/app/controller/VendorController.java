@@ -4,6 +4,9 @@ import com.myorderlynk.app.dto.AnalyticsDtos.BroadcastRequest;
 import com.myorderlynk.app.dto.AnalyticsDtos.BroadcastResult;
 import com.myorderlynk.app.dto.AnalyticsDtos.CustomerSummary;
 import com.myorderlynk.app.dto.AnalyticsDtos.VendorAnalytics;
+import com.myorderlynk.app.dto.FinanceDtos.EarningsSummary;
+import com.myorderlynk.app.dto.SupportDtos.SupportRequest;
+import com.myorderlynk.app.dto.SupportDtos.SupportTicketResponse;
 import com.myorderlynk.app.dto.OrderDtos.FulfillmentUpdateRequest;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.OrderDtos.PaymentUpdateRequest;
@@ -20,9 +23,11 @@ import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorUpdateRequest;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
+import com.myorderlynk.app.service.EarningsService;
 import com.myorderlynk.app.service.OrderService;
 import com.myorderlynk.app.service.PayoutService;
 import com.myorderlynk.app.service.ProductService;
+import com.myorderlynk.app.service.SupportService;
 import com.myorderlynk.app.service.VendorAnalyticsService;
 import com.myorderlynk.app.service.VendorService;
 import com.myorderlynk.app.exception.ApiException;
@@ -57,16 +62,21 @@ public class VendorController {
     private final OrderService orderService;
     private final PayoutService payoutService;
     private final VendorAnalyticsService analyticsService;
+    private final EarningsService earningsService;
+    private final SupportService supportService;
     private final CurrentUser currentUser;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
                             PayoutService payoutService, VendorAnalyticsService analyticsService,
+                            EarningsService earningsService, SupportService supportService,
                             CurrentUser currentUser) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
         this.payoutService = payoutService;
         this.analyticsService = analyticsService;
+        this.earningsService = earningsService;
+        this.supportService = supportService;
         this.currentUser = currentUser;
     }
 
@@ -187,6 +197,31 @@ public class VendorController {
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         Instant[] r = range(from, to);
         return analyticsService.broadcast(vendorId(), req.subject(), req.message(), r[0], r[1]);
+    }
+
+    // ---- Finance / earnings ----
+
+    /** Earnings rollup (gross sales, commission, tax, net payout) + order-level breakdown for a date range. */
+    @GetMapping("/earnings")
+    @PreAuthorize("hasRole('VENDOR')")
+    public EarningsSummary earnings(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Instant[] r = range(from, to);
+        return earningsService.earnings(vendorId(), r[0], r[1]);
+    }
+
+    // ---- Support ("Message Us") ----
+
+    @PostMapping("/support")
+    @PreAuthorize("hasRole('VENDOR')")
+    public SupportTicketResponse createSupportTicket(@Valid @RequestBody SupportRequest req) {
+        return supportService.create(vendorId(), currentUser.require().userId(), req);
+    }
+
+    @GetMapping("/support")
+    @PreAuthorize("hasRole('VENDOR')")
+    public List<SupportTicketResponse> supportTickets() {
+        return supportService.forVendor(vendorId());
     }
 
     @GetMapping("/orders/{id}")

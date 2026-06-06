@@ -43,6 +43,10 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private int quantityAvailable = 0;
 
+    /** Vendor-set threshold for low-stock alerts; 0 disables alerting for this product. */
+    @Column(nullable = false)
+    private int lowStockThreshold = 0;
+
     private String productImageUrl;
 
     @Enumerated(EnumType.STRING)

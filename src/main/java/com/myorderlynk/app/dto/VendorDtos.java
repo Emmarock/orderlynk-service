@@ -30,13 +30,22 @@ public final class VendorDtos {
     }
 
     public record VendorUpdateRequest(
+            String businessName,
             String description,
             String city,
             String country,
             String whatsappNumber,
             String instagramHandle,
             String logoUrl,
-            Set<FulfillmentType> fulfillmentTypes) {
+            Set<FulfillmentType> fulfillmentTypes,
+            String payoutMethod,
+            String payoutAccountName,
+            String payoutAccountNumber,
+            String payoutBankName,
+            String payoutEmail,
+            Boolean notifyByEmail,
+            Boolean notifyByWhatsapp,
+            Boolean lowStockAlerts) {
     }
 
     public record VendorResponse(
@@ -54,7 +63,15 @@ public final class VendorDtos {
             boolean active,
             BigDecimal rating,
             int ratingCount,
-            BigDecimal commissionRate) {
+            BigDecimal commissionRate,
+            String payoutMethod,
+            String payoutAccountName,
+            String payoutAccountNumber,
+            String payoutBankName,
+            String payoutEmail,
+            boolean notifyByEmail,
+            boolean notifyByWhatsapp,
+            boolean lowStockAlerts) {
     }
 
     /** Submitted by a customer to rate a vendor (1–5 stars). */

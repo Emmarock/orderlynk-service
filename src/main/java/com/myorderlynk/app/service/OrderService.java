@@ -21,13 +21,18 @@ import com.myorderlynk.app.dto.OrderDtos.QuoteResponse;
 import com.myorderlynk.app.repository.OrderRepository;
 import com.myorderlynk.app.repository.PaymentRecordRepository;
 import com.myorderlynk.app.repository.ProductRepository;
+import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,22 +43,27 @@ public class OrderService {
     private final ProductRepository products;
     private final VendorRepository vendors;
     private final PaymentRecordRepository payments;
+    private final UserRepository users;
     private final FeeCalculator feeCalculator;
     private final NotificationService notifications;
     private final AuditService audit;
     private final Mapper mapper;
+    private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
-                        PaymentRecordRepository payments, FeeCalculator feeCalculator,
-                        NotificationService notifications, AuditService audit, Mapper mapper) {
+                        PaymentRecordRepository payments, UserRepository users, FeeCalculator feeCalculator,
+                        NotificationService notifications, AuditService audit, Mapper mapper,
+                        @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
         this.vendors = vendors;
         this.payments = payments;
+        this.users = users;
         this.feeCalculator = feeCalculator;
         this.notifications = notifications;
         this.audit = audit;
         this.mapper = mapper;
+        this.publicBaseUrl = publicBaseUrl;
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +95,7 @@ public class OrderService {
         order.setFulfillmentStatus(FulfillmentStatus.ORDER_RECEIVED);
 
         BigDecimal subtotal = BigDecimal.ZERO;
+        List<String> lowStockHits = new ArrayList<>();
         for (CartLine line : req.items()) {
             Product product = products.findById(line.productId())
                     .orElseThrow(() -> ApiException.badRequest("Product " + line.productId() + " not found"));
@@ -107,6 +118,10 @@ public class OrderService {
 
             product.setQuantityAvailable(product.getQuantityAvailable() - line.quantity());
             products.save(product);
+
+            if (product.getLowStockThreshold() > 0 && product.getQuantityAvailable() <= product.getLowStockThreshold()) {
+                lowStockHits.add(product.getName() + " (" + product.getQuantityAvailable() + " left)");
+            }
         }
 
         FeeCalculator.FeeBreakdown fb = feeCalculator.calculate(
@@ -125,10 +140,13 @@ public class OrderService {
 
         audit.logChange(order.getId(), "FULFILLMENT", null, FulfillmentStatus.ORDER_RECEIVED.name(), "SYSTEM",
                 "Order created");
-        notifications.notifyOrder(order, "EMAIL", "ORDER_RECEIVED", order.getCustomerEmail(),
-                "Your order " + order.getPublicOrderId() + " has been received by " + vendor.getBusinessName() + ".");
+        notifyOrderReceived(order, vendor);
         notifications.notifyOrder(order, "DASHBOARD", "NEW_ORDER_ALERT", vendor.getBusinessName(),
                 "New order " + order.getPublicOrderId() + " for " + order.getTotalAmount() + " " + order.getCurrency() + ".");
+        if (!lowStockHits.isEmpty()) {
+            notifications.notifyOrder(order, "DASHBOARD", "LOW_STOCK_ALERT", vendor.getBusinessName(),
+                    "Low stock after order " + order.getPublicOrderId() + ": " + String.join(", ", lowStockHits));
+        }
 
         return mapper.order(order, vendor.getBusinessName());
     }
@@ -280,6 +298,55 @@ public class OrderService {
             throw ApiException.forbidden("This order belongs to another vendor");
         }
         return order;
+    }
+
+    /**
+     * Notifies the customer that their order was received, via email when an email is on file,
+     * otherwise WhatsApp (the phone is always present). The message always carries a tracking
+     * link, and — only when the customer isn't already an Orderlynk user — a registration link.
+     */
+    private void notifyOrderReceived(Order order, Vendor vendor) {
+        boolean hasEmail = order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank();
+        String channel = hasEmail ? "EMAIL" : "WHATSAPP";
+        String recipient = hasEmail ? order.getCustomerEmail() : order.getCustomerPhone();
+
+        // "Already registered" = signed in at checkout, or an account exists for this email.
+        boolean registered = order.getCustomerUserId() != null
+                || (hasEmail && users.existsByEmailIgnoreCase(order.getCustomerEmail()));
+
+        StringBuilder body = new StringBuilder()
+                .append("Hi ").append(order.getCustomerName()).append(",\n\n")
+                .append("Your order ").append(order.getPublicOrderId())
+                .append(" with ").append(vendor.getBusinessName()).append(" has been received.\n\n")
+                .append("Track your order here: ").append(trackLink(order, recipient)).append("\n");
+        if (!registered) {
+            body.append("\nNew to Orderlynk? Create an account to track all your orders in one place: ")
+                    .append(registerLink(order));
+        }
+
+        notifications.notifyOrder(order, channel, "ORDER_RECEIVED", recipient, body.toString());
+    }
+
+    /** Deep link that pre-fills the track form with this order's id and the contact we notified. */
+    private String trackLink(Order order, String contact) {
+        return base() + "/track?orderId=" + enc(order.getPublicOrderId()) + "&contact=" + enc(contact);
+    }
+
+    /** Registration link, pre-filling the customer's email when we have it. */
+    private String registerLink(Order order) {
+        String link = base() + "/register";
+        if (order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank()) {
+            link += "?email=" + enc(order.getCustomerEmail());
+        }
+        return link;
+    }
+
+    private String base() {
+        return publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
+    }
+
+    private static String enc(String value) {
+        return UriUtils.encode(value, StandardCharsets.UTF_8);
     }
 
     private String vendorName(UUID vendorId) {

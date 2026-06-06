@@ -73,4 +73,29 @@ public class Vendor extends BaseEntity {
     /** Platform commission rate applied to this vendor's product subtotal (e.g. 0.07 = 7%). */
     @Column(nullable = false)
     private BigDecimal commissionRate = new BigDecimal("0.07");
+
+    // ---- Payout / settlement details (Settings → Payment/payout information) ----
+
+    /** How the vendor is paid out, e.g. INTERAC, BANK_TRANSFER. */
+    private String payoutMethod;
+
+    private String payoutAccountName;
+
+    private String payoutAccountNumber;
+
+    private String payoutBankName;
+
+    /** Email for Interac e-Transfer payouts. */
+    private String payoutEmail;
+
+    // ---- Notification preferences (Settings → Notification preferences) ----
+
+    @Column(nullable = false)
+    private boolean notifyByEmail = true;
+
+    @Column(nullable = false)
+    private boolean notifyByWhatsapp = false;
+
+    @Column(nullable = false)
+    private boolean lowStockAlerts = true;
 }

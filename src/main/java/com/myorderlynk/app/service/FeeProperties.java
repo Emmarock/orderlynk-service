@@ -27,6 +27,9 @@ public class FeeProperties {
     /** Platform margin retained from the logistics fee. */
     private BigDecimal logisticsMarginRate = new BigDecimal("0.00");
 
+    /** Tax withheld from the vendor's net earnings (fraction). 0 = no tax withholding. */
+    private BigDecimal taxRate = new BigDecimal("0.00");
+
     /** Flat logistics fee per fulfillment type. */
     private Map<FulfillmentType, BigDecimal> logistics = defaultLogistics();
 
@@ -79,6 +82,14 @@ public class FeeProperties {
 
     public void setLogisticsMarginRate(BigDecimal logisticsMarginRate) {
         this.logisticsMarginRate = logisticsMarginRate;
+    }
+
+    public BigDecimal getTaxRate() {
+        return taxRate;
+    }
+
+    public void setTaxRate(BigDecimal taxRate) {
+        this.taxRate = taxRate;
     }
 
     public Map<FulfillmentType, BigDecimal> getLogistics() {

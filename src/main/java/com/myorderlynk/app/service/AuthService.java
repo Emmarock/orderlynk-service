@@ -3,9 +3,11 @@ package com.myorderlynk.app.service;
 import com.myorderlynk.app.domain.User;
 import com.myorderlynk.app.domain.enums.UserRole;
 import com.myorderlynk.app.dto.AuthDtos.AuthResponse;
+import com.myorderlynk.app.dto.AuthDtos.ChangeEmailRequest;
 import com.myorderlynk.app.dto.AuthDtos.ChangePasswordRequest;
 import com.myorderlynk.app.dto.AuthDtos.LoginRequest;
 import com.myorderlynk.app.dto.AuthDtos.RegisterRequest;
+import com.myorderlynk.app.dto.AuthDtos.UpdateProfileRequest;
 import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.exception.ApiException;
@@ -69,6 +71,37 @@ public class AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
         users.save(user);
+    }
+
+    /** Update the user's own profile details. Does not affect the auth token. */
+    @Transactional
+    public AuthResponse updateProfile(UUID userId, UpdateProfileRequest req) {
+        User user = users.findById(userId)
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        user.setFullName(req.fullName());
+        user.setPhone(req.phone());
+        user.setCity(req.city());
+        user.setCountry(req.country());
+        users.save(user);
+        return new AuthResponse(null, user.getId(), user.getFullName(), user.getEmail(),
+                user.getRole(), user.getVendorId());
+    }
+
+    /** Change the user's email after verifying their password; re-issues a token with fresh claims. */
+    @Transactional
+    public AuthResponse changeEmail(UUID userId, ChangeEmailRequest req) {
+        User user = users.findById(userId)
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Password is incorrect");
+        }
+        String newEmail = req.newEmail().trim().toLowerCase();
+        if (!newEmail.equalsIgnoreCase(user.getEmail()) && users.existsByEmailIgnoreCase(newEmail)) {
+            throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists");
+        }
+        user.setEmail(newEmail);
+        users.save(user);
+        return toResponse(user);
     }
 
     @Transactional(readOnly = true)

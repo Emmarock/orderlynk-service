@@ -31,6 +31,18 @@ public final class AuthDtos {
             @NotBlank @Size(min = 6, max = 100) String newPassword) {
     }
 
+    public record UpdateProfileRequest(
+            @NotBlank String fullName,
+            String phone,
+            String city,
+            String country) {
+    }
+
+    public record ChangeEmailRequest(
+            @Email @NotBlank String newEmail,
+            @NotBlank String currentPassword) {
+    }
+
     public record AuthResponse(
             String token,
             UUID userId,

@@ -141,6 +141,7 @@ public class ProductService {
         p.setPrice(req.price());
         if (req.currency() != null && !req.currency().isBlank()) p.setCurrency(req.currency());
         p.setQuantityAvailable(req.quantityAvailable());
+        if (req.lowStockThreshold() != null) p.setLowStockThreshold(req.lowStockThreshold());
         p.setProductImageUrl(req.productImageUrl());
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
