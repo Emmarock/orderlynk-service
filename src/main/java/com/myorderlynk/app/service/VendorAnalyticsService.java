@@ -8,6 +8,7 @@ import com.myorderlynk.app.dto.AnalyticsDtos.CustomerSummary;
 import com.myorderlynk.app.dto.AnalyticsDtos.ProductSalesSummary;
 import com.myorderlynk.app.dto.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.repository.OrderRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.UUID;
  * accept a date range so vendors can scope to a period.
  */
 @Service
+@Slf4j
 public class VendorAnalyticsService {
 
     private static final int TOP_N = 5;
@@ -86,6 +88,7 @@ public class VendorAnalyticsService {
                 recipients++;
             }
         }
+        log.info("Broadcast by vendor {}: sent to {} of {} customers", vendorId, recipients, customers.size());
         return new BroadcastResult(recipients, customers.size());
     }
 

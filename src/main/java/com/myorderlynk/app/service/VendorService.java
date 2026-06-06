@@ -19,10 +19,12 @@ import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.service.util.CodeGenerator;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
@@ -33,6 +35,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class VendorService {
 
     private final VendorRepository vendors;
@@ -40,16 +43,18 @@ public class VendorService {
     private final ProductRepository products;
     private final Mapper mapper;
     private final JwtService jwtService;
+    private final S3StorageService storage;
     private final String publicBaseUrl;
 
     public VendorService(VendorRepository vendors, UserRepository users, ProductRepository products,
-                         Mapper mapper, JwtService jwtService,
+                         Mapper mapper, JwtService jwtService, S3StorageService storage,
                          @Value("${app.public-base-url:https://orderlynk.app}") String publicBaseUrl) {
         this.vendors = vendors;
         this.users = users;
         this.products = products;
         this.mapper = mapper;
         this.jwtService = jwtService;
+        this.storage = storage;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -80,6 +85,7 @@ public class VendorService {
         user.setRole(UserRole.VENDOR);
         user.setVendorId(vendor.getId());
         users.save(user);
+        log.info("Vendor application: vendor={} slug={} by user={}", vendor.getId(), vendor.getStoreSlug(), userId);
 
         // Re-issue token so the client immediately has VENDOR authority + vendorId claim.
         return new ApplyResponse(jwtService.issueToken(user), mapper.vendor(vendor));
@@ -100,6 +106,7 @@ public class VendorService {
         if (req.whatsappNumber() != null) vendor.setWhatsappNumber(req.whatsappNumber());
         if (req.instagramHandle() != null) vendor.setInstagramHandle(req.instagramHandle());
         if (req.logoUrl() != null) vendor.setLogoUrl(req.logoUrl());
+        if (req.bannerUrl() != null) vendor.setBannerUrl(req.bannerUrl());
         if (req.fulfillmentTypes() != null) {
             vendor.getFulfillmentTypes().clear();
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
@@ -114,7 +121,35 @@ public class VendorService {
         if (req.notifyByEmail() != null) vendor.setNotifyByEmail(req.notifyByEmail());
         if (req.notifyByWhatsapp() != null) vendor.setNotifyByWhatsapp(req.notifyByWhatsapp());
         if (req.lowStockAlerts() != null) vendor.setLowStockAlerts(req.lowStockAlerts());
+        log.info("Storefront settings updated for vendor {}", vendorId);
         return mapper.vendor(vendors.save(vendor));
+    }
+
+    /**
+     * Upload a vendor branding image (logo or banner) from the vendor's device to S3 and
+     * return its public URL. The vendor then saves the URL via {@link #updateStorefront}.
+     */
+    public String uploadBrandingImage(UUID vendorId, String kind, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("No image file was provided");
+        }
+        String folder = switch (kind == null ? "" : kind.toLowerCase()) {
+            case "logo" -> "logo";
+            case "banner" -> "banner";
+            default -> throw ApiException.badRequest("kind must be 'logo' or 'banner'");
+        };
+        String ext = ImageUploads.extensionOrThrow(file.getContentType());
+        String key = "vendors/" + vendorId + "/" + folder + "/" + UUID.randomUUID() + "." + ext;
+        log.info("Uploading vendor {} image ({}) type={} size={}B key={}",
+                vendorId, folder, file.getContentType(), file.getSize(), key);
+        try {
+            String url = storage.uploadPublic(file.getBytes(), file.getContentType(), key);
+            log.info("Vendor {} {} uploaded -> {}", vendorId, folder, url);
+            return url;
+        } catch (java.io.IOException e) {
+            log.error("Failed to read uploaded {} image for vendor {}", folder, vendorId, e);
+            throw ApiException.badRequest("Could not read the uploaded image");
+        }
     }
 
     /** Public storefront by slug — only visible once approved + active (PRD §17). */

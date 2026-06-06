@@ -106,6 +106,14 @@ public class VendorController {
         return vendorService.updateStorefront(vendorId(), req);
     }
 
+    /** Upload a branding image (kind=logo|banner) from the vendor's device; returns the public URL to save. */
+    @PostMapping(value = "/branding/image", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ImageUploadResponse uploadBrandingImage(@RequestParam("kind") String kind,
+                                                   @RequestPart("file") MultipartFile file) {
+        return new ImageUploadResponse(vendorService.uploadBrandingImage(vendorId(), kind, file));
+    }
+
     @GetMapping("/share-link")
     @PreAuthorize("hasRole('VENDOR')")
     public ShareLinkResponse shareLink(@RequestParam(required = false) String source,

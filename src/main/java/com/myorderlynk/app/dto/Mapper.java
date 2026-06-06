@@ -18,7 +18,7 @@ public class Mapper {
     public VendorDtos.VendorResponse vendor(Vendor v) {
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
-                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getStoreSlug(),
+                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
                 v.getPayoutMethod(), v.getPayoutAccountName(), v.getPayoutAccountNumber(),
@@ -34,7 +34,7 @@ public class Mapper {
     public VendorDtos.VendorResponse publicVendor(Vendor v) {
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
-                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getStoreSlug(),
+                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
                 null, null, null, null, null,

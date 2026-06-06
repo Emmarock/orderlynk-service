@@ -9,6 +9,7 @@ import com.myorderlynk.app.repository.OrderRepository;
 import com.myorderlynk.app.repository.VendorRatingRepository;
 import com.myorderlynk.app.repository.VendorRatingRepository.RatingAggregate;
 import com.myorderlynk.app.repository.VendorRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.util.UUID;
  * without aggregating per request.
  */
 @Service
+@Slf4j
 public class VendorRatingService {
 
     private final VendorRepository vendors;
@@ -54,6 +56,8 @@ public class VendorRatingService {
         ratings.save(rating);
 
         recompute(vendor);
+        log.info("Rating saved: vendor={} customer={} stars={} -> avg={} count={}",
+                vendor.getId(), customerUserId, stars, vendor.getRating(), vendor.getRatingCount());
         return new RatingSummary(vendor.getRating(), vendor.getRatingCount(), stars);
     }
 

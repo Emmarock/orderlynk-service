@@ -11,6 +11,7 @@ import com.myorderlynk.app.dto.AuthDtos.UpdateProfileRequest;
 import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class AuthService {
 
     private final UserRepository users;
@@ -45,16 +47,22 @@ public class AuthService {
         user.setCountry(req.country());
         user.setRole(UserRole.CUSTOMER);
         users.save(user);
+        log.info("Registered new user {} ({})", user.getId(), user.getEmail());
         return toResponse(user);
     }
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
         User user = users.findByEmailIgnoreCase(req.email())
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.warn("Failed login (no such user) for {}", req.email());
+                    return new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+                });
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
+            log.warn("Failed login (bad password) for {}", req.email());
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
+        log.info("User {} logged in", user.getId());
         return toResponse(user);
     }
 
@@ -71,6 +79,7 @@ public class AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
         users.save(user);
+        log.info("Password changed for user {}", userId);
     }
 
     /** Update the user's own profile details. Does not affect the auth token. */
@@ -99,8 +108,10 @@ public class AuthService {
         if (!newEmail.equalsIgnoreCase(user.getEmail()) && users.existsByEmailIgnoreCase(newEmail)) {
             throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists");
         }
+        String oldEmail = user.getEmail();
         user.setEmail(newEmail);
         users.save(user);
+        log.info("Email changed for user {}: {} -> {}", userId, oldEmail, newEmail);
         return toResponse(user);
     }
 

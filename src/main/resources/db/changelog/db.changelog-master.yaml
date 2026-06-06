@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: changes/004-prototype-improvements.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/005-vendor-branding.xml
+      relativeToChangelogFile: true

@@ -24,6 +24,7 @@ import com.myorderlynk.app.repository.ProductRepository;
 import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orders;
@@ -79,6 +81,8 @@ public class OrderService {
     @Transactional
     public OrderResponse checkout(CheckoutRequest req, UUID customerUserId) {
         Vendor vendor = approvedVendor(req.vendorId());
+        log.info("Checkout: vendor={} items={} customerUser={} fulfillment={} payment={}",
+                vendor.getId(), req.items().size(), customerUserId, req.fulfillmentType(), req.paymentMethod());
 
         Order order = new Order();
         order.setVendorId(vendor.getId());
@@ -137,6 +141,8 @@ public class OrderService {
         order.setPublicOrderId(generateOrderId());
 
         orders.save(order);
+        log.info("Order placed: {} vendor={} total={} {}", order.getPublicOrderId(), vendor.getId(),
+                order.getTotalAmount(), order.getCurrency());
 
         audit.logChange(order.getId(), "FULFILLMENT", null, FulfillmentStatus.ORDER_RECEIVED.name(), "SYSTEM",
                 "Order created");
@@ -144,6 +150,7 @@ public class OrderService {
         notifications.notifyOrder(order, "DASHBOARD", "NEW_ORDER_ALERT", vendor.getBusinessName(),
                 "New order " + order.getPublicOrderId() + " for " + order.getTotalAmount() + " " + order.getCurrency() + ".");
         if (!lowStockHits.isEmpty()) {
+            log.warn("Low stock after order {} for vendor {}: {}", order.getPublicOrderId(), vendor.getId(), lowStockHits);
             notifications.notifyOrder(order, "DASHBOARD", "LOW_STOCK_ALERT", vendor.getBusinessName(),
                     "Low stock after order " + order.getPublicOrderId() + ": " + String.join(", ", lowStockHits));
         }
@@ -205,6 +212,7 @@ public class OrderService {
             order.setPickupCode(com.myorderlynk.app.service.util.CodeGenerator.pickupCode());
         }
         orders.save(order);
+        log.info("Fulfillment {}: {} -> {} (order {}, by {})", orderId, from, to, order.getPublicOrderId(), actor);
 
         audit.logChange(orderId, "FULFILLMENT", from.name(), to.name(), actor, req.note());
         notifyFulfillment(order, to);
@@ -244,6 +252,8 @@ public class OrderService {
             order.setRefundedAmount(amount);
         }
         orders.save(order);
+        log.info("Payment {}: {} -> {} amount={} (order {}, by {})", orderId, from, to, amount,
+                order.getPublicOrderId(), actor);
 
         audit.logChange(orderId, "PAYMENT", from.name(), to.name(), actor, req.transactionReference());
         if (to == PaymentStatus.PAID) {
@@ -324,6 +334,8 @@ public class OrderService {
                     .append(registerLink(order));
         }
 
+        log.info("Order-received notification for {} via {} (registerLinkIncluded={})",
+                order.getPublicOrderId(), channel, !registered);
         notifications.notifyOrder(order, channel, "ORDER_RECEIVED", recipient, body.toString());
     }
 

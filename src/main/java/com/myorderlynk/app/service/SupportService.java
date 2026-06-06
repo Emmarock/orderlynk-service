@@ -4,6 +4,7 @@ import com.myorderlynk.app.domain.SupportTicket;
 import com.myorderlynk.app.dto.SupportDtos.SupportRequest;
 import com.myorderlynk.app.dto.SupportDtos.SupportTicketResponse;
 import com.myorderlynk.app.repository.SupportTicketRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 /** Vendor support requests ("Message Us"). Tickets are persisted for the OrderLynk team to action. */
 @Service
+@Slf4j
 public class SupportService {
 
     private final SupportTicketRepository tickets;
@@ -29,7 +31,10 @@ public class SupportService {
         ticket.setSubject(req.subject().trim());
         ticket.setMessage(req.message().trim());
         ticket.setStatus("OPEN");
-        return toResponse(tickets.save(ticket));
+        SupportTicket saved = tickets.save(ticket);
+        log.info("Support ticket {} opened by user {} (vendor {}, category {})",
+                saved.getId(), userId, vendorId, req.category());
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)

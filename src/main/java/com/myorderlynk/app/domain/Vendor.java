@@ -47,6 +47,9 @@ public class Vendor extends BaseEntity {
 
     private String logoUrl;
 
+    /** Wide cover/banner image shown at the top of the storefront and on marketplace cards. */
+    private String bannerUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private VendorStatus verificationStatus = VendorStatus.SUBMITTED;

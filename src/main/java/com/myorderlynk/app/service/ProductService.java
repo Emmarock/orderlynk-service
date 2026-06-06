@@ -7,6 +7,7 @@ import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
 import com.myorderlynk.app.repository.ProductRepository;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,18 +15,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class ProductService {
-
-    /** Image types we accept for product photos, mapped to their canonical file extension. */
-    private static final Map<String, String> ALLOWED_IMAGE_TYPES = Map.of(
-            "image/jpeg", "jpg",
-            "image/png", "png",
-            "image/webp", "webp",
-            "image/gif", "gif");
 
     private static final int MAX_DESCRIPTION_WORDS = 100;
 
@@ -58,8 +52,11 @@ public class ProductService {
         String categoryHint = category == null ? "" : " Category: " + category.name().replace('_', ' ').toLowerCase() + ".";
         String user = "Product name: " + name.trim() + "." + categoryHint + " Write the description.";
 
+        log.info("Generating AI description for product '{}' (category={})", name.trim(), category);
         String text = openAi.complete(system, user, 220, 0.85);
-        return limitWords(stripWrappingQuotes(text), MAX_DESCRIPTION_WORDS);
+        String result = limitWords(stripWrappingQuotes(text), MAX_DESCRIPTION_WORDS);
+        log.debug("Generated description ({} chars) for '{}'", result.length(), name.trim());
+        return result;
     }
 
     private static String stripWrappingQuotes(String s) {
@@ -89,14 +86,16 @@ public class ProductService {
             throw ApiException.badRequest("No image file was provided");
         }
         String contentType = file.getContentType();
-        String ext = contentType == null ? null : ALLOWED_IMAGE_TYPES.get(contentType.toLowerCase());
-        if (ext == null) {
-            throw ApiException.badRequest("Unsupported image type. Use JPEG, PNG, WebP or GIF.");
-        }
+        String ext = ImageUploads.extensionOrThrow(contentType);
         String key = "products/" + vendorId + "/" + UUID.randomUUID() + "." + ext;
+        log.info("Uploading product image for vendor {}: type={} size={}B key={}",
+                vendorId, contentType, file.getSize(), key);
         try {
-            return storage.uploadPublic(file.getBytes(), contentType, key);
+            String url = storage.uploadPublic(file.getBytes(), contentType, key);
+            log.info("Product image uploaded for vendor {} -> {}", vendorId, url);
+            return url;
         } catch (IOException e) {
+            log.error("Failed to read uploaded image for vendor {}", vendorId, e);
             throw ApiException.badRequest("Could not read the uploaded image");
         }
     }
@@ -111,13 +110,16 @@ public class ProductService {
         Product p = new Product();
         p.setVendorId(vendorId);
         apply(p, req);
-        return mapper.product(products.save(p));
+        Product saved = products.save(p);
+        log.info("Product created: {} '{}' for vendor {}", saved.getId(), saved.getName(), vendorId);
+        return mapper.product(saved);
     }
 
     @Transactional
     public ProductResponse update(UUID vendorId, UUID productId, ProductRequest req) {
         Product p = ownedProduct(vendorId, productId);
         apply(p, req);
+        log.info("Product updated: {} for vendor {}", productId, vendorId);
         return mapper.product(products.save(p));
     }
 
@@ -125,12 +127,14 @@ public class ProductService {
     public void delete(UUID vendorId, UUID productId) {
         Product p = ownedProduct(vendorId, productId);
         products.delete(p);
+        log.info("Product deleted: {} for vendor {}", productId, vendorId);
     }
 
     @Transactional
     public ProductResponse toggleActive(UUID vendorId, UUID productId, boolean active) {
         Product p = ownedProduct(vendorId, productId);
         p.setActive(active);
+        log.info("Product {} set active={} for vendor {}", productId, active, vendorId);
         return mapper.product(products.save(p));
     }
 
