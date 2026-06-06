@@ -36,5 +36,8 @@ public class NotificationLog extends BaseEntity {
     @Column(nullable = false)
     private String status = "SENT";
 
+    /** Provider's message id (e.g. Twilio SID), for correlating async delivery-status callbacks. */
+    private String providerMessageId;
+
     private Instant sentDate;
 }

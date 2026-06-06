@@ -33,22 +33,22 @@ public class MetaWhatsAppProvider implements WhatsAppProvider {
     }
 
     @Override
-    public void send(String toPhone, String body) {
-        String to = toPhone == null ? "" : toPhone.replaceAll("\\D", "");
+    public String send(WhatsAppRequestedEvent message) {
+        String to = message.to() == null ? "" : message.to().replaceAll("\\D", "");
         if (!configured) {
             log.warn("Skipping WhatsApp message to {} — Meta not configured", to);
-            return;
+            return null;
         }
         if (to.isBlank()) {
             log.warn("Skipping WhatsApp message — no recipient number");
-            return;
+            return null;
         }
 
         Map<String, Object> payload = Map.of(
                 "messaging_product", "whatsapp",
                 "to", to,
                 "type", "text",
-                "text", Map.of("preview_url", true, "body", body));
+                "text", Map.of("preview_url", true, "body", message.body()));
         try {
             webClient.post()
                     .uri("/{phoneNumberId}/messages", meta.getPhoneNumberId())
@@ -58,6 +58,8 @@ public class MetaWhatsAppProvider implements WhatsAppProvider {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+            log.info("Meta accepted WhatsApp to {}", to);
+            return null; // Meta returns a wamid; delivery tracking via Meta webhooks is out of scope here.
         } catch (WebClientResponseException e) {
             throw new IllegalStateException(
                     "WhatsApp (Meta) send to " + to + " failed (HTTP " + e.getStatusCode().value() + "): "

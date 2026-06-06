@@ -13,11 +13,24 @@ import org.springframework.web.util.UriUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Builds and publishes WhatsApp messages for order events, to both the customer (their
- * phone) and the vendor (their WhatsApp number). Customer messages are transactional and
- * always sent; vendor messages respect the vendor's {@code notifyByWhatsapp} preference.
+ * phone) and the vendor (their WhatsApp number). Each message carries a template key + ordered
+ * variables (used for an approved Content template when configured) and a plain-text fallback.
+ *
+ * <p>Content template variable contracts (configure matching templates in Twilio):
+ * <ul>
+ *   <li>{@code order-created}: 1=customer first name, 2=order id, 3=vendor name, 4=track url</li>
+ *   <li>{@code order-status}: 1=order id, 2=status, 3=track url</li>
+ *   <li>{@code payment}: 1=order id, 2=payment status, 3=track url</li>
+ *   <li>{@code vendor-new-order}: 1=order id, 2=customer name, 3=total</li>
+ *   <li>{@code vendor-order-status}: 1=order id, 2=status</li>
+ *   <li>{@code vendor-payment}: 1=order id, 2=payment status</li>
+ * </ul>
+ * Customer messages are transactional (always sent); vendor messages respect {@code notifyByWhatsapp}.
  */
 @Slf4j
 @Service
@@ -32,28 +45,48 @@ public class WhatsAppService {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
-    /** New order placed → confirm to the customer, alert the vendor. */
     public void orderCreated(Order order, Vendor vendor) {
-        toCustomer(order, "Hi " + firstName(order) + "! Your order " + order.getPublicOrderId()
-                + " with " + vendor.getBusinessName() + " has been received. Track it here: " + trackUrl(order));
-        toVendor(vendor, "🛒 New order " + order.getPublicOrderId() + " from " + order.getCustomerName()
-                + " for " + money(order.getTotalAmount(), order.getCurrency()) + ". Manage it: " + dashboardUrl());
+        String track = trackUrl(order);
+        String id = order.getPublicOrderId();
+        publish(order.getCustomerPhone(), "order-created",
+                List.of(firstName(order), id, vendor.getBusinessName(), track),
+                "Hi " + firstName(order) + "! Your order " + id + " with " + vendor.getBusinessName()
+                        + " has been received. Track it here: " + track,
+                order.getId());
+        if (vendor.isNotifyByWhatsapp()) {
+            publish(vendor.getWhatsappNumber(), "vendor-new-order",
+                    List.of(id, order.getCustomerName(), money(order.getTotalAmount(), order.getCurrency())),
+                    "🛒 New order " + id + " from " + order.getCustomerName()
+                            + " for " + money(order.getTotalAmount(), order.getCurrency()) + ". Manage it: " + dashboardUrl(),
+                    order.getId());
+        }
     }
 
-    /** Fulfillment status changed → update both parties. */
     public void fulfillmentUpdated(Order order, Vendor vendor, FulfillmentStatus status) {
-        toCustomer(order, customerFulfillmentMessage(order, vendor, status));
-        toVendor(vendor, "Order " + order.getPublicOrderId() + " is now " + label(status.name()) + ".");
+        String id = order.getPublicOrderId();
+        String state = label(status.name());
+        publish(order.getCustomerPhone(), "order-status",
+                List.of(id, state, trackUrl(order)),
+                customerFulfillmentMessage(order, vendor, status),
+                order.getId());
+        if (vendor.isNotifyByWhatsapp()) {
+            publish(vendor.getWhatsappNumber(), "vendor-order-status",
+                    List.of(id, state), "Order " + id + " is now " + state + ".", order.getId());
+        }
     }
 
-    /** Payment status changed → update both parties. */
     public void paymentUpdated(Order order, Vendor vendor, PaymentStatus status) {
+        String id = order.getPublicOrderId();
         String state = label(status.name());
         String customerMsg = status == PaymentStatus.PAID
-                ? "✅ Payment received for order " + order.getPublicOrderId() + ". Thank you! Track it: " + trackUrl(order)
-                : "Payment update for order " + order.getPublicOrderId() + ": " + state + ". " + trackUrl(order);
-        toCustomer(order, customerMsg);
-        toVendor(vendor, "Payment for order " + order.getPublicOrderId() + " is now " + state + ".");
+                ? "✅ Payment received for order " + id + ". Thank you! Track it: " + trackUrl(order)
+                : "Payment update for order " + id + ": " + state + ". " + trackUrl(order);
+        publish(order.getCustomerPhone(), "payment",
+                List.of(id, state, trackUrl(order)), customerMsg, order.getId());
+        if (vendor.isNotifyByWhatsapp()) {
+            publish(vendor.getWhatsappNumber(), "vendor-payment",
+                    List.of(id, state), "Payment for order " + id + " is now " + state + ".", order.getId());
+        }
     }
 
     // ---- message building ----
@@ -74,26 +107,12 @@ public class WhatsAppService {
         };
     }
 
-    // ---- recipients ----
-
-    private void toCustomer(Order order, String body) {
-        publish(order.getCustomerPhone(), body);
-    }
-
-    private void toVendor(Vendor vendor, String body) {
-        if (vendor.isNotifyByWhatsapp()) {
-            publish(vendor.getWhatsappNumber(), body);
-        }
-    }
-
-    private void publish(String phone, String body) {
+    private void publish(String phone, String template, List<String> variables, String body, UUID orderId) {
         if (phone == null || phone.isBlank()) {
             return;
         }
-        events.publishEvent(new WhatsAppRequestedEvent(phone, body));
+        events.publishEvent(new WhatsAppRequestedEvent(phone, template, variables, body, orderId));
     }
-
-    // ---- helpers ----
 
     private String trackUrl(Order order) {
         return baseUrl + "/track?orderId=" + enc(order.getPublicOrderId()) + "&contact=" + enc(order.getCustomerPhone());

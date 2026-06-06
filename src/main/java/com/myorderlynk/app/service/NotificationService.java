@@ -57,6 +57,45 @@ public class NotificationService {
         log.info("[notify:{}] template={} -> {}", channel, template, recipient);
     }
 
+    /**
+     * Records a WhatsApp send attempt with its initial status and the provider's message id,
+     * so later delivery-status callbacks can update this row.
+     */
+    public void recordWhatsApp(UUID orderId, String recipient, String template, String body,
+                               String status, String providerMessageId) {
+        NotificationLog entry = new NotificationLog();
+        entry.setOrderId(orderId);
+        entry.setChannel("WHATSAPP");
+        entry.setTemplate(template == null ? "WHATSAPP" : template);
+        entry.setRecipient(recipient);
+        entry.setBody(body);
+        entry.setStatus(status);
+        entry.setProviderMessageId(providerMessageId);
+        entry.setSentDate(Instant.now());
+        repo.save(entry);
+    }
+
+    /**
+     * Applies a delivery-status update from a provider callback (e.g. Twilio status webhook),
+     * correlating by the provider message id. Returns true if a matching record was updated.
+     */
+    public boolean updateDeliveryStatus(String providerMessageId, String status) {
+        if (providerMessageId == null || providerMessageId.isBlank()) {
+            return false;
+        }
+        return repo.findFirstByProviderMessageIdOrderByCreatedAtDesc(providerMessageId)
+                .map(entry -> {
+                    entry.setStatus(status);
+                    repo.save(entry);
+                    log.info("Delivery status for {} -> {}", providerMessageId, status);
+                    return true;
+                })
+                .orElseGet(() -> {
+                    log.warn("Delivery callback for unknown message id {} (status {})", providerMessageId, status);
+                    return false;
+                });
+    }
+
     public List<NotificationLog> forOrder(UUID orderId) {
         return repo.findByOrderIdOrderByCreatedAtDesc(orderId);
     }

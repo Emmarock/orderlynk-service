@@ -94,6 +94,16 @@ whatsapp:
     from: ${TWILIO_WHATSAPP_FROM:}                      # e.g. +14155238886 (Twilio WhatsApp sandbox sender)
     messaging-service-sid: ${TWILIO_MESSAGING_SERVICE_SID:}  # MG… — preferred for WhatsApp senders; used instead of `from`
     api-base-url: ${TWILIO_API_BASE_URL:https://api.twilio.com}
+    # Public URL Twilio POSTs delivery status to (must reach /api/webhooks/twilio/status). Empty = no callbacks.
+    status-callback-url: ${TWILIO_STATUS_CALLBACK_URL:}
+    # Approved Content template SIDs (HX…) per event; blank = send free-form text (only works in the 24h window).
+    templates:
+      order-created: ${TWILIO_TPL_ORDER_CREATED:}
+      order-status: ${TWILIO_TPL_ORDER_STATUS:}
+      payment: ${TWILIO_TPL_PAYMENT:}
+      vendor-new-order: ${TWILIO_TPL_VENDOR_NEW_ORDER:}
+      vendor-order-status: ${TWILIO_TPL_VENDOR_ORDER_STATUS:}
+      vendor-payment: ${TWILIO_TPL_VENDOR_PAYMENT:}
   meta:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}

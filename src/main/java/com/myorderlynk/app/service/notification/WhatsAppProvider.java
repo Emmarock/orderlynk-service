@@ -1,7 +1,7 @@
 package com.myorderlynk.app.service.notification;
 
-/** Sends a plain-text WhatsApp message to a recipient phone number. */
+/** Sends a WhatsApp message. Returns the provider message id (for delivery tracking), or null if skipped. */
 public interface WhatsAppProvider {
 
-    void send(String toPhone, String body);
+    String send(WhatsAppRequestedEvent message);
 }

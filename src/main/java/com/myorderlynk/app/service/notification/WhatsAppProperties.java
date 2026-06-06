@@ -3,6 +3,9 @@ package com.myorderlynk.app.service.notification;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * WhatsApp settings. {@code provider} selects the channel implementation
  * ({@code twilio} by default, or {@code meta}). Leave the chosen provider's
@@ -27,6 +30,10 @@ public class WhatsAppProperties {
         private String from;
         /** Optional Messaging Service SID (MG…). Preferred for WhatsApp senders; used instead of {@code from} when set. */
         private String messagingServiceSid;
+        /** Public URL Twilio POSTs delivery status to (our /api/webhooks/twilio/status). Empty = no callbacks. */
+        private String statusCallbackUrl;
+        /** Approved Content template SIDs (HX…) keyed by template name, e.g. {@code order-created: HX…}. */
+        private Map<String, String> templates = new HashMap<>();
         private String apiBaseUrl = "https://api.twilio.com";
     }
 
