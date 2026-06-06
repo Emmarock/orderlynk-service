@@ -64,6 +64,10 @@ app:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     model: ${OPENAI_MODEL:gpt-4o-mini}
+  ratings:
+    # When true, only customers who have ordered from a vendor may rate it (prevents
+    # rating abuse). Set false to let any signed-in user rate.
+    require-purchase: ${APP_RATINGS_REQUIRE_PURCHASE:true}
   payout:
     weekly-cron: "0 0 6 * * MON"
   fees:

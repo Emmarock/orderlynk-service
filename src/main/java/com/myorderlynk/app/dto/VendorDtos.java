@@ -2,7 +2,10 @@ package com.myorderlynk.app.dto;
 
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.VendorStatus;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -50,7 +53,21 @@ public final class VendorDtos {
             Set<FulfillmentType> fulfillmentTypes,
             boolean active,
             BigDecimal rating,
+            int ratingCount,
             BigDecimal commissionRate) {
+    }
+
+    /** Submitted by a customer to rate a vendor (1–5 stars). */
+    public record RatingRequest(
+            @Min(1) @Max(5) int stars,
+            @Size(max = 1000) String comment) {
+    }
+
+    /** A vendor's rating summary, plus the requesting customer's own stars when known. */
+    public record RatingSummary(
+            BigDecimal rating,
+            int ratingCount,
+            Integer myStars) {
     }
 
     /** Public storefront view: vendor profile + its active products. */

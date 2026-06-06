@@ -2,6 +2,7 @@ package com.myorderlynk.app.service;
 
 import com.myorderlynk.app.domain.User;
 import com.myorderlynk.app.domain.Vendor;
+import com.myorderlynk.app.domain.enums.ProductCategory;
 import com.myorderlynk.app.domain.enums.UserRole;
 import com.myorderlynk.app.domain.enums.VendorStatus;
 import com.myorderlynk.app.dto.Mapper;
@@ -24,8 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -115,14 +119,31 @@ public class VendorService {
         return new StorefrontResponse(mapper.vendor(vendor), activeProducts);
     }
 
-    /** Marketplace listing of approved, active vendors, optionally filtered by city. */
+    /**
+     * Marketplace listing of approved, active vendors, optionally filtered by city
+     * and/or product category. Always sorted so the highest-rated vendors lead —
+     * which, combined with the category filter, surfaces top-rated vendors per category.
+     */
     @Transactional(readOnly = true)
-    public List<VendorResponse> marketplace(String city) {
+    public List<VendorResponse> marketplace(String city, ProductCategory category) {
         List<Vendor> list = (city == null || city.isBlank())
                 ? vendors.findByActiveTrueAndVerificationStatus(VendorStatus.APPROVED)
                 : vendors.findByActiveTrueAndVerificationStatusAndCityIgnoreCase(VendorStatus.APPROVED, city);
-        return list.stream().map(mapper::vendor).toList();
+
+        if (category != null) {
+            Set<UUID> vendorIdsInCategory = Set.copyOf(products.findVendorIdsByActiveCategory(category));
+            list = list.stream().filter(v -> vendorIdsInCategory.contains(v.getId())).toList();
+        }
+
+        return list.stream().sorted(BY_RATING_DESC).map(mapper::vendor).toList();
     }
+
+    /** Highest average rating first (unrated last), tie-broken by number of ratings, then name. */
+    private static final Comparator<Vendor> BY_RATING_DESC = Comparator
+            .comparing((Vendor v) -> v.getRating() == null ? BigDecimal.valueOf(-1) : v.getRating(),
+                    Comparator.reverseOrder())
+            .thenComparing(Vendor::getRatingCount, Comparator.reverseOrder())
+            .thenComparing(Vendor::getBusinessName, String.CASE_INSENSITIVE_ORDER);
 
     /** Build a trackable share link (PRD §15): base + slug + ?source=&campaign=. */
     @Transactional(readOnly = true)

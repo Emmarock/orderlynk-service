@@ -19,7 +19,7 @@ public class Mapper {
                 v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
-                v.getCommissionRate());
+                v.getRatingCount(), v.getCommissionRate());
     }
 
     public ProductDtos.ProductResponse product(Product p) {

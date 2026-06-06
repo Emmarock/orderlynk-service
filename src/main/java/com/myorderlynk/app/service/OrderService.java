@@ -147,11 +147,15 @@ public class OrderService {
         return mapper.order(order, vendorName(order.getVendorId()));
     }
 
+    /** Vendor's orders, optionally restricted to a created-at window (null bounds = unbounded). */
     @Transactional(readOnly = true)
-    public List<OrderResponse> vendorOrders(UUID vendorId) {
+    public List<OrderResponse> vendorOrders(UUID vendorId, Instant from, Instant to) {
         String name = vendorName(vendorId);
-        return orders.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
-                .map(o -> mapper.order(o, name)).toList();
+        List<Order> list = (from == null && to == null)
+                ? orders.findByVendorIdOrderByCreatedAtDesc(vendorId)
+                : orders.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                        vendorId, from == null ? Instant.EPOCH : from, to == null ? Instant.now() : to);
+        return list.stream().map(o -> mapper.order(o, name)).toList();
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,9 @@
 package com.myorderlynk.app.controller;
 
+import com.myorderlynk.app.dto.AnalyticsDtos.BroadcastRequest;
+import com.myorderlynk.app.dto.AnalyticsDtos.BroadcastResult;
+import com.myorderlynk.app.dto.AnalyticsDtos.CustomerSummary;
+import com.myorderlynk.app.dto.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.dto.OrderDtos.FulfillmentUpdateRequest;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.OrderDtos.PaymentUpdateRequest;
@@ -19,9 +23,11 @@ import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.OrderService;
 import com.myorderlynk.app.service.PayoutService;
 import com.myorderlynk.app.service.ProductService;
+import com.myorderlynk.app.service.VendorAnalyticsService;
 import com.myorderlynk.app.service.VendorService;
 import com.myorderlynk.app.exception.ApiException;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +42,9 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,15 +56,25 @@ public class VendorController {
     private final ProductService productService;
     private final OrderService orderService;
     private final PayoutService payoutService;
+    private final VendorAnalyticsService analyticsService;
     private final CurrentUser currentUser;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
-                            PayoutService payoutService, CurrentUser currentUser) {
+                            PayoutService payoutService, VendorAnalyticsService analyticsService,
+                            CurrentUser currentUser) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
         this.payoutService = payoutService;
+        this.analyticsService = analyticsService;
         this.currentUser = currentUser;
+    }
+
+    /** Resolve an inclusive [from 00:00, to+1d 00:00) UTC window from optional ISO dates. */
+    private static Instant[] range(LocalDate from, LocalDate to) {
+        Instant start = from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = to == null ? null : to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        return new Instant[]{start, end};
     }
 
     /** Any authenticated user can apply to become a vendor (PRD §9). */
@@ -134,8 +153,40 @@ public class VendorController {
 
     @GetMapping("/orders")
     @PreAuthorize("hasRole('VENDOR')")
-    public List<OrderResponse> orders() {
-        return orderService.vendorOrders(vendorId());
+    public List<OrderResponse> orders(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Instant[] r = range(from, to);
+        return orderService.vendorOrders(vendorId(), r[0], r[1]);
+    }
+
+    // ---- Customers & analytics ----
+
+    /** Distinct customers who have ordered from this vendor (for outreach/broadcasts). */
+    @GetMapping("/customers")
+    @PreAuthorize("hasRole('VENDOR')")
+    public List<CustomerSummary> customers(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Instant[] r = range(from, to);
+        return analyticsService.customers(vendorId(), r[0], r[1]);
+    }
+
+    /** Sales analytics: headline metrics plus top-5 customers and products. */
+    @GetMapping("/analytics")
+    @PreAuthorize("hasRole('VENDOR')")
+    public VendorAnalytics analytics(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Instant[] r = range(from, to);
+        return analyticsService.analytics(vendorId(), r[0], r[1]);
+    }
+
+    /** Broadcast a message to the vendor's customers (optionally scoped to the same date range). */
+    @PostMapping("/customers/broadcast")
+    @PreAuthorize("hasRole('VENDOR')")
+    public BroadcastResult broadcast(@Valid @RequestBody BroadcastRequest req,
+                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Instant[] r = range(from, to);
+        return analyticsService.broadcast(vendorId(), req.subject(), req.message(), r[0], r[1]);
     }
 
     @GetMapping("/orders/{id}")

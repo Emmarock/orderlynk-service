@@ -40,6 +40,23 @@ public class NotificationService {
         log.info("[notify:{}] order={} template={} -> {}", channel, order.getPublicOrderId(), template, recipient);
     }
 
+    /**
+     * Records a non-order broadcast message to a single recipient (PRD §16 seam).
+     * Used by vendor → customer broadcasts; orderId is null since it isn't order-tied.
+     */
+    public void notifyBroadcast(UUID userId, String channel, String recipient, String template, String body) {
+        NotificationLog entry = new NotificationLog();
+        entry.setUserId(userId);
+        entry.setChannel(channel);
+        entry.setTemplate(template);
+        entry.setRecipient(recipient);
+        entry.setBody(body);
+        entry.setStatus("SENT");
+        entry.setSentDate(Instant.now());
+        repo.save(entry);
+        log.info("[notify:{}] template={} -> {}", channel, template, recipient);
+    }
+
     public List<NotificationLog> forOrder(UUID orderId) {
         return repo.findByOrderIdOrderByCreatedAtDesc(orderId);
     }

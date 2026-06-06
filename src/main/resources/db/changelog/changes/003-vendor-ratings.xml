@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Customer ratings of vendors. A denormalized rating_count on vendors complements
+      the existing rating (average) column so the marketplace can sort by rating without
+      aggregating per request. One rating row per (vendor, customer); see VendorRating.
+    -->
+    <changeSet id="003-vendor-ratings" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="rating_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <createTable tableName="vendor_ratings">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stars" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="comment" type="VARCHAR(1000)"/>
+        </createTable>
+        <createIndex tableName="vendor_ratings" indexName="uq_vendor_rating_customer" unique="true">
+            <column name="vendor_id"/>
+            <column name="customer_user_id"/>
+        </createIndex>
+        <createIndex tableName="vendor_ratings" indexName="idx_vendor_rating_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

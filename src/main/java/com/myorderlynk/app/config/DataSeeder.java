@@ -61,14 +61,15 @@ public class DataSeeder implements CommandLineRunner {
         }
         log.info("Seeding demo data...");
 
-        createUser("customer@orderlynk.app", "customer12345", "Ada Customer", UserRole.CUSTOMER, false, null);
+        User customer = createUser("customer@orderlynk.app", "customer12345", "Ada Customer", UserRole.CUSTOMER, false, null);
 
         // ----- Vendor 1: Mama T Foods (Winnipeg), approved + active -----
         User mamaT = createUser("mama@orderlynk.app", "vendor12345", "Teni Adewale", UserRole.VENDOR, false, null);
         Vendor mamaTFoods = createVendor("Mama T Foods", "mama-t-foods", mamaT.getId(),
                 "Authentic Nigerian groceries, spices and frozen foods. Pickup in Winnipeg or shipped Canada-wide.",
                 "Winnipeg", "Canada", "+12045551234", "@mamatfoods",
-                Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.LOCAL_DELIVERY, FulfillmentType.DOMESTIC_SHIPPING));
+                Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.LOCAL_DELIVERY, FulfillmentType.DOMESTIC_SHIPPING),
+                "4.8", 24);
         mamaT.setVendorId(mamaTFoods.getId());
         users.save(mamaT);
 
@@ -86,7 +87,8 @@ public class DataSeeder implements CommandLineRunner {
         Vendor beauty = createVendor("Naija Beauty Hub", "naija-beauty-hub", beautyOwner.getId(),
                 "Shea butter, black soap and skincare sourced from Nigeria. Import batches into Canada.",
                 "Toronto", "Canada", "+14165559876", "@naijabeautyhub",
-                Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.IMPORT_BATCH, FulfillmentType.DOMESTIC_SHIPPING));
+                Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.IMPORT_BATCH, FulfillmentType.DOMESTIC_SHIPPING),
+                "4.9", 37);
         beautyOwner.setVendorId(beauty.getId());
         users.save(beautyOwner);
 
@@ -120,7 +122,8 @@ public class DataSeeder implements CommandLineRunner {
                 "Ada Customer", "+12045550000", "customer@orderlynk.app", "Winnipeg",
                 FulfillmentType.LOCAL_PICKUP, PaymentMethod.INTERAC_ETRANSFER,
                 SourceChannel.WHATSAPP, "june-batch", "Please pack carefully.");
-        orderService.checkout(demo, null);
+        // Link the order to the customer account so they're a verified buyer (can rate Mama T Foods).
+        orderService.checkout(demo, customer.getId());
 
         log.info("""
                 Demo data ready. Logins:
@@ -143,7 +146,8 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private Vendor createVendor(String name, String slug, UUID ownerId, String description, String city,
-                                String country, String whatsapp, String instagram, Set<FulfillmentType> types) {
+                                String country, String whatsapp, String instagram, Set<FulfillmentType> types,
+                                String rating, int ratingCount) {
         Vendor v = new Vendor();
         v.setBusinessName(name);
         v.setStoreSlug(slug);
@@ -156,7 +160,8 @@ public class DataSeeder implements CommandLineRunner {
         v.getFulfillmentTypes().addAll(types);
         v.setVerificationStatus(VendorStatus.APPROVED);
         v.setActive(true);
-        v.setRating(new BigDecimal("4.8"));
+        v.setRating(new BigDecimal(rating));
+        v.setRatingCount(ratingCount);
         return vendors.save(v);
     }
 

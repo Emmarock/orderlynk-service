@@ -63,7 +63,12 @@ public class Vendor extends BaseEntity {
     @Column(nullable = false)
     private boolean active = false;
 
+    /** Denormalized average of all {@link VendorRating} stars, recomputed on each new rating. */
     private BigDecimal rating;
+
+    /** Number of customer ratings backing {@link #rating}. */
+    @Column(nullable = false)
+    private int ratingCount = 0;
 
     /** Platform commission rate applied to this vendor's product subtotal (e.g. 0.07 = 7%). */
     @Column(nullable = false)

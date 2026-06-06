@@ -19,5 +19,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     List<Order> findByVendorIdAndCreatedAtBetween(UUID vendorId, Instant start, Instant end);
 
+    List<Order> findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(UUID vendorId, Instant start, Instant end);
+
     List<Order> findAllByOrderByCreatedAtDesc();
+
+    /** True if this customer has placed at least one order with the vendor (used to gate ratings). */
+    boolean existsByCustomerUserIdAndVendorId(UUID customerUserId, UUID vendorId);
 }
