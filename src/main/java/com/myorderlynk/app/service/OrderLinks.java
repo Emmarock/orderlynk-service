@@ -24,12 +24,16 @@ public class OrderLinks {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
-    /** Tokenized tracking URL for an order; the contact is the email when present, else the phone. */
-    public String trackUrl(Order order) {
+    /** Signed token embedding the order id + contact (email when present, else phone). */
+    public String trackToken(Order order) {
         String contact = order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank()
                 ? order.getCustomerEmail()
                 : order.getCustomerPhone();
-        String token = jwtService.issueOrderTrackToken(order.getPublicOrderId(), contact);
-        return baseUrl + "/orders?token=" + UriUtils.encode(token, StandardCharsets.UTF_8);
+        return jwtService.issueOrderTrackToken(order.getPublicOrderId(), contact);
+    }
+
+    /** Tokenized tracking URL for an order. */
+    public String trackUrl(Order order) {
+        return baseUrl + "/orders?token=" + UriUtils.encode(trackToken(order), StandardCharsets.UTF_8);
     }
 }

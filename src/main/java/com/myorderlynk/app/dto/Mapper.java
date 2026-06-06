@@ -7,6 +7,7 @@ import com.myorderlynk.app.domain.Payout;
 import com.myorderlynk.app.domain.Product;
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.service.FulfillmentFlows;
+import com.myorderlynk.app.service.OrderLinks;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -14,6 +15,12 @@ import java.util.List;
 /** Maps domain entities to API response records. */
 @Component
 public class Mapper {
+
+    private final OrderLinks orderLinks;
+
+    public Mapper(OrderLinks orderLinks) {
+        this.orderLinks = orderLinks;
+    }
 
     /** Hibernate maps an all-null @Embedded address to null on read; treat that as an empty address. */
     private static Address orEmpty(Address a) {
@@ -66,20 +73,22 @@ public class Mapper {
                 i.getProductId(), i.getProductNameSnapshot(), i.getQuantity(), i.getUnitPrice(), i.getLineTotal());
     }
 
-    /** Order view without payment instructions — for vendor/admin consoles. */
+    /** Order view without payment instructions or track token — for vendor/admin consoles. */
     public OrderDtos.OrderResponse order(Order o, String vendorName) {
-        return buildOrder(o, vendorName, null);
+        return buildOrder(o, vendorName, null, false);
     }
 
-    /** Customer-facing order view: includes the vendor's payment instructions so the customer can pay. */
+    /** Customer-facing order view: includes the vendor's payment instructions and a tracking token. */
     public OrderDtos.OrderResponse order(Order o, Vendor vendor) {
         String name = vendor == null ? "Vendor" : vendor.getBusinessName();
-        return buildOrder(o, name, paymentInstructions(vendor));
+        return buildOrder(o, name, paymentInstructions(vendor), true);
     }
 
-    private OrderDtos.OrderResponse buildOrder(Order o, String vendorName, OrderDtos.PaymentInstructions payment) {
+    private OrderDtos.OrderResponse buildOrder(Order o, String vendorName, OrderDtos.PaymentInstructions payment,
+                                               boolean includeTrackToken) {
         List<OrderDtos.OrderItemResponse> items = o.getItems().stream().map(this::orderItem).toList();
         Address d = orEmpty(o.getDeliveryAddress());
+        String trackToken = includeTrackToken ? orderLinks.trackToken(o) : null;
         return new OrderDtos.OrderResponse(
                 o.getId(), o.getPublicOrderId(), o.getCustomerName(), o.getCustomerPhone(),
                 o.getCustomerEmail(), d.getHouseNumber(), d.getStreet(), d.getCity(),
@@ -88,7 +97,7 @@ public class Mapper {
                 o.getTotalAmount(), o.getVendorPayable(), o.getLogisticsPayable(), o.getPlatformRevenue(),
                 o.getRefundedAmount(), o.getCurrency(), o.getPaymentStatus(), o.getFulfillmentType(), o.getFulfillmentStatus(),
                 FulfillmentFlows.flowFor(o.getFulfillmentType()), o.getPickupCode(), o.getSourceChannel(),
-                o.getCampaign(), o.getNotes(), o.getCreatedAt(), payment);
+                o.getCampaign(), o.getNotes(), o.getCreatedAt(), payment, trackToken);
     }
 
     /** Builds payment instructions from a vendor's payout config; null when not configured. */

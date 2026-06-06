@@ -140,6 +140,7 @@ public final class OrderDtos {
             String campaign,
             String notes,
             Instant createdAt,
-            PaymentInstructions paymentInstructions) {
+            PaymentInstructions paymentInstructions,
+            String trackToken) {
     }
 }
