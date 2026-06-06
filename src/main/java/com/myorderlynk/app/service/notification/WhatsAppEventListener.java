@@ -24,6 +24,9 @@ public class WhatsAppEventListener {
         try {
             provider.send(event.to(), event.body());
             log.info("WhatsApp dispatched to {}", event.to());
+        } catch (IllegalStateException e) {
+            // Provider-surfaced delivery error (e.g. bad sender, unverified template) — message says it all.
+            log.error("WhatsApp not delivered to {}: {}", event.to(), e.getMessage());
         } catch (Exception e) {
             log.error("Failed to send WhatsApp to {}", event.to(), e);
         }

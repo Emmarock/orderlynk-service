@@ -23,8 +23,10 @@ public class WhatsAppProperties {
     public static class Twilio {
         private String accountSid;
         private String authToken;
-        /** WhatsApp-enabled sender number, e.g. +14155238886 (Twilio sandbox). */
+        /** WhatsApp-enabled sender number, e.g. +14155238886 (Twilio sandbox). Ignored when messagingServiceSid is set. */
         private String from;
+        /** Optional Messaging Service SID (MG…). Preferred for WhatsApp senders; used instead of {@code from} when set. */
+        private String messagingServiceSid;
         private String apiBaseUrl = "https://api.twilio.com";
     }
 

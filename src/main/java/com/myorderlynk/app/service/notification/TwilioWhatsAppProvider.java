@@ -26,10 +26,11 @@ public class TwilioWhatsAppProvider implements WhatsAppProvider {
 
     public TwilioWhatsAppProvider(WhatsAppProperties properties) {
         this.twilio = properties.getTwilio();
-        this.configured = isSet(twilio.getAccountSid()) && isSet(twilio.getAuthToken()) && isSet(twilio.getFrom());
+        boolean hasSender = isSet(twilio.getMessagingServiceSid()) || isSet(twilio.getFrom());
+        this.configured = isSet(twilio.getAccountSid()) && isSet(twilio.getAuthToken()) && hasSender;
         this.webClient = WebClient.builder().baseUrl(twilio.getApiBaseUrl()).build();
         if (!configured) {
-            log.warn("WhatsApp (Twilio) is not configured (whatsapp.twilio.* unset) — messages will be skipped.");
+            log.warn("WhatsApp (Twilio) is not configured (need account-sid, auth-token and a from/messaging-service-sid) — messages will be skipped.");
         }
     }
 
@@ -46,7 +47,12 @@ public class TwilioWhatsAppProvider implements WhatsAppProvider {
         }
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("From", "whatsapp:" + e164(twilio.getFrom()));
+        // Prefer a Messaging Service (recommended for WhatsApp senders); fall back to a raw From number.
+        if (isSet(twilio.getMessagingServiceSid())) {
+            form.add("MessagingServiceSid", twilio.getMessagingServiceSid());
+        } else {
+            form.add("From", "whatsapp:" + e164(twilio.getFrom()));
+        }
         form.add("To", "whatsapp:" + to);
         form.add("Body", body);
         try {

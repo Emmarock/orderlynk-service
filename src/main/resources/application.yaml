@@ -91,7 +91,8 @@ whatsapp:
   twilio:
     account-sid: ${TWILIO_ACCOUNT_SID:}
     auth-token: ${TWILIO_AUTH_TOKEN:}
-    from: ${TWILIO_WHATSAPP_FROM:}        # e.g. +14155238886 (Twilio sandbox sender)
+    from: ${TWILIO_WHATSAPP_FROM:}                      # e.g. +14155238886 (Twilio WhatsApp sandbox sender)
+    messaging-service-sid: ${TWILIO_MESSAGING_SERVICE_SID:}  # MG… — preferred for WhatsApp senders; used instead of `from`
     api-base-url: ${TWILIO_API_BASE_URL:https://api.twilio.com}
   meta:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
