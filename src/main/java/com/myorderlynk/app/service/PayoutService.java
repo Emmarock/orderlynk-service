@@ -79,6 +79,8 @@ public class PayoutService {
         payout.setNetPayout(vendorPayable.subtract(refunds));
         payout.setPayoutStatus("PENDING");
         payouts.save(payout);
+        log.info("Payout generated: vendor={} period={}..{} orders={} gross={} net={}",
+                vendorId, periodStart, periodEnd, periodOrders.size(), gross, payout.getNetPayout());
         return mapper.payout(payout);
     }
 
@@ -93,6 +95,7 @@ public class PayoutService {
                 .orElseThrow(() -> ApiException.notFound("Payout not found"));
         payout.setPayoutStatus("PAID");
         payout.setPaidDate(Instant.now());
+        log.info("Payout {} marked PAID (vendor={} net={})", payoutId, payout.getVendorId(), payout.getNetPayout());
         return mapper.payout(payouts.save(payout));
     }
 

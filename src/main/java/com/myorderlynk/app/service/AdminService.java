@@ -11,6 +11,7 @@ import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
 import com.myorderlynk.app.repository.OrderRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class AdminService {
 
     private final VendorRepository vendors;
@@ -44,27 +46,33 @@ public class AdminService {
     @Transactional
     public VendorResponse approveVendor(UUID vendorId) {
         Vendor vendor = require(vendorId);
+        VendorStatus from = vendor.getVerificationStatus();
         vendor.setVerificationStatus(VendorStatus.APPROVED);
         vendor.setActive(true);
         vendors.save(vendor);
+        log.info("Vendor {} approved (was {}) — now active", vendorId, from);
         return mapper.vendor(vendor);
     }
 
     @Transactional
     public VendorResponse rejectVendor(UUID vendorId) {
         Vendor vendor = require(vendorId);
+        VendorStatus from = vendor.getVerificationStatus();
         vendor.setVerificationStatus(VendorStatus.REJECTED);
         vendor.setActive(false);
         vendors.save(vendor);
+        log.info("Vendor {} rejected (was {})", vendorId, from);
         return mapper.vendor(vendor);
     }
 
     @Transactional
     public VendorResponse suspendVendor(UUID vendorId) {
         Vendor vendor = require(vendorId);
+        VendorStatus from = vendor.getVerificationStatus();
         vendor.setVerificationStatus(VendorStatus.SUSPENDED);
         vendor.setActive(false);
         vendors.save(vendor);
+        log.warn("Vendor {} suspended (was {}) — deactivated", vendorId, from);
         return mapper.vendor(vendor);
     }
 
