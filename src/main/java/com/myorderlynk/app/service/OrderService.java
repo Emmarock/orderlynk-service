@@ -1,5 +1,6 @@
 package com.myorderlynk.app.service;
 
+import com.myorderlynk.app.domain.Address;
 import com.myorderlynk.app.domain.Order;
 import com.myorderlynk.app.domain.OrderItem;
 import com.myorderlynk.app.domain.PaymentRecord;
@@ -94,7 +95,8 @@ public class OrderService {
         order.setCustomerName(req.customerName());
         order.setCustomerPhone(req.customerPhone());
         order.setCustomerEmail(req.customerEmail());
-        order.setCustomerCity(req.customerCity());
+        order.setDeliveryAddress(new Address(req.customerHouseNumber(), req.customerStreet(),
+                req.customerCity(), req.customerPostcode(), req.customerCountry()));
         order.setFulfillmentType(req.fulfillmentType());
         order.setSourceChannel(req.sourceChannel() == null ? SourceChannel.VENDOR_LINK : req.sourceChannel());
         order.setCampaign(req.campaign());

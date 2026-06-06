@@ -1,5 +1,6 @@
 package com.myorderlynk.app.dto;
 
+import com.myorderlynk.app.domain.Address;
 import com.myorderlynk.app.domain.Order;
 import com.myorderlynk.app.domain.OrderItem;
 import com.myorderlynk.app.domain.Payout;
@@ -16,8 +17,10 @@ public class Mapper {
 
     /** Full vendor view, including private payout details — for the vendor's own console and admins. */
     public VendorDtos.VendorResponse vendor(Vendor v) {
+        Address a = v.getAddress();
         return new VendorDtos.VendorResponse(
-                v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
+                v.getId(), v.getBusinessName(), v.getDescription(),
+                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
@@ -32,8 +35,10 @@ public class Mapper {
      * Customers see payment details only on their own order (see {@link #order(Order, Vendor)}).
      */
     public VendorDtos.VendorResponse publicVendor(Vendor v) {
+        Address a = v.getAddress();
         return new VendorDtos.VendorResponse(
-                v.getId(), v.getBusinessName(), v.getDescription(), v.getCity(), v.getCountry(),
+                v.getId(), v.getBusinessName(), v.getDescription(),
+                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
@@ -68,9 +73,11 @@ public class Mapper {
 
     private OrderDtos.OrderResponse buildOrder(Order o, String vendorName, OrderDtos.PaymentInstructions payment) {
         List<OrderDtos.OrderItemResponse> items = o.getItems().stream().map(this::orderItem).toList();
+        Address d = o.getDeliveryAddress();
         return new OrderDtos.OrderResponse(
                 o.getId(), o.getPublicOrderId(), o.getCustomerName(), o.getCustomerPhone(),
-                o.getCustomerEmail(), o.getCustomerCity(), o.getVendorId(), vendorName, items,
+                o.getCustomerEmail(), d.getHouseNumber(), d.getStreet(), d.getCity(),
+                d.getPostcode(), d.getCountry(), o.getVendorId(), vendorName, items,
                 o.getProductSubtotal(), o.getLogisticsFee(), o.getPlatformFee(), o.getProcessingFee(),
                 o.getTotalAmount(), o.getVendorPayable(), o.getLogisticsPayable(), o.getPlatformRevenue(),
                 o.getRefundedAmount(), o.getCurrency(), o.getPaymentStatus(), o.getFulfillmentType(), o.getFulfillmentStatus(),

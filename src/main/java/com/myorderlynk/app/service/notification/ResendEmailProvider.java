@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.List;
 
@@ -44,13 +45,21 @@ public class ResendEmailProvider implements EmailProvider {
         request.setHtml(html);
 
         // Runs on the email executor (see EmailEventListener), so a blocking call is fine here.
-        webClient.post()
-                .uri("/emails")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        try {
+            webClient.post()
+                    .uri("/emails")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            // Surface Resend's own error message (e.g. unverified domain, test-mode recipient limits)
+            // instead of a bare status. Thrown without the reactor cause to keep the log readable.
+            throw new IllegalStateException(
+                    "Resend rejected email to " + recipient + " (HTTP " + e.getStatusCode().value() + "): "
+                            + e.getResponseBodyAsString());
+        }
     }
 }

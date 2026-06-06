@@ -17,3 +17,9 @@ databaseChangeLog:
   - include:
       file: changes/006-email-verification.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/007-order-address.xml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/008-addresses.xml
+      relativeToChangelogFile: true

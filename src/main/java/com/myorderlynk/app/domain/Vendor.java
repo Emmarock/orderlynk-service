@@ -2,9 +2,12 @@ package com.myorderlynk.app.domain;
 
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.VendorStatus;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -37,9 +40,16 @@ public class Vendor extends BaseEntity {
     @Column(length = 2000)
     private String description;
 
-    private String city;
-
-    private String country;
+    /** Single business/pickup address. City &amp; country reuse the original vendor columns. */
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "houseNumber", column = @Column(name = "address_house_number")),
+            @AttributeOverride(name = "street", column = @Column(name = "address_street")),
+            @AttributeOverride(name = "city", column = @Column(name = "city")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "address_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "country"))
+    })
+    private Address address = new Address();
 
     private String whatsappNumber;
 

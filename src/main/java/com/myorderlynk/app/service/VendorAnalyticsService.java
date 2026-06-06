@@ -159,7 +159,7 @@ public class VendorAnalyticsService {
             this.name = latest.getCustomerName();
             this.phone = latest.getCustomerPhone();
             this.email = latest.getCustomerEmail();
-            this.city = latest.getCustomerCity();
+            this.city = latest.getDeliveryAddress().getCity();
             this.lastOrderAt = latest.getCreatedAt();
         }
 

@@ -19,5 +19,5 @@ public interface VendorRepository extends JpaRepository<Vendor, UUID> {
 
     List<Vendor> findByActiveTrueAndVerificationStatus(VendorStatus status);
 
-    List<Vendor> findByActiveTrueAndVerificationStatusAndCityIgnoreCase(VendorStatus status, String city);
+    List<Vendor> findByActiveTrueAndVerificationStatusAndAddressCityIgnoreCase(VendorStatus status, String city);
 }

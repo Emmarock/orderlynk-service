@@ -3,6 +3,7 @@ package com.myorderlynk.app.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.validation.FieldError;
@@ -49,6 +50,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleIllegalArg(IllegalArgumentException ex) {
         log.warn("Bad request: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
+    }
+
+    /** Malformed/invalid request body (bad JSON, wrong types) — a client error, not a 500. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Malformed or invalid request body", null);
     }
 
     /** Catch-all so unexpected failures are logged with a stack trace instead of surfacing untraced. */

@@ -1,5 +1,6 @@
 package com.myorderlynk.app.service;
 
+import com.myorderlynk.app.domain.Address;
 import com.myorderlynk.app.domain.User;
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.ProductCategory;
@@ -68,8 +69,7 @@ public class VendorService {
         Vendor vendor = new Vendor();
         vendor.setBusinessName(req.businessName());
         vendor.setDescription(req.description());
-        vendor.setCity(req.city());
-        vendor.setCountry(req.country());
+        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.postcode(), req.country()));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
         vendor.setLogoUrl(req.logoUrl());
@@ -101,8 +101,12 @@ public class VendorService {
         Vendor vendor = require(vendorId);
         if (req.businessName() != null && !req.businessName().isBlank()) vendor.setBusinessName(req.businessName());
         if (req.description() != null) vendor.setDescription(req.description());
-        if (req.city() != null) vendor.setCity(req.city());
-        if (req.country() != null) vendor.setCountry(req.country());
+        Address addr = vendor.getAddress();
+        if (req.houseNumber() != null) addr.setHouseNumber(req.houseNumber());
+        if (req.street() != null) addr.setStreet(req.street());
+        if (req.city() != null) addr.setCity(req.city());
+        if (req.postcode() != null) addr.setPostcode(req.postcode());
+        if (req.country() != null) addr.setCountry(req.country());
         if (req.whatsappNumber() != null) vendor.setWhatsappNumber(req.whatsappNumber());
         if (req.instagramHandle() != null) vendor.setInstagramHandle(req.instagramHandle());
         if (req.logoUrl() != null) vendor.setLogoUrl(req.logoUrl());
@@ -174,7 +178,7 @@ public class VendorService {
     public List<VendorResponse> marketplace(String city, ProductCategory category) {
         List<Vendor> list = (city == null || city.isBlank())
                 ? vendors.findByActiveTrueAndVerificationStatus(VendorStatus.APPROVED)
-                : vendors.findByActiveTrueAndVerificationStatusAndCityIgnoreCase(VendorStatus.APPROVED, city);
+                : vendors.findByActiveTrueAndVerificationStatusAndAddressCityIgnoreCase(VendorStatus.APPROVED, city);
 
         if (category != null) {
             Set<UUID> vendorIdsInCategory = Set.copyOf(products.findVendorIdsByActiveCategory(category));

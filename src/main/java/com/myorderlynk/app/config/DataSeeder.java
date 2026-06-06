@@ -106,8 +106,8 @@ public class DataSeeder implements CommandLineRunner {
         lagos.setStoreSlug("lagos-pantry");
         lagos.setOwnerUserId(pending.getId());
         lagos.setDescription("Snacks and pantry staples. Awaiting approval.");
-        lagos.setCity("Calgary");
-        lagos.setCountry("Canada");
+        lagos.getAddress().setCity("Calgary");
+        lagos.getAddress().setCountry("Canada");
         lagos.getFulfillmentTypes().add(FulfillmentType.LOCAL_PICKUP);
         lagos.setVerificationStatus(VendorStatus.SUBMITTED);
         lagos.setActive(false);
@@ -119,7 +119,8 @@ public class DataSeeder implements CommandLineRunner {
         CheckoutRequest demo = new CheckoutRequest(
                 mamaTFoods.getId(),
                 List.of(new CartLine(jollof.getId(), 2)),
-                "Ada Customer", "+12045550000", "customer@orderlynk.app", "Winnipeg",
+                "Ada Customer", "+12045550000", "customer@orderlynk.app",
+                "12", "Portage Avenue", "Winnipeg", "R3C 0B1", "Canada",
                 FulfillmentType.LOCAL_PICKUP, PaymentMethod.INTERAC_ETRANSFER,
                 SourceChannel.WHATSAPP, "june-batch", "Please pack carefully.");
         // Link the order to the customer account so they're a verified buyer (can rate Mama T Foods).
@@ -153,8 +154,8 @@ public class DataSeeder implements CommandLineRunner {
         v.setStoreSlug(slug);
         v.setOwnerUserId(ownerId);
         v.setDescription(description);
-        v.setCity(city);
-        v.setCountry(country);
+        v.getAddress().setCity(city);
+        v.getAddress().setCountry(country);
         v.setWhatsappNumber(whatsapp);
         v.setInstagramHandle(instagram);
         v.getFulfillmentTypes().addAll(types);

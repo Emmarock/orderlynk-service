@@ -4,8 +4,11 @@ import com.myorderlynk.app.domain.enums.FulfillmentStatus;
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.PaymentStatus;
 import com.myorderlynk.app.domain.enums.SourceChannel;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -47,7 +50,16 @@ public class Order extends BaseEntity {
 
     private String customerEmail;
 
-    private String customerCity;
+    /** Delivery address snapshot for this order (reuses the existing customer_* columns). */
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "houseNumber", column = @Column(name = "customer_house_number")),
+            @AttributeOverride(name = "street", column = @Column(name = "customer_street")),
+            @AttributeOverride(name = "city", column = @Column(name = "customer_city")),
+            @AttributeOverride(name = "postcode", column = @Column(name = "customer_postcode")),
+            @AttributeOverride(name = "country", column = @Column(name = "customer_country"))
+    })
+    private Address deliveryAddress = new Address();
 
     @Column(nullable = false)
     private UUID vendorId;
