@@ -43,12 +43,26 @@ public final class AuthDtos {
             @NotBlank String currentPassword) {
     }
 
+    public record VerifyEmailRequest(
+            @NotBlank String token) {
+    }
+
+    public record ForgotPasswordRequest(
+            @Email @NotBlank String email) {
+    }
+
+    public record ResetPasswordRequest(
+            @NotBlank String token,
+            @NotBlank @Size(min = 6, max = 100) String newPassword) {
+    }
+
     public record AuthResponse(
             String token,
             UUID userId,
             String fullName,
             String email,
             UserRole role,
-            UUID vendorId) {
+            UUID vendorId,
+            boolean emailVerified) {
     }
 }

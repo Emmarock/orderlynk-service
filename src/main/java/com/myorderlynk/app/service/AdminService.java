@@ -8,9 +8,12 @@ import com.myorderlynk.app.domain.enums.VendorStatus;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.OrderDtos.OrderResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
+import com.myorderlynk.app.domain.User;
 import com.myorderlynk.app.repository.OrderRepository;
+import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.service.notification.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,17 +27,22 @@ public class AdminService {
 
     private final VendorRepository vendors;
     private final OrderRepository orders;
+    private final UserRepository users;
     private final NotificationService notifications;
     private final AuditService audit;
     private final Mapper mapper;
+    private final EmailService emailService;
 
-    public AdminService(VendorRepository vendors, OrderRepository orders, NotificationService notifications,
-                        AuditService audit, Mapper mapper) {
+    public AdminService(VendorRepository vendors, OrderRepository orders, UserRepository users,
+                        NotificationService notifications, AuditService audit, Mapper mapper,
+                        EmailService emailService) {
         this.vendors = vendors;
         this.orders = orders;
+        this.users = users;
         this.notifications = notifications;
         this.audit = audit;
         this.mapper = mapper;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +59,7 @@ public class AdminService {
         vendor.setActive(true);
         vendors.save(vendor);
         log.info("Vendor {} approved (was {}) — now active", vendorId, from);
+        ownerEmail(vendor).ifPresent(email -> emailService.sendVendorApproved(email, vendor.getBusinessName()));
         return mapper.vendor(vendor);
     }
 
@@ -104,5 +113,10 @@ public class AdminService {
 
     private String vendorName(UUID vendorId) {
         return vendors.findById(vendorId).map(Vendor::getBusinessName).orElse("Vendor");
+    }
+
+    private java.util.Optional<String> ownerEmail(Vendor vendor) {
+        if (vendor.getOwnerUserId() == null) return java.util.Optional.empty();
+        return users.findById(vendor.getOwnerUserId()).map(User::getEmail);
     }
 }

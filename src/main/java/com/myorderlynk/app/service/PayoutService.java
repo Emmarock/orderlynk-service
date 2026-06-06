@@ -2,14 +2,18 @@ package com.myorderlynk.app.service;
 
 import com.myorderlynk.app.domain.Order;
 import com.myorderlynk.app.domain.Payout;
+import com.myorderlynk.app.domain.User;
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.PaymentStatus;
+import com.myorderlynk.app.dto.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.PayoutDtos.PayoutResponse;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.repository.OrderRepository;
 import com.myorderlynk.app.repository.PayoutRepository;
+import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.VendorRepository;
+import com.myorderlynk.app.service.notification.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -36,13 +40,21 @@ public class PayoutService {
     private final OrderRepository orders;
     private final PayoutRepository payouts;
     private final VendorRepository vendors;
+    private final UserRepository users;
     private final Mapper mapper;
+    private final EmailService emailService;
+    private final VendorAnalyticsService analyticsService;
 
-    public PayoutService(OrderRepository orders, PayoutRepository payouts, VendorRepository vendors, Mapper mapper) {
+    public PayoutService(OrderRepository orders, PayoutRepository payouts, VendorRepository vendors,
+                         UserRepository users, Mapper mapper, EmailService emailService,
+                         VendorAnalyticsService analyticsService) {
         this.orders = orders;
         this.payouts = payouts;
         this.vendors = vendors;
+        this.users = users;
         this.mapper = mapper;
+        this.emailService = emailService;
+        this.analyticsService = analyticsService;
     }
 
     @Transactional
@@ -108,8 +120,25 @@ public class PayoutService {
         LocalDate start = end.minusDays(6);
         List<Vendor> all = vendors.findAll();
         for (Vendor vendor : all) {
-            generate(vendor.getId(), start, end);
+            PayoutResponse payout = generate(vendor.getId(), start, end);
+            sendWeeklySummary(vendor, start, end, payout);
         }
         log.info("Generated weekly payout reports for {} vendors ({} to {})", all.size(), start, end);
+    }
+
+    /** Emails the vendor's weekly sales summary, if they have an owner email and opted into email. */
+    private void sendWeeklySummary(Vendor vendor, LocalDate start, LocalDate end, PayoutResponse payout) {
+        if (!vendor.isNotifyByEmail() || vendor.getOwnerUserId() == null) {
+            return;
+        }
+        String email = users.findById(vendor.getOwnerUserId()).map(User::getEmail).orElse(null);
+        if (email == null) {
+            return;
+        }
+        Instant from = start.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        VendorAnalytics analytics = analyticsService.analytics(vendor.getId(), from, to);
+        emailService.sendWeeklySalesSummary(email, vendor.getBusinessName(), start, end,
+                analytics.totalOrders(), payout.grossSales(), payout.netPayout(), analytics.topProducts());
     }
 }

@@ -75,6 +75,11 @@ app:
     processing-rate: 0.029
     processing-fixed: 0.30
     logistics-margin-rate: 0.00
+resend:
+  # Leave the API key blank to disable email (the app still boots; emails are skipped + logged).
+  api-key: ${RESEND_API_KEY:}
+  from-email: ${RESEND_FROM_EMAIL:noreply@myorderlynk.com}
+  from-name: ${RESEND_FROM_NAME:MyOrderLynk}
 
 logging:
   level:

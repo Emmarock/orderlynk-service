@@ -44,4 +44,7 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean admin = false;
+
+    @Column(nullable = false)
+    private boolean emailVerified = false;
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weekly sales summary</title>
+</head>
+<body style="margin:0;background:#faf7f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c1917;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf7f2;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ece7df;">
+        <tr><td style="background:#0f3d2e;padding:20px 32px;">
+          <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">MyOrderLynk</span>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <h1 style="margin:0 0 4px;font-size:22px;">Your weekly summary</h1>
+          <p style="margin:0 0 20px;color:#9ca3af;font-size:14px;">{{vendorName}} · {{periodStart}} – {{periodEnd}}</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr>
+              <td style="background:#faf7f2;border:1px solid #ece7df;border-radius:12px;padding:16px;width:33%;" align="center">
+                <p style="margin:0;color:#9ca3af;font-size:12px;text-transform:uppercase;">Orders</p>
+                <p style="margin:6px 0 0;font-size:20px;font-weight:700;">{{orderCount}}</p>
+              </td>
+              <td style="width:8px;"></td>
+              <td style="background:#faf7f2;border:1px solid #ece7df;border-radius:12px;padding:16px;width:33%;" align="center">
+                <p style="margin:0;color:#9ca3af;font-size:12px;text-transform:uppercase;">Gross sales</p>
+                <p style="margin:6px 0 0;font-size:20px;font-weight:700;">{{grossSales}}</p>
+              </td>
+              <td style="width:8px;"></td>
+              <td style="background:#0f3d2e;border-radius:12px;padding:16px;width:33%;" align="center">
+                <p style="margin:0;color:#9bb3a8;font-size:12px;text-transform:uppercase;">Net payout</p>
+                <p style="margin:6px 0 0;font-size:20px;font-weight:700;color:#ffffff;">{{netPayout}}</p>
+              </td>
+            </tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ece7df;border-radius:12px;overflow:hidden;margin:0 0 24px;">
+            <tr style="background:#faf7f2;">
+              <th align="left" style="padding:10px 14px;font-size:12px;text-transform:uppercase;color:#9ca3af;">Top products</th>
+              <th align="right" style="padding:10px 14px;font-size:12px;text-transform:uppercase;color:#9ca3af;">Sold</th>
+            </tr>
+            {{rowsHtml}}
+          </table>
+
+          <a href="{{dashboardUrl}}" style="display:inline-block;background:#c2562d;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;">Open your dashboard</a>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #ece7df;color:#9ca3af;font-size:12px;">
+          You receive this summary weekly. Manage notifications in your vendor settings. © MyOrderLynk
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

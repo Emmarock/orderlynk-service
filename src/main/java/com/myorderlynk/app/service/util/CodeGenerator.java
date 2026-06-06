@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 /**
  * Generates human-friendly identifiers per Appendix A of the PRD.
@@ -39,6 +40,13 @@ public final class CodeGenerator {
             base = "vendor";
         }
         return base;
+    }
+
+    /** Cryptographically-strong, URL-safe token (e.g. for email verification / password reset links). */
+    public static String secureToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     public static String randomSuffix() {
