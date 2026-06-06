@@ -75,6 +75,8 @@ public class DataSeeder implements CommandLineRunner {
 
         Product jollof = product(mamaTFoods.getId(), "Jollof Rice Spice Mix", ProductCategory.GROCERIES,
                 "12.99", 40, FulfillmentType.LOCAL_PICKUP);
+        jollof.setDiscountPercent(15);
+        products.save(jollof);
         product(mamaTFoods.getId(), "Egusi (Ground Melon Seed) 1kg", ProductCategory.GROCERIES,
                 "18.50", 25, FulfillmentType.LOCAL_PICKUP);
         product(mamaTFoods.getId(), "Palm Oil 2L", ProductCategory.GROCERIES,

@@ -55,7 +55,8 @@ public class Mapper {
         boolean lowStock = p.getLowStockThreshold() > 0 && p.getQuantityAvailable() <= p.getLowStockThreshold();
         return new ProductDtos.ProductResponse(
                 p.getId(), p.getVendorId(), p.getName(), p.getDescription(), p.getCategory(),
-                p.getPrice(), p.getCurrency(), p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
+                p.getPrice(), p.getDiscountPercent(), p.effectivePrice(), p.getCurrency(),
+                p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
                 p.getProductImageUrl(), p.getFulfillmentType(), p.getOriginCountry(), p.isAvailableNow(),
                 p.getBatchId(), p.isActive());
     }

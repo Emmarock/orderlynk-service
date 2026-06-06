@@ -37,6 +37,10 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private BigDecimal price;
 
+    /** Vendor discount as a percentage (0–100) off {@link #price}; 0 = no discount. */
+    @Column(nullable = false)
+    private int discountPercent = 0;
+
     @Column(nullable = false)
     private String currency = "CAD";
 
@@ -62,4 +66,13 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    /** The price actually charged after applying {@link #discountPercent} (rounded to 2dp). */
+    public BigDecimal effectivePrice() {
+        if (discountPercent <= 0 || price == null) {
+            return price;
+        }
+        BigDecimal multiplier = BigDecimal.valueOf(100 - discountPercent).divide(BigDecimal.valueOf(100));
+        return price.multiply(multiplier).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
 }

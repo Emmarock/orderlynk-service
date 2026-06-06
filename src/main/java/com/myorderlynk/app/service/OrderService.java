@@ -118,13 +118,14 @@ public class OrderService {
             if (product.getQuantityAvailable() < line.quantity()) {
                 throw ApiException.badRequest("Insufficient stock for '" + product.getName() + "'");
             }
-            BigDecimal lineTotal = product.getPrice().multiply(BigDecimal.valueOf(line.quantity()));
+            BigDecimal unitPrice = product.effectivePrice();
+            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(line.quantity()));
             OrderItem item = new OrderItem();
             item.setProductId(product.getId());
             item.setVendorId(vendor.getId());
             item.setProductNameSnapshot(product.getName());
             item.setQuantity(line.quantity());
-            item.setUnitPrice(product.getPrice());
+            item.setUnitPrice(unitPrice);
             item.setLineTotal(lineTotal);
             order.addItem(item);
             subtotal = subtotal.add(lineTotal);
@@ -314,7 +315,7 @@ public class OrderService {
             if (!product.getVendorId().equals(vendorId) || !product.isActive()) {
                 throw ApiException.badRequest("Product '" + product.getName() + "' is not available from this vendor");
             }
-            subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(line.quantity())));
+            subtotal = subtotal.add(product.effectivePrice().multiply(BigDecimal.valueOf(line.quantity())));
         }
         return subtotal;
     }

@@ -3,6 +3,8 @@ package com.myorderlynk.app.dto;
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.ProductCategory;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -20,6 +22,7 @@ public final class ProductDtos {
             String description,
             ProductCategory category,
             @NotNull @DecimalMin("0.0") BigDecimal price,
+            @Min(0) @Max(100) Integer discountPercent,
             String currency,
             @PositiveOrZero int quantityAvailable,
             @PositiveOrZero Integer lowStockThreshold,
@@ -49,6 +52,8 @@ public final class ProductDtos {
             String description,
             ProductCategory category,
             BigDecimal price,
+            int discountPercent,
+            BigDecimal discountedPrice,
             String currency,
             int quantityAvailable,
             int lowStockThreshold,
