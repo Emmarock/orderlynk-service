@@ -127,7 +127,7 @@ public class VendorService {
         }
         List<ProductResponse> activeProducts = products.findByVendorIdAndActiveTrue(vendor.getId())
                 .stream().map(mapper::product).toList();
-        return new StorefrontResponse(mapper.vendor(vendor), activeProducts);
+        return new StorefrontResponse(mapper.publicVendor(vendor), activeProducts);
     }
 
     /**
@@ -146,7 +146,7 @@ public class VendorService {
             list = list.stream().filter(v -> vendorIdsInCategory.contains(v.getId())).toList();
         }
 
-        return list.stream().sorted(BY_RATING_DESC).map(mapper::vendor).toList();
+        return list.stream().sorted(BY_RATING_DESC).map(mapper::publicVendor).toList();
     }
 
     /** Highest average rating first (unrated last), tie-broken by number of ratings, then name. */

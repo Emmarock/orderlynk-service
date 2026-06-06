@@ -148,7 +148,7 @@ public class OrderService {
                     "Low stock after order " + order.getPublicOrderId() + ": " + String.join(", ", lowStockHits));
         }
 
-        return mapper.order(order, vendor.getBusinessName());
+        return mapper.order(order, vendor);
     }
 
     /** Customer self-service tracking: order id must match a phone or email on the order. */
@@ -162,7 +162,7 @@ public class OrderService {
         if (!matches) {
             throw ApiException.notFound("Order not found");
         }
-        return mapper.order(order, vendorName(order.getVendorId()));
+        return mapper.order(order, vendors.findById(order.getVendorId()).orElse(null));
     }
 
     /** Vendor's orders, optionally restricted to a created-at window (null bounds = unbounded). */
@@ -179,7 +179,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponse> customerOrders(UUID customerUserId) {
         return orders.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId).stream()
-                .map(o -> mapper.order(o, vendorName(o.getVendorId()))).toList();
+                .map(o -> mapper.order(o, vendors.findById(o.getVendorId()).orElse(null))).toList();
     }
 
     @Transactional(readOnly = true)

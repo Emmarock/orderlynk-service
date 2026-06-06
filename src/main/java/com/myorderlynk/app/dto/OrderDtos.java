@@ -85,6 +85,19 @@ public final class OrderDtos {
             BigDecimal lineTotal) {
     }
 
+    /**
+     * How the customer should pay the vendor — the vendor's configured payout details.
+     * Only attached to a customer's own order (checkout result / tracking), never to public
+     * listings. Null when the vendor hasn't configured payment details.
+     */
+    public record PaymentInstructions(
+            String method,
+            String accountName,
+            String bankName,
+            String accountNumber,
+            String email) {
+    }
+
     public record OrderResponse(
             UUID id,
             String publicOrderId,
@@ -113,6 +126,7 @@ public final class OrderDtos {
             SourceChannel sourceChannel,
             String campaign,
             String notes,
-            Instant createdAt) {
+            Instant createdAt,
+            PaymentInstructions paymentInstructions) {
     }
 }
