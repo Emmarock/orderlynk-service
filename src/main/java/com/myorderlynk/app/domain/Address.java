@@ -21,11 +21,14 @@ public class Address {
     private String houseNumber;
     private String street;
     private String city;
+    /** State / province / region. Required by some carriers (e.g. US/CA) for shipping rate calculation. */
+    private String state;
     private String postcode;
     private String country;
 
     public boolean isEmpty() {
-        return isBlank(houseNumber) && isBlank(street) && isBlank(city) && isBlank(postcode) && isBlank(country);
+        return isBlank(houseNumber) && isBlank(street) && isBlank(city)
+                && isBlank(state) && isBlank(postcode) && isBlank(country);
     }
 
     private static boolean isBlank(String s) {

@@ -32,7 +32,7 @@ public class Mapper {
         Address a = orEmpty(v.getAddress());
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
-                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
+                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(), a.getPostcode(), a.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
@@ -50,7 +50,7 @@ public class Mapper {
         Address a = orEmpty(v.getAddress());
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
-                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getPostcode(), a.getCountry(),
+                a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(), a.getPostcode(), a.getCountry(),
                 v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
@@ -64,8 +64,9 @@ public class Mapper {
                 p.getId(), p.getVendorId(), p.getName(), p.getDescription(), p.getCategory(),
                 p.getPrice(), p.getDiscountPercent(), p.effectivePrice(), p.getCurrency(),
                 p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
-                p.getProductImageUrl(), p.getFulfillmentType(), p.getOriginCountry(), p.isAvailableNow(),
-                p.getBatchId(), p.isActive());
+                p.getProductImageUrl(), p.getFulfillmentType(), p.getOriginCountry(),
+                p.getWeight(), p.getWeightUnit(), p.getLength(), p.getWidth(), p.getHeight(), p.getDimensionUnit(),
+                p.isAvailableNow(), p.getBatchId(), p.isActive());
     }
 
     public OrderDtos.OrderItemResponse orderItem(OrderItem i) {
@@ -92,7 +93,7 @@ public class Mapper {
         return new OrderDtos.OrderResponse(
                 o.getId(), o.getPublicOrderId(), o.getCustomerName(), o.getCustomerPhone(),
                 o.getCustomerEmail(), d.getHouseNumber(), d.getStreet(), d.getCity(),
-                d.getPostcode(), d.getCountry(), o.getVendorId(), vendorName, items,
+                d.getState(), d.getPostcode(), d.getCountry(), o.getVendorId(), vendorName, items,
                 o.getProductSubtotal(), o.getLogisticsFee(), o.getPlatformFee(), o.getProcessingFee(),
                 o.getTotalAmount(), o.getVendorPayable(), o.getLogisticsPayable(), o.getPlatformRevenue(),
                 o.getRefundedAmount(), o.getCurrency(), o.getPaymentStatus(), o.getFulfillmentType(), o.getFulfillmentStatus(),

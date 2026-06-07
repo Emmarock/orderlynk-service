@@ -122,9 +122,9 @@ public class DataSeeder implements CommandLineRunner {
                 mamaTFoods.getId(),
                 List.of(new CartLine(jollof.getId(), 2)),
                 "Ada Customer", "+12045550000", "customer@orderlynk.app",
-                "12", "Portage Avenue", "Winnipeg", "R3C 0B1", "Canada",
+                "12", "Portage Avenue", "Winnipeg", "MB", "R3C 0B1", "Canada",
                 FulfillmentType.LOCAL_PICKUP, PaymentMethod.INTERAC_ETRANSFER,
-                SourceChannel.WHATSAPP, "june-batch", "Please pack carefully.");
+                SourceChannel.WHATSAPP, "june-batch", "Please pack carefully.", null);
         // Link the order to the customer account so they're a verified buyer (can rate Mama T Foods).
         orderService.checkout(demo, customer.getId());
 

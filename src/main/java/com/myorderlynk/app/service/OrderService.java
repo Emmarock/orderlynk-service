@@ -7,6 +7,7 @@ import com.myorderlynk.app.domain.PaymentRecord;
 import com.myorderlynk.app.domain.Product;
 import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.FulfillmentStatus;
+import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.PaymentMethod;
 import com.myorderlynk.app.domain.enums.PaymentStatus;
 import com.myorderlynk.app.domain.enums.SourceChannel;
@@ -28,6 +29,8 @@ import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.service.notification.EmailService;
 import com.myorderlynk.app.service.notification.WhatsAppService;
+import com.myorderlynk.app.shipping.ShippingRate;
+import com.myorderlynk.app.shipping.ShippingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -58,13 +61,14 @@ public class OrderService {
     private final WhatsAppService whatsAppService;
     private final OrderLinks orderLinks;
     private final JwtService jwtService;
+    private final ShippingService shippingService;
     private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
                         PaymentRecordRepository payments, UserRepository users, FeeCalculator feeCalculator,
                         NotificationService notifications, AuditService audit, Mapper mapper,
                         EmailService emailService, WhatsAppService whatsAppService,
-                        OrderLinks orderLinks, JwtService jwtService,
+                        OrderLinks orderLinks, JwtService jwtService, ShippingService shippingService,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
@@ -79,6 +83,7 @@ public class OrderService {
         this.whatsAppService = whatsAppService;
         this.orderLinks = orderLinks;
         this.jwtService = jwtService;
+        this.shippingService = shippingService;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -93,10 +98,20 @@ public class OrderService {
     public QuoteResponse quote(QuoteRequest req) {
         Vendor vendor = approvedVendor(req.vendorId());
         BigDecimal subtotal = subtotalOf(req.items(), vendor.getId());
+        Address destination = new Address(req.customerHouseNumber(), req.customerStreet(),
+                req.customerCity(), req.customerState(), req.customerPostcode(), req.customerCountry());
+        ShippingRate rate = liveShippingRate(vendor, req.items(), req.fulfillmentType(), destination,
+                req.customerName(), req.customerPhone(), req.customerEmail(), req.shippingServiceToken());
+        BigDecimal logisticsOverride = rate == null ? null : rate.amount();
         FeeCalculator.FeeBreakdown fb = feeCalculator.calculate(
-                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate());
+                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
         return new QuoteResponse(fb.productSubtotal(), fb.logisticsFee(), fb.platformFee(),
-                fb.processingFee(), fb.totalAmount(), "CAD");
+                fb.processingFee(), fb.totalAmount(), "CAD",
+                rate != null,
+                rate == null ? null : rate.carrier(),
+                rate == null ? null : rate.serviceLevelName(),
+                rate == null ? null : rate.serviceToken(),
+                rate == null ? null : rate.estimatedDays());
     }
 
     @Transactional
@@ -112,7 +127,7 @@ public class OrderService {
         order.setCustomerPhone(req.customerPhone());
         order.setCustomerEmail(req.customerEmail());
         order.setDeliveryAddress(new Address(req.customerHouseNumber(), req.customerStreet(),
-                req.customerCity(), req.customerPostcode(), req.customerCountry()));
+                req.customerCity(), req.customerState(), req.customerPostcode(), req.customerCountry()));
         order.setFulfillmentType(req.fulfillmentType());
         order.setSourceChannel(req.sourceChannel() == null ? SourceChannel.VENDOR_LINK : req.sourceChannel());
         order.setCampaign(req.campaign());
@@ -151,8 +166,12 @@ public class OrderService {
             }
         }
 
+        ShippingRate shippingRate = liveShippingRate(vendor, req.items(), req.fulfillmentType(),
+                order.getDeliveryAddress(), req.customerName(), req.customerPhone(), req.customerEmail(),
+                req.shippingServiceToken());
+        BigDecimal logisticsOverride = shippingRate == null ? null : shippingRate.amount();
         FeeCalculator.FeeBreakdown fb = feeCalculator.calculate(
-                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate());
+                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
         order.setProductSubtotal(fb.productSubtotal());
         order.setLogisticsFee(fb.logisticsFee());
         order.setPlatformFee(fb.platformFee());
@@ -166,6 +185,15 @@ public class OrderService {
         orders.save(order);
         log.info("Order placed: {} vendor={} total={} {}", order.getPublicOrderId(), vendor.getId(),
                 order.getTotalAmount(), order.getCurrency());
+
+        if (shippingRate != null) {
+            try {
+                shippingService.createShipmentForOrder(order, vendor, shippingRate);
+            } catch (Exception e) {
+                log.warn("Could not persist shipment for order {} ({}); order still placed",
+                        order.getPublicOrderId(), e.getMessage());
+            }
+        }
 
         audit.logChange(order.getId(), "FULFILLMENT", null, FulfillmentStatus.ORDER_RECEIVED.name(), "SYSTEM",
                 "Order created");
@@ -310,6 +338,24 @@ public class OrderService {
             default -> notifications.notifyOrder(order, "EMAIL", "STATUS_UPDATE",
                     order.getCustomerEmail(), "Order " + order.getPublicOrderId() + " status: " + to.name() + ".");
         }
+    }
+
+    /**
+     * Live carrier rate for a shipping order, or null when the fulfillment type isn't shipped,
+     * shipping isn't configured, the destination is incomplete, or rating fails — in every
+     * "null" case the caller keeps the flat per-fulfillment logistics fee.
+     */
+    private ShippingRate liveShippingRate(Vendor vendor, List<CartLine> items, FulfillmentType type,
+                                          Address destination, String name, String phone, String email,
+                                          String serviceToken) {
+        if (!ShippingService.isShippingFulfillment(type) || !shippingService.liveRatingAvailable()) {
+            return null;
+        }
+        if (destination == null || destination.isEmpty()) {
+            return null;
+        }
+        return shippingService.priceForCheckout(vendor, items, destination, name, phone, email, serviceToken)
+                .orElse(null);
     }
 
     private Vendor approvedVendor(UUID vendorId) {

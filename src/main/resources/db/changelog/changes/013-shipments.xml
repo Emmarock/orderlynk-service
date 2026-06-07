@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Carrier shipments: chosen rate, purchased label, latest tracking. Portable (string ids, no FKs). -->
+    <changeSet id="013-shipments" author="orderlynk">
+        <createTable tableName="shipments">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_shipment_id" type="VARCHAR(255)"/>
+            <column name="rate_id" type="VARCHAR(255)"/>
+            <column name="transaction_id" type="VARCHAR(255)"/>
+            <column name="carrier" type="VARCHAR(120)"/>
+            <column name="service_level" type="VARCHAR(255)"/>
+            <column name="service_token" type="VARCHAR(120)"/>
+            <column name="amount" type="DECIMAL(12,2)"/>
+            <column name="currency" type="VARCHAR(8)"/>
+            <column name="estimated_days" type="INT"/>
+            <column name="tracking_number" type="VARCHAR(255)"/>
+            <column name="tracking_url" type="VARCHAR(1024)"/>
+            <column name="label_url" type="VARCHAR(1024)"/>
+            <column name="tracking_status_detail" type="VARCHAR(512)"/>
+            <column name="eta" type="DATETIME"/>
+            <column name="weight_grams" type="DECIMAL(12,4)"/>
+            <column name="length_cm" type="DECIMAL(12,4)"/>
+            <column name="width_cm" type="DECIMAL(12,4)"/>
+            <column name="height_cm" type="DECIMAL(12,4)"/>
+        </createTable>
+        <createIndex tableName="shipments" indexName="idx_shipment_order">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="shipments" indexName="idx_shipment_tracking">
+            <column name="tracking_number"/>
+        </createIndex>
+        <createIndex tableName="shipments" indexName="idx_shipment_provider_shipment">
+            <column name="provider_shipment_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

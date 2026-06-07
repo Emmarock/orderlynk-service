@@ -69,7 +69,7 @@ public class VendorService {
         Vendor vendor = new Vendor();
         vendor.setBusinessName(req.businessName());
         vendor.setDescription(req.description());
-        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.postcode(), req.country()));
+        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
         vendor.setLogoUrl(req.logoUrl());
@@ -105,6 +105,7 @@ public class VendorService {
         if (req.houseNumber() != null) addr.setHouseNumber(req.houseNumber());
         if (req.street() != null) addr.setStreet(req.street());
         if (req.city() != null) addr.setCity(req.city());
+        if (req.state() != null) addr.setState(req.state());
         if (req.postcode() != null) addr.setPostcode(req.postcode());
         if (req.country() != null) addr.setCountry(req.country());
         if (req.whatsappNumber() != null) vendor.setWhatsappNumber(req.whatsappNumber());

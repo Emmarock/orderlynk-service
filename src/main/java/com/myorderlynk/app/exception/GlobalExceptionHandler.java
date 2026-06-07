@@ -1,5 +1,6 @@
 package com.myorderlynk.app.exception;
 
+import com.myorderlynk.app.shipping.ShippingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,13 @@ public class GlobalExceptionHandler {
             log.warn("API error {}: {}", ex.getStatus().value(), ex.getMessage());
         }
         return build(ex.getStatus(), ex.getMessage(), null);
+    }
+
+    /** A shipping-carrier call failed or the provider isn't configured — an upstream fault, not a 500 bug. */
+    @ExceptionHandler(ShippingException.class)
+    public ResponseEntity<Map<String, Object>> handleShipping(ShippingException ex) {
+        log.warn("Shipping provider error: {}", ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, "The shipping carrier could not complete this request", null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

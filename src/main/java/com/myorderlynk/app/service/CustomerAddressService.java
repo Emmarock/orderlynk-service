@@ -96,13 +96,13 @@ public class CustomerAddressService {
     }
 
     private static Address toAddress(AddressDto d) {
-        return new Address(d.houseNumber(), d.street(), d.city(), d.postcode(), d.country());
+        return new Address(d.houseNumber(), d.street(), d.city(), d.state(), d.postcode(), d.country());
     }
 
     private CustomerAddressResponse toResponse(CustomerAddress a) {
         Address ad = a.getAddress() == null ? new Address() : a.getAddress();
         return new CustomerAddressResponse(a.getId(), a.getLabel(),
-                new AddressDto(ad.getHouseNumber(), ad.getStreet(), ad.getCity(), ad.getPostcode(), ad.getCountry()),
+                new AddressDto(ad.getHouseNumber(), ad.getStreet(), ad.getCity(), ad.getState(), ad.getPostcode(), ad.getCountry()),
                 a.isDefault());
     }
 }

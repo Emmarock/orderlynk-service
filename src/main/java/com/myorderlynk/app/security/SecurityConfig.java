@@ -67,6 +67,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/orders/quote").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders/track").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders/track-token").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/shipping/rates").permitAll()
                         .requestMatchers("/api/meta/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()

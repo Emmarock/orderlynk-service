@@ -29,3 +29,12 @@ databaseChangeLog:
   - include:
       file: changes/010-notification-provider-id.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/011-address-state.xml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/012-product-shipping.xml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/013-shipments.xml
+      relativeToChangelogFile: true

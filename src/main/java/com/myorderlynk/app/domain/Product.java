@@ -2,6 +2,8 @@ package com.myorderlynk.app.domain;
 
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.ProductCategory;
+import com.myorderlynk.app.shipping.DimensionUnit;
+import com.myorderlynk.app.shipping.WeightUnit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -58,6 +60,30 @@ public class Product extends BaseEntity {
     private FulfillmentType fulfillmentType = FulfillmentType.LOCAL_PICKUP;
 
     private String originCountry;
+
+    // ---- Shipping attributes (per single item; used to build parcels for carrier rating) ----
+
+    /** Weight of one unit of this product, in {@link #weightUnit}. Null/zero falls back to a default parcel weight. */
+    @Column(precision = 12, scale = 4)
+    private BigDecimal weight;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8)
+    private WeightUnit weightUnit = WeightUnit.G;
+
+    /** Packed dimensions of one unit, in {@link #dimensionUnit}. */
+    @Column(precision = 12, scale = 4)
+    private BigDecimal length;
+
+    @Column(precision = 12, scale = 4)
+    private BigDecimal width;
+
+    @Column(precision = 12, scale = 4)
+    private BigDecimal height;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8)
+    private DimensionUnit dimensionUnit = DimensionUnit.CM;
 
     @Column(nullable = false)
     private boolean availableNow = true;

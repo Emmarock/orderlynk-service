@@ -17,6 +17,7 @@ public final class AddressDtos {
             String houseNumber,
             String street,
             String city,
+            String state,
             String postcode,
             String country) {
     }

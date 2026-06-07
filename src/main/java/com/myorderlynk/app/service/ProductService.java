@@ -150,6 +150,12 @@ public class ProductService {
         p.setProductImageUrl(req.productImageUrl());
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
+        p.setWeight(req.weight());
+        if (req.weightUnit() != null) p.setWeightUnit(req.weightUnit());
+        p.setLength(req.length());
+        p.setWidth(req.width());
+        p.setHeight(req.height());
+        if (req.dimensionUnit() != null) p.setDimensionUnit(req.dimensionUnit());
         if (req.availableNow() != null) p.setAvailableNow(req.availableNow());
         p.setBatchId(req.batchId());
         if (req.active() != null) p.setActive(req.active());

@@ -37,21 +37,38 @@ public final class OrderDtos {
             String customerHouseNumber,
             String customerStreet,
             String customerCity,
+            String customerState,
             String customerPostcode,
             String customerCountry,
             @NotNull FulfillmentType fulfillmentType,
             @NotNull PaymentMethod paymentMethod,
             SourceChannel sourceChannel,
             String campaign,
-            String notes) {
+            String notes,
+            /** Selected shipping rate's service-level token (e.g. "usps_priority") from a prior /api/shipping/rates call; null = cheapest. */
+            String shippingServiceToken) {
     }
 
-    /** Pre-checkout fee quote so the cart can show full cost before submit. */
+    /**
+     * Pre-checkout fee quote so the cart can show full cost before submit. For shipping
+     * fulfillment, supply the destination (and optionally a chosen {@code shippingServiceToken}
+     * from {@code /api/shipping/rates}) so the logistics fee reflects a live carrier rate.
+     */
     public record QuoteRequest(
             @NotNull UUID vendorId,
             @NotEmpty @Valid List<CartLine> items,
             @NotNull FulfillmentType fulfillmentType,
-            @NotNull PaymentMethod paymentMethod) {
+            @NotNull PaymentMethod paymentMethod,
+            String customerHouseNumber,
+            String customerStreet,
+            String customerCity,
+            String customerState,
+            String customerPostcode,
+            String customerCountry,
+            String customerName,
+            String customerPhone,
+            String customerEmail,
+            String shippingServiceToken) {
     }
 
     public record QuoteResponse(
@@ -60,7 +77,13 @@ public final class OrderDtos {
             BigDecimal platformFee,
             BigDecimal processingFee,
             BigDecimal totalAmount,
-            String currency) {
+            String currency,
+            /** Whether logisticsFee came from a live carrier rate (vs the flat per-fulfillment fee). */
+            boolean liveShippingRate,
+            String shippingCarrier,
+            String shippingService,
+            String shippingServiceToken,
+            Integer shippingEstimatedDays) {
     }
 
     /** Customer self-service tracking (PRD §14 Track Order): order id + matching contact. */
@@ -116,6 +139,7 @@ public final class OrderDtos {
             String customerHouseNumber,
             String customerStreet,
             String customerCity,
+            String customerState,
             String customerPostcode,
             String customerCountry,
             UUID vendorId,

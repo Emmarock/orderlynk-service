@@ -2,6 +2,8 @@ package com.myorderlynk.app.dto;
 
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.ProductCategory;
+import com.myorderlynk.app.shipping.DimensionUnit;
+import com.myorderlynk.app.shipping.WeightUnit;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,6 +31,12 @@ public final class ProductDtos {
             String productImageUrl,
             @NotNull FulfillmentType fulfillmentType,
             String originCountry,
+            @PositiveOrZero BigDecimal weight,
+            WeightUnit weightUnit,
+            @PositiveOrZero BigDecimal length,
+            @PositiveOrZero BigDecimal width,
+            @PositiveOrZero BigDecimal height,
+            DimensionUnit dimensionUnit,
             Boolean availableNow,
             UUID batchId,
             Boolean active) {
@@ -61,6 +69,12 @@ public final class ProductDtos {
             String productImageUrl,
             FulfillmentType fulfillmentType,
             String originCountry,
+            BigDecimal weight,
+            WeightUnit weightUnit,
+            BigDecimal length,
+            BigDecimal width,
+            BigDecimal height,
+            DimensionUnit dimensionUnit,
             boolean availableNow,
             UUID batchId,
             boolean active) {

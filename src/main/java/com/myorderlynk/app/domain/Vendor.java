@@ -46,6 +46,7 @@ public class Vendor extends BaseEntity {
             @AttributeOverride(name = "houseNumber", column = @Column(name = "address_house_number")),
             @AttributeOverride(name = "street", column = @Column(name = "address_street")),
             @AttributeOverride(name = "city", column = @Column(name = "city")),
+            @AttributeOverride(name = "state", column = @Column(name = "address_state")),
             @AttributeOverride(name = "postcode", column = @Column(name = "address_postcode")),
             @AttributeOverride(name = "country", column = @Column(name = "country"))
     })

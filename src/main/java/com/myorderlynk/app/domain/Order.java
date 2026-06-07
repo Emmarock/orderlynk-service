@@ -56,6 +56,7 @@ public class Order extends BaseEntity {
             @AttributeOverride(name = "houseNumber", column = @Column(name = "customer_house_number")),
             @AttributeOverride(name = "street", column = @Column(name = "customer_street")),
             @AttributeOverride(name = "city", column = @Column(name = "customer_city")),
+            @AttributeOverride(name = "state", column = @Column(name = "customer_state")),
             @AttributeOverride(name = "postcode", column = @Column(name = "customer_postcode")),
             @AttributeOverride(name = "country", column = @Column(name = "customer_country"))
     })

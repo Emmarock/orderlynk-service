@@ -28,8 +28,22 @@ public class FeeCalculator {
                                   FulfillmentType fulfillmentType,
                                   PaymentMethod paymentMethod,
                                   BigDecimal vendorCommissionRate) {
+        return calculate(productSubtotal, fulfillmentType, paymentMethod, vendorCommissionRate, null);
+    }
+
+    /**
+     * As {@link #calculate(BigDecimal, FulfillmentType, PaymentMethod, BigDecimal)}, but when
+     * {@code logisticsOverride} is non-null it replaces the flat per-fulfillment logistics fee
+     * (e.g. a live carrier rate fetched at checkout).
+     */
+    public FeeBreakdown calculate(BigDecimal productSubtotal,
+                                  FulfillmentType fulfillmentType,
+                                  PaymentMethod paymentMethod,
+                                  BigDecimal vendorCommissionRate,
+                                  BigDecimal logisticsOverride) {
         BigDecimal subtotal = scale(productSubtotal);
-        BigDecimal logisticsFee = scale(props.logisticsFeeFor(fulfillmentType));
+        BigDecimal logisticsFee = scale(logisticsOverride != null ? logisticsOverride
+                : props.logisticsFeeFor(fulfillmentType));
         BigDecimal platformFee = scale(subtotal.multiply(props.getServiceFeeRate()));
 
         BigDecimal preProcessing = subtotal.add(logisticsFee).add(platformFee);

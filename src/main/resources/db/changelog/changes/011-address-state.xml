@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- State/province on every address type; required by carriers (US/CA) for shipping rate calculation. -->
+    <changeSet id="011-address-state" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="address_state" type="VARCHAR(120)"/>
+        </addColumn>
+        <addColumn tableName="orders">
+            <column name="customer_state" type="VARCHAR(120)"/>
+        </addColumn>
+        <addColumn tableName="customer_addresses">
+            <column name="state" type="VARCHAR(120)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

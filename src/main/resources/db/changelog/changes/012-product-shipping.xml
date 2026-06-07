@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Per-item weight and packed dimensions, required to compute carrier shipping rates. -->
+    <changeSet id="012-product-shipping" author="orderlynk">
+        <addColumn tableName="products">
+            <column name="weight" type="DECIMAL(12,4)"/>
+            <column name="weight_unit" type="VARCHAR(8)" defaultValue="G">
+                <constraints nullable="false"/>
+            </column>
+            <column name="length" type="DECIMAL(12,4)"/>
+            <column name="width" type="DECIMAL(12,4)"/>
+            <column name="height" type="DECIMAL(12,4)"/>
+            <column name="dimension_unit" type="VARCHAR(8)" defaultValue="CM">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

@@ -109,6 +109,23 @@ whatsapp:
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     api-base-url: ${WHATSAPP_API_BASE_URL:https://graph.facebook.com/v21.0}
 
+shipping:
+  # Active shipping partner: "shippo" today (the abstraction supports adding more).
+  # Leave the chosen provider's token blank to disable live rates/labels — checkout then
+  # falls back to the flat per-fulfillment logistics fee (app.fees.logistics.*).
+  provider: ${SHIPPING_PROVIDER:shippo}
+  shippo:
+    api-token: ${SHIPPO_API_TOKEN:}
+    api-version: ${SHIPPO_API_VERSION:2018-02-08}
+    # Label format bought with a transaction: PDF4X6, PDF, PNG, ZPLII, PDF_A4, …
+    label-file-type: ${SHIPPO_LABEL_FILE_TYPE:PDF4X6}
+  # Fallback parcel used when a product has no weight/dimensions (grams + centimetres).
+  defaults:
+    weight-grams: ${SHIPPING_DEFAULT_WEIGHT_GRAMS:500}
+    length-cm: ${SHIPPING_DEFAULT_LENGTH_CM:20}
+    width-cm: ${SHIPPING_DEFAULT_WIDTH_CM:15}
+    height-cm: ${SHIPPING_DEFAULT_HEIGHT_CM:10}
+
 logging:
   level:
     com.myorderlynk: INFO
