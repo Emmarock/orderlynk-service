@@ -58,6 +58,24 @@ public class JwtService {
     }
 
     /**
+     * Issues a short-lived service token for machine-to-machine calls to internal
+     * services (e.g. the payment-service). Carries {@code roles:["SERVICE"]} and the
+     * same {@code myorderlynk} issuer, so the callee validates it with the shared secret.
+     */
+    public String issueServiceToken() {
+        Instant now = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("myorderlynk")
+                .issuedAt(now)
+                .expiresAt(now.plus(5, ChronoUnit.MINUTES))
+                .subject("orderlynk-backend")
+                .claim("roles", List.of("SERVICE"))
+                .build();
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+    }
+
+    /**
      * Issues a signed, purpose-scoped token embedding an order's public id + the contact used,
      * so order-tracking links carry no PII in the URL and can't be tampered with.
      */

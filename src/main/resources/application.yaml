@@ -126,6 +126,16 @@ shipping:
     width-cm: ${SHIPPING_DEFAULT_WIDTH_CM:15}
     height-cm: ${SHIPPING_DEFAULT_HEIGHT_CM:10}
 
+# Standalone payment-service integration. Disabled by default so checkout keeps
+# its legacy inline behaviour until the payment-service is deployed.
+payment:
+  service:
+    enabled: ${PAYMENT_SERVICE_ENABLED:false}
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8081}
+    # Shared HMAC secret to verify inbound payment-service event signatures.
+    # MUST equal the payment-service PAYMENT_EVENT_SIGNING_SECRET.
+    event-signing-secret: ${PAYMENT_EVENT_SIGNING_SECRET:dev-payment-event-signing-secret-change-me}
+
 logging:
   level:
     com.myorderlynk: INFO

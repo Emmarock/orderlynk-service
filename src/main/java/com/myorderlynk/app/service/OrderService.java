@@ -21,6 +21,8 @@ import com.myorderlynk.app.dto.OrderDtos.PaymentUpdateRequest;
 import com.myorderlynk.app.dto.OrderDtos.QuoteRequest;
 import com.myorderlynk.app.dto.OrderDtos.QuoteResponse;
 import com.myorderlynk.app.repository.OrderRepository;
+import com.myorderlynk.app.payment.PaymentClient;
+import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.repository.PaymentRecordRepository;
 import com.myorderlynk.app.repository.ProductRepository;
 import com.myorderlynk.app.repository.UserRepository;
@@ -62,6 +64,8 @@ public class OrderService {
     private final OrderLinks orderLinks;
     private final JwtService jwtService;
     private final ShippingService shippingService;
+    private final PaymentClient paymentClient;
+    private final PaymentServiceProperties paymentServiceProperties;
     private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
@@ -69,6 +73,7 @@ public class OrderService {
                         NotificationService notifications, AuditService audit, Mapper mapper,
                         EmailService emailService, WhatsAppService whatsAppService,
                         OrderLinks orderLinks, JwtService jwtService, ShippingService shippingService,
+                        PaymentClient paymentClient, PaymentServiceProperties paymentServiceProperties,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
@@ -84,6 +89,8 @@ public class OrderService {
         this.orderLinks = orderLinks;
         this.jwtService = jwtService;
         this.shippingService = shippingService;
+        this.paymentClient = paymentClient;
+        this.paymentServiceProperties = paymentServiceProperties;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -185,6 +192,19 @@ public class OrderService {
         orders.save(order);
         log.info("Order placed: {} vendor={} total={} {}", order.getPublicOrderId(), vendor.getId(),
                 order.getTotalAmount(), order.getCurrency());
+
+        // Initiate the payment with the standalone payment-service. Best-effort and
+        // flag-gated: a payment-service outage must not block order placement — the
+        // order stays PENDING and the customer can be re-prompted. When enabled, the
+        // returned client secret should be threaded into OrderResponse for the client.
+        if (paymentServiceProperties.isEnabled()) {
+            try {
+                paymentClient.createPayment(order);
+            } catch (Exception e) {
+                log.warn("payment-service createPayment failed for order {} ({}); order still placed",
+                        order.getPublicOrderId(), e.getMessage());
+            }
+        }
 
         if (shippingRate != null) {
             try {
