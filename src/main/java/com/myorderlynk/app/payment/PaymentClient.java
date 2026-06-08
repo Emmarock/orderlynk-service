@@ -48,11 +48,23 @@ public class PaymentClient {
         putIfPositive(allocations, "PLATFORM_FEE", order.getPlatformFee());
         putIfPositive(allocations, "PROCESSING_FEE", order.getProcessingFee());
 
+        // Stripe only allows an application fee (our PLATFORM_FEE/PROCESSING_FEE allocation)
+        // on a destination charge, so the connected account must be wired here. A vendor
+        // that hasn't finished onboarding has no account that can receive funds, so we send
+        // null and let the payment-service decide how to handle the non-destination case.
+        ConnectAccountStatus connect = connectStatus(order.getVendorId());
+        String vendorAccountId = connect.canReceiveFunds() ? connect.accountId() : null;
+        if (vendorAccountId == null) {
+            log.warn("vendor {} has no Stripe account that can receive funds (chargesEnabled={}); "
+                            + "creating payment without a destination for order {}",
+                    order.getVendorId(), connect.chargesEnabled(), order.getPublicOrderId());
+        }
+
         CreatePaymentRequest body = new CreatePaymentRequest(
                 order.getPublicOrderId(),
                 customerId(order),
                 order.getVendorId().toString(),
-                null,                          // Stripe connected-account id — wired once vendor onboarding exists
+                vendorAccountId,
                 order.getCurrency(),
                 order.getTotalAmount(),
                 allocations,
