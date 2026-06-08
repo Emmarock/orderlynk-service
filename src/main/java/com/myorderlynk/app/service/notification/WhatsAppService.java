@@ -70,7 +70,7 @@ public class WhatsAppService {
         String id = order.getPublicOrderId();
         String state = label(status.name());
         publish(order.getCustomerPhone(), "order-status",
-                List.of(id, state, trackUrl(order)),
+                List.of(order.getCustomerName(), id, money(order.getTotalAmount(), order.getCurrency()), trackToken(order)),
                 customerFulfillmentMessage(order, vendor, status),
                 order.getId());
         if (vendor.isNotifyByWhatsapp()) {
