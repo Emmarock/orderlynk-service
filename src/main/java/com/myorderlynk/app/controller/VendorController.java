@@ -21,6 +21,9 @@ import com.myorderlynk.app.dto.VendorDtos.ShareLinkResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorApplicationRequest;
 import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorUpdateRequest;
+import com.myorderlynk.app.payment.PaymentClient;
+import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountStatus;
+import com.myorderlynk.app.payment.PaymentDtos.OnboardingResult;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.EarningsService;
@@ -65,11 +68,12 @@ public class VendorController {
     private final EarningsService earningsService;
     private final SupportService supportService;
     private final CurrentUser currentUser;
+    private final PaymentClient paymentClient;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
                             PayoutService payoutService, VendorAnalyticsService analyticsService,
                             EarningsService earningsService, SupportService supportService,
-                            CurrentUser currentUser) {
+                            CurrentUser currentUser, PaymentClient paymentClient) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
@@ -78,6 +82,31 @@ public class VendorController {
         this.earningsService = earningsService;
         this.supportService = supportService;
         this.currentUser = currentUser;
+        this.paymentClient = paymentClient;
+    }
+
+    // ---- Stripe Connect onboarding (proxies the payment-service) ----
+
+    /** Start (or resume) Stripe onboarding: returns a hosted onboarding URL to redirect the vendor to. */
+    @PostMapping("/connect/onboard")
+    @PreAuthorize("hasRole('VENDOR')")
+    public OnboardingResult connectOnboard() {
+        AuthPrincipal me = currentUser.require();
+        return paymentClient.createConnectAccount(me.vendorId(), me.email(), null);
+    }
+
+    /** Cached Stripe onboarding/capability state for the vendor (canReceiveFunds gates card payments). */
+    @GetMapping("/connect/status")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ConnectAccountStatus connectStatus() {
+        return paymentClient.connectStatus(vendorId());
+    }
+
+    /** Force a live re-sync from Stripe (used after returning from onboarding / the Refresh button). */
+    @PostMapping("/connect/refresh")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ConnectAccountStatus connectRefresh() {
+        return paymentClient.refreshConnectStatus(vendorId());
     }
 
     /** Resolve an inclusive [from 00:00, to+1d 00:00) UTC window from optional ISO dates. */

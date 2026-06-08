@@ -85,6 +85,21 @@ public class Mapper {
         return buildOrder(o, name, paymentInstructions(vendor), true);
     }
 
+    /** Checkout view: same as {@link #order(Order, Vendor)} plus the card-payment client secret. */
+    public OrderDtos.OrderResponse order(Order o, Vendor vendor, String clientSecret, String paymentReference) {
+        OrderDtos.OrderResponse b = order(o, vendor);
+        return new OrderDtos.OrderResponse(
+                b.id(), b.publicOrderId(), b.customerName(), b.customerPhone(), b.customerEmail(),
+                b.customerHouseNumber(), b.customerStreet(), b.customerCity(), b.customerState(),
+                b.customerPostcode(), b.customerCountry(), b.vendorId(), b.vendorName(), b.items(),
+                b.productSubtotal(), b.logisticsFee(), b.platformFee(), b.processingFee(),
+                b.totalAmount(), b.vendorPayable(), b.logisticsPayable(), b.platformRevenue(),
+                b.refundedAmount(), b.currency(), b.paymentStatus(), b.fulfillmentType(),
+                b.fulfillmentStatus(), b.fulfillmentFlow(), b.pickupCode(), b.sourceChannel(),
+                b.campaign(), b.notes(), b.createdAt(), b.paymentInstructions(), b.trackToken(),
+                clientSecret, paymentReference);
+    }
+
     private OrderDtos.OrderResponse buildOrder(Order o, String vendorName, OrderDtos.PaymentInstructions payment,
                                                boolean includeTrackToken) {
         List<OrderDtos.OrderItemResponse> items = o.getItems().stream().map(this::orderItem).toList();
@@ -98,7 +113,7 @@ public class Mapper {
                 o.getTotalAmount(), o.getVendorPayable(), o.getLogisticsPayable(), o.getPlatformRevenue(),
                 o.getRefundedAmount(), o.getCurrency(), o.getPaymentStatus(), o.getFulfillmentType(), o.getFulfillmentStatus(),
                 FulfillmentFlows.flowFor(o.getFulfillmentType()), o.getPickupCode(), o.getSourceChannel(),
-                o.getCampaign(), o.getNotes(), o.getCreatedAt(), payment, trackToken);
+                o.getCampaign(), o.getNotes(), o.getCreatedAt(), payment, trackToken, null, null);
     }
 
     /** Builds payment instructions from a vendor's payout config; null when not configured. */

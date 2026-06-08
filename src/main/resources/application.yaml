@@ -130,7 +130,7 @@ shipping:
 # its legacy inline behaviour until the payment-service is deployed.
 payment:
   service:
-    enabled: ${PAYMENT_SERVICE_ENABLED:false}
+    enabled: ${PAYMENT_SERVICE_ENABLED:true}
     base-url: ${PAYMENT_SERVICE_URL:http://localhost:8081}
     # Shared HMAC secret to verify inbound payment-service event signatures.
     # MUST equal the payment-service PAYMENT_EVENT_SIGNING_SECRET.

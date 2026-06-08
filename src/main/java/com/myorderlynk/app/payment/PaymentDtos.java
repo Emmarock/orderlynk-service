@@ -31,4 +31,27 @@ public final class PaymentDtos {
             String providerReference,
             String clientSecret) {
     }
+
+    /** Request body for payment-service {@code POST /vendors/{id}/connect-account}. */
+    public record ConnectAccountRequest(String email, String country) {
+    }
+
+    /** Vendor connected-account capability state (payment-service {@code ConnectAccountResponse}). */
+    public record ConnectAccountStatus(
+            String vendorId,
+            String accountId,
+            boolean chargesEnabled,
+            boolean payoutsEnabled,
+            boolean detailsSubmitted,
+            boolean canReceiveFunds) {
+
+        /** Sentinel for "no connected account yet". */
+        public static ConnectAccountStatus notStarted() {
+            return new ConnectAccountStatus(null, null, false, false, false, false);
+        }
+    }
+
+    /** Onboarding link + account snapshot (payment-service {@code OnboardingLinkResponse}). */
+    public record OnboardingResult(String url, String expiresAt, ConnectAccountStatus account) {
+    }
 }

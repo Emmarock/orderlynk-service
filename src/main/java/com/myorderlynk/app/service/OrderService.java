@@ -195,11 +195,17 @@ public class OrderService {
 
         // Initiate the payment with the standalone payment-service. Best-effort and
         // flag-gated: a payment-service outage must not block order placement — the
-        // order stays PENDING and the customer can be re-prompted. When enabled, the
-        // returned client secret should be threaded into OrderResponse for the client.
+        // order stays PENDING and the customer can be re-prompted. The returned client
+        // secret is threaded into the response so the frontend can confirm the card.
+        String clientSecret = null;
+        String paymentReference = null;
         if (paymentServiceProperties.isEnabled()) {
             try {
-                paymentClient.createPayment(order);
+                var payment = paymentClient.createPayment(order);
+                if (payment != null) {
+                    clientSecret = payment.clientSecret();
+                    paymentReference = payment.reference();
+                }
             } catch (Exception e) {
                 log.warn("payment-service createPayment failed for order {} ({}); order still placed",
                         order.getPublicOrderId(), e.getMessage());
@@ -228,7 +234,7 @@ public class OrderService {
                     "Low stock after order " + order.getPublicOrderId() + ": " + String.join(", ", lowStockHits));
         }
 
-        return mapper.order(order, vendor);
+        return mapper.order(order, vendor, clientSecret, paymentReference);
     }
 
     /** Customer self-service tracking: order id must match a phone or email on the order. */

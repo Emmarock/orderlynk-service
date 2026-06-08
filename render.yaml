@@ -46,3 +46,10 @@ services:
         sync: false
       - key: AWS_S3_PUBLIC_READ_ACL
         sync: false
+      # ---- Payment service integration ----
+      - key: PAYMENT_SERVICE_ENABLED
+        value: "true"
+      - key: PAYMENT_SERVICE_URL
+        sync: false   # https://orderlynk-payment-service.onrender.com
+      - key: PAYMENT_EVENT_SIGNING_SECRET
+        generateValue: true   # copy this value into the payment-service PAYMENT_EVENT_SIGNING_SECRET

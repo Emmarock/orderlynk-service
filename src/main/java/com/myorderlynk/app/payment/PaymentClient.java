@@ -1,18 +1,23 @@
 package com.myorderlynk.app.payment;
 
 import com.myorderlynk.app.domain.Order;
+import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountRequest;
+import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountStatus;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentRequest;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
+import com.myorderlynk.app.payment.PaymentDtos.OnboardingResult;
 import com.myorderlynk.app.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Synchronous client for the standalone payment-service. Authenticates with a
@@ -26,8 +31,8 @@ public class PaymentClient {
     private final RestClient restClient;
     private final JwtService jwtService;
 
-    public PaymentClient(RestClient.Builder builder, PaymentServiceProperties properties, JwtService jwtService) {
-        this.restClient = builder.baseUrl(properties.getBaseUrl()).build();
+    public PaymentClient(PaymentServiceProperties properties, JwtService jwtService) {
+        this.restClient = RestClient.builder().baseUrl(properties.getBaseUrl()).build();
         this.jwtService = jwtService;
     }
 
@@ -66,6 +71,46 @@ public class PaymentClient {
                 response == null ? null : response.reference(), order.getPublicOrderId(),
                 response == null ? null : response.status());
         return response;
+    }
+
+    /**
+     * Create (or return) the vendor's Stripe connected account and a hosted onboarding link.
+     * Authenticated with the service token; payment-service treats SERVICE as privileged.
+     */
+    public OnboardingResult createConnectAccount(UUID vendorId, String email, String country) {
+        return restClient.post()
+                .uri("/vendors/{vendorId}/connect-account", vendorId.toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ConnectAccountRequest(email, country))
+                .retrieve()
+                .body(OnboardingResult.class);
+    }
+
+    /** Cached connected-account capability state, or {@link ConnectAccountStatus#notStarted()} if none exists. */
+    public ConnectAccountStatus connectStatus(UUID vendorId) {
+        try {
+            return restClient.get()
+                    .uri("/vendors/{vendorId}/connect-account", vendorId.toString())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                    .retrieve()
+                    .body(ConnectAccountStatus.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return ConnectAccountStatus.notStarted();
+        }
+    }
+
+    /** Force a live re-sync of capability state from Stripe, then return it. */
+    public ConnectAccountStatus refreshConnectStatus(UUID vendorId) {
+        try {
+            return restClient.post()
+                    .uri("/vendors/{vendorId}/connect-account/refresh", vendorId.toString())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                    .retrieve()
+                    .body(ConnectAccountStatus.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            return ConnectAccountStatus.notStarted();
+        }
     }
 
     private static String customerId(Order order) {

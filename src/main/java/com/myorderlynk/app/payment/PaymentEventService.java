@@ -31,7 +31,12 @@ public class PaymentEventService {
     private final OrderRepository orders;
     private final PaymentRecordRepository payments;
     private final ProcessedPaymentEventRepository processed;
-    private final ObjectMapper objectMapper;
+
+    // Instantiated directly (matches ShippoWebhookController/TwilioWhatsAppProvider):
+    // Boot 4 auto-configures only the Jackson 3 ObjectMapper, so there is no
+    // com.fasterxml bean to inject. A field initializer keeps it out of the
+    // @RequiredArgsConstructor-generated constructor.
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public void apply(String rawBody) {

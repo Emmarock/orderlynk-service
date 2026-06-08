@@ -165,6 +165,10 @@ public final class OrderDtos {
             String notes,
             Instant createdAt,
             PaymentInstructions paymentInstructions,
-            String trackToken) {
+            String trackToken,
+            // Set only on checkout when card payment is initiated: the Stripe client
+            // secret the frontend confirms with, plus the payment-service reference.
+            String clientSecret,
+            String paymentReference) {
     }
 }
