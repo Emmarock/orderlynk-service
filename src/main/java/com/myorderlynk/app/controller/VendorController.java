@@ -36,7 +36,8 @@ import com.myorderlynk.app.service.VendorService;
 import com.myorderlynk.app.exception.ApiException;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsAuthenticated;
+import com.myorderlynk.app.security.access.IsVendor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -89,7 +90,7 @@ public class VendorController {
 
     /** Start (or resume) Stripe onboarding: returns a hosted onboarding URL to redirect the vendor to. */
     @PostMapping("/connect/onboard")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public OnboardingResult connectOnboard() {
         AuthPrincipal me = currentUser.require();
         return paymentClient.createConnectAccount(me.vendorId(), me.email(), null);
@@ -97,14 +98,14 @@ public class VendorController {
 
     /** Cached Stripe onboarding/capability state for the vendor (canReceiveFunds gates card payments). */
     @GetMapping("/connect/status")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ConnectAccountStatus connectStatus() {
         return paymentClient.connectStatus(vendorId());
     }
 
     /** Force a live re-sync from Stripe (used after returning from onboarding / the Refresh button). */
     @PostMapping("/connect/refresh")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ConnectAccountStatus connectRefresh() {
         return paymentClient.refreshConnectStatus(vendorId());
     }
@@ -118,33 +119,33 @@ public class VendorController {
 
     /** Any authenticated user can apply to become a vendor (PRD §9). */
     @PostMapping("/apply")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public ApplyResponse apply(@Valid @RequestBody VendorApplicationRequest req) {
         return vendorService.apply(currentUser.require().userId(), req);
     }
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public VendorResponse myVendor() {
         return vendorService.myVendor(vendorId());
     }
 
     @PutMapping("/me")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public VendorResponse updateStorefront(@Valid @RequestBody VendorUpdateRequest req) {
         return vendorService.updateStorefront(vendorId(), req);
     }
 
     /** Upload a branding image (kind=logo|banner) from the vendor's device; returns the public URL to save. */
     @PostMapping(value = "/branding/image", consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ImageUploadResponse uploadBrandingImage(@RequestParam("kind") String kind,
                                                    @RequestPart("file") MultipartFile file) {
         return new ImageUploadResponse(vendorService.uploadBrandingImage(vendorId(), kind, file));
     }
 
     @GetMapping("/share-link")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ShareLinkResponse shareLink(@RequestParam(required = false) String source,
                                        @RequestParam(required = false) String campaign) {
         return vendorService.shareLink(vendorId(), source, campaign);
@@ -153,45 +154,45 @@ public class VendorController {
     // ---- Products ----
 
     @GetMapping("/products")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public List<ProductResponse> products() {
         return productService.listForVendor(vendorId());
     }
 
     @PostMapping("/products")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ProductResponse createProduct(@Valid @RequestBody ProductRequest req) {
         return productService.create(vendorId(), req);
     }
 
     /** Upload a product image from the vendor's device; returns the public URL to store as productImageUrl. */
     @PostMapping(value = "/products/image", consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ImageUploadResponse uploadProductImage(@RequestPart("file") MultipartFile file) {
         return new ImageUploadResponse(productService.uploadProductImage(vendorId(), file));
     }
 
     /** Generate a captivating, under-100-word product description from the name via AI. */
     @PostMapping("/products/description")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public DescriptionResponse generateDescription(@Valid @RequestBody DescriptionRequest req) {
         return new DescriptionResponse(productService.generateDescription(req.name(), req.category()));
     }
 
     @PutMapping("/products/{id}")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ProductResponse updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductRequest req) {
         return productService.update(vendorId(), id, req);
     }
 
     @PatchMapping("/products/{id}/active")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ProductResponse toggleProduct(@PathVariable UUID id, @RequestParam boolean active) {
         return productService.toggleActive(vendorId(), id, active);
     }
 
     @DeleteMapping("/products/{id}")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public void deleteProduct(@PathVariable UUID id) {
         productService.delete(vendorId(), id);
     }
@@ -199,7 +200,7 @@ public class VendorController {
     // ---- Orders ----
 
     @GetMapping("/orders")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public List<OrderResponse> orders(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         Instant[] r = range(from, to);
@@ -210,7 +211,7 @@ public class VendorController {
 
     /** Distinct customers who have ordered from this vendor (for outreach/broadcasts). */
     @GetMapping("/customers")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public List<CustomerSummary> customers(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         Instant[] r = range(from, to);
@@ -219,7 +220,7 @@ public class VendorController {
 
     /** Sales analytics: headline metrics plus top-5 customers and products. */
     @GetMapping("/analytics")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public VendorAnalytics analytics(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         Instant[] r = range(from, to);
@@ -228,7 +229,7 @@ public class VendorController {
 
     /** Broadcast a message to the vendor's customers (optionally scoped to the same date range). */
     @PostMapping("/customers/broadcast")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public BroadcastResult broadcast(@Valid @RequestBody BroadcastRequest req,
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -240,7 +241,7 @@ public class VendorController {
 
     /** Earnings rollup (gross sales, commission, tax, net payout) + order-level breakdown for a date range. */
     @GetMapping("/earnings")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public EarningsSummary earnings(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         Instant[] r = range(from, to);
@@ -250,32 +251,32 @@ public class VendorController {
     // ---- Support ("Message Us") ----
 
     @PostMapping("/support")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public SupportTicketResponse createSupportTicket(@Valid @RequestBody SupportRequest req) {
         return supportService.create(vendorId(), currentUser.require().userId(), req);
     }
 
     @GetMapping("/support")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public List<SupportTicketResponse> supportTickets() {
         return supportService.forVendor(vendorId());
     }
 
     @GetMapping("/orders/{id}")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public OrderResponse order(@PathVariable UUID id) {
         return orderService.getForVendor(vendorId(), id);
     }
 
     @PatchMapping("/orders/{id}/fulfillment")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public OrderResponse updateFulfillment(@PathVariable UUID id, @Valid @RequestBody FulfillmentUpdateRequest req) {
         AuthPrincipal me = currentUser.require();
         return orderService.updateFulfillment(me.vendorId(), id, req, "user:" + me.userId());
     }
 
     @PatchMapping("/orders/{id}/payment")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public OrderResponse updatePayment(@PathVariable UUID id, @Valid @RequestBody PaymentUpdateRequest req) {
         AuthPrincipal me = currentUser.require();
         return orderService.updatePayment(id, req, "user:" + me.userId(), me.vendorId());
@@ -284,7 +285,7 @@ public class VendorController {
     // ---- Payouts ----
 
     @GetMapping("/payouts")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public List<PayoutResponse> payouts() {
         return payoutService.forVendor(vendorId());
     }

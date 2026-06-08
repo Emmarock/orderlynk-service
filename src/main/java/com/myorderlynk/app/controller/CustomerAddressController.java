@@ -6,7 +6,7 @@ import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.CustomerAddressService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsAuthenticated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +22,7 @@ import java.util.UUID;
 /** The signed-in customer's address book (multiple shipping addresses). */
 @RestController
 @RequestMapping("/api/account/addresses")
-@PreAuthorize("isAuthenticated()")
+@IsAuthenticated
 public class CustomerAddressController {
 
     private final CustomerAddressService addresses;

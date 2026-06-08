@@ -13,7 +13,7 @@ import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsAuthenticated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -50,7 +50,7 @@ public class AuthController {
 
     /** Authenticated users (admin, vendor, customer) rotate their own password. */
     @PostMapping("/change-password")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         authService.changePassword(currentUser.require().userId(), req);
         return ResponseEntity.noContent().build();
@@ -58,14 +58,14 @@ public class AuthController {
 
     /** Update the signed-in user's profile (name, phone, city, country). */
     @PutMapping("/profile")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public AuthResponse updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
         return authService.updateProfile(currentUser.require().userId(), req);
     }
 
     /** Change the signed-in user's email; returns a refreshed token. */
     @PostMapping("/change-email")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public AuthResponse changeEmail(@Valid @RequestBody ChangeEmailRequest req) {
         return authService.changeEmail(currentUser.require().userId(), req);
     }
@@ -79,7 +79,7 @@ public class AuthController {
 
     /** Re-send the verification email to the signed-in user. */
     @PostMapping("/resend-verification")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public ResponseEntity<Void> resendVerification() {
         authService.resendVerification(currentUser.require().userId());
         return ResponseEntity.noContent().build();

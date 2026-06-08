@@ -8,7 +8,7 @@ import com.myorderlynk.app.shipping.ShippingDtos.RateQuoteResponse;
 import com.myorderlynk.app.shipping.ShippingDtos.ShipmentResponse;
 import com.myorderlynk.app.shipping.ShippingDtos.TrackingResponse;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsVendor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,14 +42,14 @@ public class ShippingController {
 
     /** Vendor: (re-)fetch live rates for an existing order before buying a label. */
     @GetMapping("/vendor/orders/{orderId}/rates")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public RateQuoteResponse orderRates(@PathVariable UUID orderId) {
         return shippingService.ratesForOrder(vendorId(), orderId);
     }
 
     /** Vendor: buy a shipping label for an order (uses the order's selected/cheapest rate, or a supplied one). */
     @PostMapping("/vendor/orders/{orderId}/label")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ShipmentResponse buyLabel(@PathVariable UUID orderId, @RequestBody(required = false) BuyLabelRequest req) {
         String rateId = req == null ? null : req.rateId();
         return shippingService.buyLabel(vendorId(), orderId, rateId);
@@ -57,7 +57,7 @@ public class ShippingController {
 
     /** Vendor: current shipment (rate/label/tracking) for an order. */
     @GetMapping("/vendor/orders/{orderId}")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public ShipmentResponse shipment(@PathVariable UUID orderId) {
         return shippingService.getShipment(vendorId(), orderId)
                 .orElseThrow(() -> ApiException.notFound("No shipment for this order"));
@@ -65,7 +65,7 @@ public class ShippingController {
 
     /** Vendor: pull the latest tracking from the carrier and sync the order. */
     @PostMapping("/vendor/orders/{orderId}/tracking/refresh")
-    @PreAuthorize("hasRole('VENDOR')")
+    @IsVendor
     public TrackingResponse refreshTracking(@PathVariable UUID orderId) {
         return shippingService.refreshTracking(vendorId(), orderId);
     }

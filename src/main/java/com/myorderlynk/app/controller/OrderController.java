@@ -10,7 +10,7 @@ import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.service.OrderService;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsAuthenticated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -60,7 +60,7 @@ public class OrderController {
     }
 
     @GetMapping("/mine")
-    @PreAuthorize("isAuthenticated()")
+    @IsAuthenticated
     public List<OrderResponse> myOrders() {
         return orderService.customerOrders(currentUser.require().userId());
     }

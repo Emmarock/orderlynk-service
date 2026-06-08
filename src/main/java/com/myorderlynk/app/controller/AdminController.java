@@ -13,7 +13,7 @@ import com.myorderlynk.app.service.AdminService;
 import com.myorderlynk.app.service.OrderService;
 import com.myorderlynk.app.service.PayoutService;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.myorderlynk.app.security.access.IsAdmin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin")
-@PreAuthorize("hasRole('ADMIN')")
+@IsAdmin
 public class AdminController {
 
     private final AdminService adminService;

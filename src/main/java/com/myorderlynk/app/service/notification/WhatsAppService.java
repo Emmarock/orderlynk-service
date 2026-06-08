@@ -50,9 +50,10 @@ public class WhatsAppService {
 
     public void orderCreated(Order order, Vendor vendor) {
         String track = trackUrl(order);
+        String trackToken = trackToken(order);
         String id = order.getPublicOrderId();
         publish(order.getCustomerPhone(), "order-created",
-                List.of(firstName(order), id, vendor.getBusinessName(), track),
+                List.of(firstName(order), vendor.getBusinessName(), id, money(order.getTotalAmount(), order.getCurrency()), trackToken),
                 "Hi " + firstName(order) + "! Your order " + id + " with " + vendor.getBusinessName()
                         + " has been received. Track it here: " + track,
                 order.getId());
@@ -119,6 +120,9 @@ public class WhatsAppService {
 
     private String trackUrl(Order order) {
         return orderLinks.trackUrl(order);
+    }
+    private String trackToken(Order order) {
+        return orderLinks.trackToken(order);
     }
 
     private String dashboardUrl() {
