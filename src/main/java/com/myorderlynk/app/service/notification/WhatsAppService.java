@@ -75,7 +75,7 @@ public class WhatsAppService {
                 order.getId());
         if (vendor.isNotifyByWhatsapp()) {
             publish(vendor.getWhatsappNumber(), "vendor-order-status",
-                    List.of(id, state), "Order " + id + " is now " + state + ".", order.getId());
+                    List.of(vendor.getBusinessName(), id, money(order.getTotalAmount(), order.getCurrency())), "Order " + id + " is now " + state + ".", order.getId());
         }
     }
 
