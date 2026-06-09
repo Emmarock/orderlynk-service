@@ -78,11 +78,25 @@ app:
     processing-rate: 0.029
     processing-fixed: 0.30
     logistics-margin-rate: 0.00
+email:
+  # Email provider: "resend" (default) or "twilio" (Twilio SendGrid). Leave the chosen
+  # provider's API key blank to disable email (the app still boots; emails are skipped + logged).
+  provider: ${EMAIL_PROVIDER:resend}
+
 resend:
   # Leave the API key blank to disable email (the app still boots; emails are skipped + logged).
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:noreply@myorderlynk.com}
   from-name: ${RESEND_FROM_NAME:MyOrderLynk}
+  api-base-url: ${RESEND_API_BASE_URL:https://api.resend.com}
+
+twilio:
+  # Twilio SendGrid email (used when email.provider=twilio).
+  email:
+    api-key: ${SENDGRID_API_KEY:}
+    from-email: ${SENDGRID_FROM_EMAIL:noreply@myorderlynk.com}
+    from-name: ${SENDGRID_FROM_NAME:MyOrderLynk}
+    api-base-url: ${SENDGRID_API_BASE_URL:https://api.sendgrid.com}
 
 whatsapp:
   # Channel provider: "twilio" (default) or "meta". Leave the chosen provider's

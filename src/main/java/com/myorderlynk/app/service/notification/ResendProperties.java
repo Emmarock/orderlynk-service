@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ResendProperties {
 
     private String apiKey;
+    private String apiBaseUrl;
     private String fromEmail;
     private String fromName;
 }
