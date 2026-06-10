@@ -22,6 +22,21 @@ public final class AddressDtos {
             String country) {
     }
 
+    /**
+     * A single address-autocomplete suggestion: the structured parts to fill a form plus a
+     * human-readable {@code formatted} label for the dropdown and a 0–1 {@code confidence} score.
+     */
+    public record AddressSuggestion(
+            String houseNumber,
+            String street,
+            String city,
+            String state,
+            String postcode,
+            String country,
+            String formatted,
+            Double confidence) {
+    }
+
     public record CustomerAddressRequest(
             @Size(max = 60) String label,
             @NotNull @Valid AddressDto address,
