@@ -16,7 +16,9 @@ import com.myorderlynk.app.dto.ProductDtos.DescriptionResponse;
 import com.myorderlynk.app.dto.ProductDtos.ImageUploadResponse;
 import com.myorderlynk.app.dto.ProductDtos.ProductRequest;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
+import com.myorderlynk.app.dto.AuthDtos.AuthResponse;
 import com.myorderlynk.app.dto.VendorDtos.ApplyResponse;
+import com.myorderlynk.app.dto.VendorDtos.SellerRegistrationRequest;
 import com.myorderlynk.app.dto.VendorDtos.ShareLinkResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorApplicationRequest;
 import com.myorderlynk.app.dto.VendorDtos.VendorResponse;
@@ -115,6 +117,12 @@ public class VendorController {
         Instant start = from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = to == null ? null : to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         return new Instant[]{start, end};
+    }
+
+    /** Public one-step seller signup: creates the user account and the vendor together, returning a signed-in session. */
+    @PostMapping("/register")
+    public AuthResponse register(@Valid @RequestBody SellerRegistrationRequest req) {
+        return vendorService.registerSeller(req);
     }
 
     /** Any authenticated user can apply to become a vendor (PRD §9). */

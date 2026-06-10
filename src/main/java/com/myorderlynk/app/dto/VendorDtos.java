@@ -2,6 +2,9 @@ package com.myorderlynk.app.dto;
 
 import com.myorderlynk.app.domain.enums.FulfillmentType;
 import com.myorderlynk.app.domain.enums.VendorStatus;
+import com.myorderlynk.app.validation.FieldMatch;
+import com.myorderlynk.app.validation.StrongPassword;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -15,6 +18,28 @@ import java.util.UUID;
 public final class VendorDtos {
 
     private VendorDtos() {
+    }
+
+    /**
+     * One-step seller signup for a brand-new (unauthenticated) user: creates the user account
+     * and the vendor together. Carries its own password + confirmation; the account fields mirror
+     * {@link com.myorderlynk.app.dto.AuthDtos.RegisterRequest}.
+     */
+    @FieldMatch(field = "password", fieldMatch = "confirmPassword",
+            message = "Password and confirmation do not match")
+    public record SellerRegistrationRequest(
+            @NotBlank String fullName,
+            @Email @NotBlank String email,
+            @StrongPassword String password,
+            @NotBlank String confirmPassword,
+            String phone,
+            @NotBlank String businessName,
+            String description,
+            String city,
+            String country,
+            String whatsappNumber,
+            String instagramHandle,
+            Set<FulfillmentType> fulfillmentTypes) {
     }
 
     /** Submitted by a signed-in user to apply as a vendor (PRD §14 Vendor Signup). */

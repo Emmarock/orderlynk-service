@@ -1,9 +1,10 @@
 package com.myorderlynk.app.dto;
 
 import com.myorderlynk.app.domain.enums.UserRole;
+import com.myorderlynk.app.validation.FieldMatch;
+import com.myorderlynk.app.validation.StrongPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
@@ -12,10 +13,13 @@ public final class AuthDtos {
     private AuthDtos() {
     }
 
+    @FieldMatch(field = "password", fieldMatch = "confirmPassword",
+            message = "Password and confirmation do not match")
     public record RegisterRequest(
             @NotBlank String fullName,
             @Email @NotBlank String email,
-            @NotBlank @Size(min = 6, max = 100) String password,
+            @StrongPassword String password,
+            @NotBlank String confirmPassword,
             String phone,
             String city,
             String country) {
@@ -28,7 +32,7 @@ public final class AuthDtos {
 
     public record ChangePasswordRequest(
             @NotBlank String currentPassword,
-            @NotBlank @Size(min = 6, max = 100) String newPassword) {
+            @StrongPassword String newPassword) {
     }
 
     public record UpdateProfileRequest(
@@ -53,7 +57,7 @@ public final class AuthDtos {
 
     public record ResetPasswordRequest(
             @NotBlank String token,
-            @NotBlank @Size(min = 6, max = 100) String newPassword) {
+            @StrongPassword String newPassword) {
     }
 
     public record AuthResponse(

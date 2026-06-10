@@ -52,21 +52,35 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
-        if (users.existsByEmailIgnoreCase(req.email())) {
+        User user = createUser(req.fullName(), req.email(), req.password(),
+                req.phone(), req.city(), req.country(), UserRole.CUSTOMER);
+        return toResponse(user);
+    }
+
+    /**
+     * Create, persist and return a new user with the given role, hashing the password and sending the
+     * email-verification mail. Shared by customer registration and one-step seller signup
+     * ({@link com.myorderlynk.app.service.VendorService#registerSeller}). The raw password is expected
+     * to have already passed {@code @StrongPassword} validation at the request boundary.
+     */
+    @Transactional
+    public User createUser(String fullName, String email, String rawPassword,
+                           String phone, String city, String country, UserRole role) {
+        if (users.existsByEmailIgnoreCase(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists");
         }
         User user = new User();
-        user.setEmail(req.email().toLowerCase());
-        user.setPasswordHash(passwordEncoder.encode(req.password()));
-        user.setFullName(req.fullName());
-        user.setPhone(req.phone());
-        user.setCity(req.city());
-        user.setCountry(req.country());
-        user.setRole(UserRole.CUSTOMER);
+        user.setEmail(email.toLowerCase());
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setFullName(fullName);
+        user.setPhone(phone);
+        user.setCity(city);
+        user.setCountry(country);
+        user.setRole(role);
         users.save(user);
-        log.info("Registered new user {} ({})", user.getId(), user.getEmail());
+        log.info("Registered new user {} ({}) as {}", user.getId(), user.getEmail(), role);
         emailService.sendEmailVerification(user.getEmail(), user.getFullName(), createToken(user, TYPE_VERIFY, VERIFY_TTL));
-        return toResponse(user);
+        return user;
     }
 
     /** Verify an email address from a token link; sends the welcome email on first success. */

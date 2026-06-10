@@ -6,9 +6,11 @@ import com.myorderlynk.app.domain.Vendor;
 import com.myorderlynk.app.domain.enums.ProductCategory;
 import com.myorderlynk.app.domain.enums.UserRole;
 import com.myorderlynk.app.domain.enums.VendorStatus;
+import com.myorderlynk.app.dto.AuthDtos.AuthResponse;
 import com.myorderlynk.app.dto.Mapper;
 import com.myorderlynk.app.dto.ProductDtos.ProductResponse;
 import com.myorderlynk.app.dto.VendorDtos.ApplyResponse;
+import com.myorderlynk.app.dto.VendorDtos.SellerRegistrationRequest;
 import com.myorderlynk.app.dto.VendorDtos.ShareLinkResponse;
 import com.myorderlynk.app.dto.VendorDtos.StorefrontResponse;
 import com.myorderlynk.app.dto.VendorDtos.VendorApplicationRequest;
@@ -44,19 +46,55 @@ public class VendorService {
     private final ProductRepository products;
     private final Mapper mapper;
     private final JwtService jwtService;
+    private final AuthService authService;
     private final S3StorageService storage;
     private final String publicBaseUrl;
 
     public VendorService(VendorRepository vendors, UserRepository users, ProductRepository products,
-                         Mapper mapper, JwtService jwtService, S3StorageService storage,
+                         Mapper mapper, JwtService jwtService, AuthService authService, S3StorageService storage,
                          @Value("${app.public-base-url:https://orderlynk.app}") String publicBaseUrl) {
         this.vendors = vendors;
         this.users = users;
         this.products = products;
         this.mapper = mapper;
         this.jwtService = jwtService;
+        this.authService = authService;
         this.storage = storage;
         this.publicBaseUrl = publicBaseUrl;
+    }
+
+    /**
+     * One-step seller signup for a new (unauthenticated) user: creates the user account as a VENDOR
+     * and a linked Vendor in SUBMITTED state, then returns a fresh authenticated session. Password
+     * strength and confirmation are enforced by validation on {@link SellerRegistrationRequest}.
+     */
+    @Transactional
+    public AuthResponse registerSeller(SellerRegistrationRequest req) {
+        User user = authService.createUser(req.fullName(), req.email(), req.password(),
+                req.phone(), req.city(), req.country(), UserRole.VENDOR);
+
+        Vendor vendor = new Vendor();
+        vendor.setBusinessName(req.businessName());
+        vendor.setDescription(req.description());
+        vendor.setAddress(new Address(null, null, req.city(), null, null, req.country()));
+        vendor.setWhatsappNumber(req.whatsappNumber());
+        vendor.setInstagramHandle(req.instagramHandle());
+        if (req.fulfillmentTypes() != null) {
+            vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
+        }
+        vendor.setOwnerUserId(user.getId());
+        vendor.setVerificationStatus(VendorStatus.SUBMITTED);
+        vendor.setActive(false);
+        vendor.setStoreSlug(uniqueSlug(req.businessName()));
+        vendors.save(vendor);
+
+        user.setVendorId(vendor.getId());
+        users.save(user);
+        log.info("Seller signup: vendor={} slug={} user={}", vendor.getId(), vendor.getStoreSlug(), user.getId());
+
+        // Issue a token now carrying the VENDOR role + vendorId so the client is signed in immediately.
+        return new AuthResponse(jwtService.issueToken(user), user.getId(), user.getFullName(), user.getEmail(),
+                user.getRole(), user.getVendorId(), user.isEmailVerified());
     }
 
     /** Vendor signup: creates a Vendor in SUBMITTED state and promotes the user to VENDOR (PRD §14). */
