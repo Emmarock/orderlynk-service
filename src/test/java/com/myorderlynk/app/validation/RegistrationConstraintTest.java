@@ -45,21 +45,21 @@ class RegistrationConstraintTest {
     @Test
     void registerRequestIsValidWithStrongMatchingPassword() {
         RegisterRequest req = new RegisterRequest(
-                "Jane Doe", "jane@example.com", "Str0ng!pwd", "Str0ng!pwd", null, null, null);
+                "Jane Doe", "jane@example.com", "Str0ng!pwd", "Str0ng!pwd", null, null, null, null);
         assertThat(validator.validate(req)).isEmpty();
     }
 
     @Test
     void registerRequestRejectsWeakPasswordOnPasswordField() {
         RegisterRequest req = new RegisterRequest(
-                "Jane Doe", "jane@example.com", "weak", "weak", null, null, null);
+                "Jane Doe", "jane@example.com", "weak", "weak", null, null, null, null);
         assertThat(invalidProperties(validator.validate(req))).contains("password");
     }
 
     @Test
     void registerRequestReportsMismatchOnConfirmPasswordField() {
         RegisterRequest req = new RegisterRequest(
-                "Jane Doe", "jane@example.com", "Str0ng!pwd", "Different1!", null, null, null);
+                "Jane Doe", "jane@example.com", "Str0ng!pwd", "Different1!", null, null, null, null);
         Set<ConstraintViolation<RegisterRequest>> violations = validator.validate(req);
         assertThat(invalidProperties(violations)).contains("confirmPassword");
     }
@@ -67,7 +67,7 @@ class RegistrationConstraintTest {
     @Test
     void registerRequestRejectsBlankNameAndBadEmail() {
         RegisterRequest req = new RegisterRequest(
-                "", "not-an-email", "Str0ng!pwd", "Str0ng!pwd", null, null, null);
+                "", "not-an-email", "Str0ng!pwd", "Str0ng!pwd", null, null, null, null);
         assertThat(invalidProperties(validator.validate(req))).contains("fullName", "email");
     }
 
@@ -77,7 +77,7 @@ class RegistrationConstraintTest {
     void sellerRequestIsValidWithStrongMatchingPassword() {
         SellerRegistrationRequest req = new SellerRegistrationRequest(
                 "Sam Seller", "sam@example.com", "Str0ng!pwd", "Str0ng!pwd", null,
-                "Jollof Kitchen", null, null, null, null, null, null);
+                "Jollof Kitchen", null, null, null, null, null, null, null, null, null, null);
         assertThat(validator.validate(req)).isEmpty();
     }
 
@@ -85,7 +85,7 @@ class RegistrationConstraintTest {
     void sellerRequestRejectsWeakPasswordOnPasswordField() {
         SellerRegistrationRequest req = new SellerRegistrationRequest(
                 "Sam Seller", "sam@example.com", "weak", "weak", null,
-                "Jollof Kitchen", null, null, null, null, null, null);
+                "Jollof Kitchen", null, null, null, null, null, null, null, null, null, null);
         assertThat(invalidProperties(validator.validate(req))).contains("password");
     }
 
@@ -93,7 +93,7 @@ class RegistrationConstraintTest {
     void sellerRequestReportsMismatchOnConfirmPasswordField() {
         SellerRegistrationRequest req = new SellerRegistrationRequest(
                 "Sam Seller", "sam@example.com", "Str0ng!pwd", "Different1!", null,
-                "Jollof Kitchen", null, null, null, null, null, null);
+                "Jollof Kitchen", null, null, null, null, null, null, null, null, null, null);
         assertThat(invalidProperties(validator.validate(req))).contains("confirmPassword");
     }
 
@@ -101,7 +101,7 @@ class RegistrationConstraintTest {
     void sellerRequestRequiresBusinessName() {
         SellerRegistrationRequest req = new SellerRegistrationRequest(
                 "Sam Seller", "sam@example.com", "Str0ng!pwd", "Str0ng!pwd", null,
-                "", null, null, null, null, null, null);
+                "", null, null, null, null, null, null, null, null, null, null);
         assertThat(invalidProperties(validator.validate(req))).contains("businessName");
     }
 }

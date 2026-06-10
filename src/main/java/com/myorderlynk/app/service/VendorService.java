@@ -76,7 +76,7 @@ public class VendorService {
         Vendor vendor = new Vendor();
         vendor.setBusinessName(req.businessName());
         vendor.setDescription(req.description());
-        vendor.setAddress(new Address(null, null, req.city(), null, null, req.country()));
+        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
         if (req.fulfillmentTypes() != null) {

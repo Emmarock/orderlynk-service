@@ -9,6 +9,8 @@ import com.myorderlynk.app.dto.AuthDtos.ChangePasswordRequest;
 import com.myorderlynk.app.dto.AuthDtos.LoginRequest;
 import com.myorderlynk.app.dto.AuthDtos.RegisterRequest;
 import com.myorderlynk.app.dto.AuthDtos.UpdateProfileRequest;
+import com.myorderlynk.app.dto.AddressDtos.AddressDto;
+import com.myorderlynk.app.dto.AddressDtos.CustomerAddressRequest;
 import com.myorderlynk.app.repository.UserRepository;
 import com.myorderlynk.app.repository.UserTokenRepository;
 import com.myorderlynk.app.security.JwtService;
@@ -40,21 +42,37 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
+    private final CustomerAddressService customerAddresses;
 
     public AuthService(UserRepository users, UserTokenRepository userTokens, PasswordEncoder passwordEncoder,
-                       JwtService jwtService, EmailService emailService) {
+                       JwtService jwtService, EmailService emailService, CustomerAddressService customerAddresses) {
         this.users = users;
         this.userTokens = userTokens;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
+        this.customerAddresses = customerAddresses;
     }
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
         User user = createUser(req.fullName(), req.email(), req.password(),
                 req.phone(), req.city(), req.country(), UserRole.CUSTOMER);
+        // Seed the customer's address book with the address captured at signup (set as default).
+        if (hasAddress(req.address())) {
+            customerAddresses.add(user.getId(), new CustomerAddressRequest("Home", req.address(), true));
+        }
         return toResponse(user);
+    }
+
+    /** True when at least one address field is populated, so we skip an all-blank address. */
+    private static boolean hasAddress(AddressDto a) {
+        return a != null && (isSet(a.houseNumber()) || isSet(a.street()) || isSet(a.city())
+                || isSet(a.state()) || isSet(a.postcode()) || isSet(a.country()));
+    }
+
+    private static boolean isSet(String s) {
+        return s != null && !s.isBlank();
     }
 
     /**

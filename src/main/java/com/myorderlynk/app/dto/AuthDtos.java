@@ -1,8 +1,10 @@
 package com.myorderlynk.app.dto;
 
 import com.myorderlynk.app.domain.enums.UserRole;
+import com.myorderlynk.app.dto.AddressDtos.AddressDto;
 import com.myorderlynk.app.validation.FieldMatch;
 import com.myorderlynk.app.validation.StrongPassword;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
@@ -22,7 +24,8 @@ public final class AuthDtos {
             @NotBlank String confirmPassword,
             String phone,
             String city,
-            String country) {
+            String country,
+            @Valid AddressDto address) {
     }
 
     public record LoginRequest(

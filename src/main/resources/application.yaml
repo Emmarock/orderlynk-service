@@ -68,7 +68,7 @@ app:
   # Leave api-key blank to disable — the autocomplete endpoint then returns an empty list and
   # the address forms fall back to manual entry.
   geoapify:
-    api-key: ${GEOAPIFY_API_KEY:2199d63a7f7a4ad8827a025728e2f471}
+    api-key: ${GEOAPIFY_API_KEY:c54f541d07ef4419810c359cf0f25a48}
     base-url: ${GEOAPIFY_BASE_URL:https://api.geoapify.com}
   ratings:
     # When true, only customers who have ordered from a vendor may rate it (prevents
