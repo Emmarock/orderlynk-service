@@ -55,6 +55,14 @@ public class GeoapifyService {
      * ISO alpha-2 code or an English country name such as "Canada").
      */
     public List<AddressSuggestion> autocomplete(String text, String country) {
+        return autocomplete(text, country, null);
+    }
+
+    /**
+     * As {@link #autocomplete(String, String)} but restricts results to a Geoapify location
+     * {@code type} (e.g. {@code "city"}) — used to drive country-scoped city pickers.
+     */
+    public List<AddressSuggestion> autocomplete(String text, String country, String type) {
         if (!configured || text == null || text.trim().length() < MIN_QUERY_LENGTH) {
             return List.of();
         }
@@ -66,6 +74,8 @@ public class GeoapifyService {
                             .queryParam("format", "json")
                             .queryParam("limit", MAX_RESULTS)
                             .queryParam("apiKey", apiKey)
+                            .queryParamIfPresent("type",
+                                    Optional.ofNullable(type).filter(t -> !t.isBlank()))
                             .queryParamIfPresent("filter",
                                     Optional.ofNullable(countryCode).map(c -> "countrycode:" + c))
                             .build())

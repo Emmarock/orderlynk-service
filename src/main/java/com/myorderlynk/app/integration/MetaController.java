@@ -47,12 +47,13 @@ public class MetaController {
     @GetMapping("/address/autocomplete")
     public List<AddressSuggestion> addressAutocomplete(@RequestParam("text") String text,
                                                        @RequestParam(value = "country", required = false) String country,
+                                                       @RequestParam(value = "type", required = false) String type,
                                                        HttpServletRequest request) {
         String key = "geoapify-autocomplete:" + clientIp(request);
         if (!rateLimiter.tryAcquire(key, AUTOCOMPLETE_MAX_PER_WINDOW, AUTOCOMPLETE_WINDOW)) {
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Too many address lookups — please slow down");
         }
-        return geoapify.autocomplete(text, country);
+        return geoapify.autocomplete(text, country, type);
     }
 
     /** Real client IP, preferring the first X-Forwarded-For hop when behind a proxy/load balancer. */
