@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      AvailabilityRule.dayOfWeek originally lacked @Enumerated(STRING), so Hibernate persisted the
+      DayOfWeek ordinal (0–6) into the VARCHAR day_of_week column instead of the name. Those rows are
+      now unreadable (the entity reads STRING). Purge only the corrupt rows — any value that is not a
+      valid weekday name — leaving correctly-stored rows intact. Self-healing and idempotent.
+    -->
+    <changeSet id="016-fix-availability-day-of-week" author="orderlynk">
+        <delete tableName="availability_rules">
+            <where>day_of_week NOT IN
+                ('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY')</where>
+        </delete>
+    </changeSet>
+</databaseChangeLog>

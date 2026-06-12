@@ -3,6 +3,8 @@ package com.myorderlynk.app.booking;
 import com.myorderlynk.app.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -29,7 +31,8 @@ public class AvailabilityRule extends BaseEntity {
     @Column(nullable = false)
     private UUID vendorId;
 
-    /** MONDAY … SUNDAY. */
+    /** MONDAY … SUNDAY. Persisted as the enum name (e.g. "MONDAY"), not its ordinal. */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)
     private DayOfWeek dayOfWeek;
 
