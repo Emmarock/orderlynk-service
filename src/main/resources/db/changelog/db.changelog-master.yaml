@@ -47,3 +47,6 @@ databaseChangeLog:
   - include:
       file: changes/016-fix-availability-day-of-week.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/017-batch-cargo.xml
+      relativeToChangelogFile: true

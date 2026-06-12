@@ -1,0 +1,11 @@
+package com.myorderlynk.app.batch;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface BatchNotificationRepository extends JpaRepository<BatchNotification, UUID> {
+
+    List<BatchNotification> findBySubjectIdOrderByCreatedAtDesc(UUID subjectId);
+}

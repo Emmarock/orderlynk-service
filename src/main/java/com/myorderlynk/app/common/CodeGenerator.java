@@ -32,6 +32,20 @@ public final class CodeGenerator {
         return "SB-" + date + "-" + rand;
     }
 
+    /** Batch-product order id, format BO-YYMMDD-RANDOM, e.g. BO-260601-4821. */
+    public static String batchOrderId() {
+        String date = LocalDate.now(ZoneOffset.UTC).format(YYMMDD);
+        int rand = 1000 + RANDOM.nextInt(9000);
+        return "BO-" + date + "-" + rand;
+    }
+
+    /** Customer shipment-request id, format SR-YYMMDD-RANDOM, e.g. SR-260601-4821. */
+    public static String shipmentRequestId() {
+        String date = LocalDate.now(ZoneOffset.UTC).format(YYMMDD);
+        int rand = 1000 + RANDOM.nextInt(9000);
+        return "SR-" + date + "-" + rand;
+    }
+
     /** Short numeric pickup code, e.g. 5821. */
     public static String pickupCode() {
         return String.valueOf(1000 + RANDOM.nextInt(9000));

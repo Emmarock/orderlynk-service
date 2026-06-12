@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Batch & Cargo module (batch-cargo-feature.MD MVP). Extends the existing `batches` table and
+      adds batch products, batch-product orders, customer shipment requests and notifications.
+      Portable (string UUID keys, enums as VARCHAR, money DECIMAL, no DB-level FKs). New NOT NULL
+      columns on the pre-existing batches table carry defaults so existing rows adopt them safely.
+    -->
+    <changeSet id="017-batch-cargo" author="orderlynk">
+
+        <!-- Extend batches with batch-type, route detail, cargo rate, visibility, etc. -->
+        <addColumn tableName="batches">
+            <column name="batch_type" type="VARCHAR(20)" defaultValue="PRODUCT_BATCH"><constraints nullable="false"/></column>
+            <column name="origin_city" type="VARCHAR(255)"/>
+            <column name="shipping_method" type="VARCHAR(20)"/>
+            <column name="estimated_departure" type="DATE"/>
+            <column name="rate_per_kg" type="DECIMAL(19,2)"/>
+            <column name="handling_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="pickup_location" type="VARCHAR(255)"/>
+            <column name="visibility" type="VARCHAR(20)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="notes" type="VARCHAR(2000)"/>
+        </addColumn>
+        <createIndex tableName="batches" indexName="idx_batch_vendor"><column name="vendor_id"/></createIndex>
+
+        <!-- batch_collection_points (element collection) -->
+        <createTable tableName="batch_collection_points">
+            <column name="batch_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="location" type="VARCHAR(500)"/>
+        </createTable>
+        <createIndex tableName="batch_collection_points" indexName="idx_bcp_batch"><column name="batch_id"/></createIndex>
+
+        <!-- batch_products: catalog products attached to a batch -->
+        <createTable tableName="batch_products">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="batch_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="product_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="name_snapshot" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="image_url_snapshot" type="VARCHAR(1024)"/>
+            <column name="description" type="VARCHAR(2000)"/>
+            <column name="batch_price" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="quantity_limit" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="sold_quantity" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="min_order_quantity" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="AVAILABLE"><constraints nullable="false"/></column>
+            <column name="batch_notes" type="VARCHAR(1000)"/>
+        </createTable>
+        <createIndex tableName="batch_products" indexName="idx_batchproduct_batch"><column name="batch_id"/></createIndex>
+        <createIndex tableName="batch_products" indexName="idx_batchproduct_vendor"><column name="vendor_id"/></createIndex>
+
+        <!-- batch_orders: customer purchases of batch products -->
+        <createTable tableName="batch_orders">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="public_order_id" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="batch_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="customer_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_phone" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_email" type="VARCHAR(255)"/>
+            <column name="fulfillment_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="customer_house_number" type="VARCHAR(255)"/>
+            <column name="customer_street" type="VARCHAR(255)"/>
+            <column name="customer_city" type="VARCHAR(255)"/>
+            <column name="customer_state" type="VARCHAR(255)"/>
+            <column name="customer_postcode" type="VARCHAR(255)"/>
+            <column name="customer_country" type="VARCHAR(255)"/>
+            <column name="product_subtotal" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="delivery_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount_paid" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="refunded_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="payment_status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="source_channel" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="pickup_code" type="VARCHAR(20)"/>
+            <column name="notes" type="VARCHAR(2000)"/>
+        </createTable>
+        <createIndex tableName="batch_orders" indexName="idx_batchorder_public_id" unique="true"><column name="public_order_id"/></createIndex>
+        <createIndex tableName="batch_orders" indexName="idx_batchorder_batch"><column name="batch_id"/></createIndex>
+        <createIndex tableName="batch_orders" indexName="idx_batchorder_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="batch_orders" indexName="idx_batchorder_customer"><column name="customer_user_id"/></createIndex>
+
+        <!-- batch_order_items -->
+        <createTable tableName="batch_order_items">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="batch_order_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="batch_product_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="product_name_snapshot" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="quantity" type="INT"><constraints nullable="false"/></column>
+            <column name="unit_price" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+            <column name="line_total" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="batch_order_items" indexName="idx_batchorderitem_order"><column name="batch_order_id"/></createIndex>
+
+        <!-- shipment_requests: customer-supplied cargo -->
+        <createTable tableName="shipment_requests">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="public_request_id" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="batch_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="customer_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_phone" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_email" type="VARCHAR(255)"/>
+            <column name="item_description" type="VARCHAR(2000)"><constraints nullable="false"/></column>
+            <column name="package_count" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="estimated_weight" type="DECIMAL(12,3)"/>
+            <column name="actual_weight" type="DECIMAL(12,3)"/>
+            <column name="rate_per_kg" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="handling_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="delivery_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_charge" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount_paid" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="refunded_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="declared_value" type="DECIMAL(19,2)"/>
+            <column name="restricted_items_confirmed" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="origin_drop_off_location" type="VARCHAR(500)"/>
+            <column name="destination_location" type="VARCHAR(500)"/>
+            <column name="delivery_preference" type="VARCHAR(20)" defaultValue="PICKUP"/>
+            <column name="payment_status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="source_channel" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="pickup_code" type="VARCHAR(20)"/>
+            <column name="notes" type="VARCHAR(2000)"/>
+        </createTable>
+        <createIndex tableName="shipment_requests" indexName="idx_shipreq_public_id" unique="true"><column name="public_request_id"/></createIndex>
+        <createIndex tableName="shipment_requests" indexName="idx_shipreq_batch"><column name="batch_id"/></createIndex>
+        <createIndex tableName="shipment_requests" indexName="idx_shipreq_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="shipment_requests" indexName="idx_shipreq_customer"><column name="customer_user_id"/></createIndex>
+
+        <!-- batch_notifications: event log / notification seam -->
+        <createTable tableName="batch_notifications">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="subject_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="subject_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="recipient_role" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="channel" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="recipient" type="VARCHAR(255)"/>
+            <column name="template" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="body" type="VARCHAR(2000)"/>
+            <column name="sent_at" type="DATETIME"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="SENT"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="batch_notifications" indexName="idx_batchnotif_subject"><column name="subject_id"/></createIndex>
+
+    </changeSet>
+</databaseChangeLog>

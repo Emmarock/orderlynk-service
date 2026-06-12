@@ -2,6 +2,8 @@ package com.myorderlynk.app.payment;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myorderlynk.app.batch.BatchOrderService;
+import com.myorderlynk.app.batch.ShipmentRequestService;
 import com.myorderlynk.app.booking.BookingService;
 import com.myorderlynk.app.order.Order;
 import com.myorderlynk.app.order.PaymentRecord;
@@ -33,6 +35,8 @@ public class PaymentEventService {
     private final PaymentRecordRepository payments;
     private final ProcessedPaymentEventRepository processed;
     private final BookingService bookingService;
+    private final BatchOrderService batchOrderService;
+    private final ShipmentRequestService shipmentRequestService;
 
     // Instantiated directly (matches ShippoWebhookController/TwilioWhatsAppProvider):
     // Boot 4 auto-configures only the Jackson 3 ObjectMapper, so there is no
@@ -73,10 +77,17 @@ public class PaymentEventService {
         String referenceId = payload.path("orderId").asText(null);
         Optional<Order> orderOpt = referenceId == null ? Optional.empty() : orders.findByPublicOrderId(referenceId);
         if (orderOpt.isEmpty()) {
-            // Not an order — route service-booking payments to the booking module (ids are disjoint).
+            // Not an order — route module payments by reference-id prefix (ids are disjoint).
             if (referenceId != null) {
                 BigDecimal amount = decimal(payload, "grossAmount", BigDecimal.ZERO);
-                bookingService.recordStripePayment(referenceId, amount, payload.path("reference").asText(null));
+                String ref = payload.path("reference").asText(null);
+                if (referenceId.startsWith("BO-")) {
+                    batchOrderService.recordStripePayment(referenceId, amount, ref);
+                } else if (referenceId.startsWith("SR-")) {
+                    shipmentRequestService.recordStripePayment(referenceId, amount, ref);
+                } else {
+                    bookingService.recordStripePayment(referenceId, amount, ref);
+                }
             }
             return;
         }
@@ -116,7 +127,14 @@ public class PaymentEventService {
         if (orderOpt.isEmpty()) {
             if (referenceId != null) {
                 BigDecimal amount = decimal(payload, "amount", BigDecimal.ZERO);
-                bookingService.recordStripeRefund(referenceId, amount, payload.path("reference").asText(null));
+                String ref = payload.path("reference").asText(null);
+                if (referenceId.startsWith("BO-")) {
+                    batchOrderService.recordStripeRefund(referenceId, amount, ref);
+                } else if (referenceId.startsWith("SR-")) {
+                    shipmentRequestService.recordStripeRefund(referenceId, amount, ref);
+                } else {
+                    bookingService.recordStripeRefund(referenceId, amount, ref);
+                }
             }
             return;
         }

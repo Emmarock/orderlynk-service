@@ -138,6 +138,54 @@ public class PaymentClient {
     }
 
     /**
+     * Generic module payment (batch orders, cargo shipment requests, …) keyed by the module's public
+     * reference id — disjoint from order/booking ids, so the same payment-service contract and webhook
+     * route it back. Commission is taken as a destination application fee (gross − PRODUCT).
+     */
+    public CreatePaymentResponse createModulePayment(String publicRef, String customerId, UUID vendorId,
+                                                     String currency, BigDecimal amount, BigDecimal commissionRate,
+                                                     String idempotencySuffix) {
+        BigDecimal platformFee = commissionRate == null ? BigDecimal.ZERO
+                : amount.multiply(commissionRate).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (platformFee.compareTo(amount) > 0) {
+            platformFee = amount;
+        }
+        Map<String, BigDecimal> allocations = new LinkedHashMap<>();
+        putIfPositive(allocations, "PRODUCT", amount.subtract(platformFee));
+        putIfPositive(allocations, "PLATFORM_FEE", platformFee);
+        if (allocations.isEmpty()) {
+            putIfPositive(allocations, "PRODUCT", amount);
+        }
+
+        ConnectAccountStatus connect = connectStatus(vendorId);
+        String vendorAccountId = connect.canReceiveFunds() ? connect.accountId() : null;
+        if (vendorAccountId == null) {
+            log.warn("vendor {} has no Stripe account that can receive funds (chargesEnabled={}); "
+                            + "creating module payment without a destination for {}",
+                    vendorId, connect.chargesEnabled(), publicRef);
+        }
+
+        String idempotencyKey = publicRef + "-" + idempotencySuffix;
+        CreatePaymentRequest body = new CreatePaymentRequest(
+                publicRef, customerId, vendorId.toString(), vendorAccountId,
+                currency, amount, allocations, idempotencyKey);
+
+        CreatePaymentResponse response = restClient.post()
+                .uri("/payments")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(CreatePaymentResponse.class);
+
+        log.info("payment-service created module payment {} for {} ({})",
+                response == null ? null : response.reference(), publicRef,
+                response == null ? null : response.status());
+        return response;
+    }
+
+    /**
      * Create (or return) the vendor's Stripe connected account and a hosted onboarding link.
      * Authenticated with the service token; payment-service treats SERVICE as privileged.
      */
