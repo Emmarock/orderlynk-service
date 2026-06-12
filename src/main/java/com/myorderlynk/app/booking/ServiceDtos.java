@@ -104,6 +104,10 @@ public final class ServiceDtos {
             Boolean active) {
     }
 
+    /** Public URL of an uploaded service image. */
+    public record ImageUploadResponse(String url) {
+    }
+
     public record AddOnResponse(
             UUID id,
             UUID serviceId,

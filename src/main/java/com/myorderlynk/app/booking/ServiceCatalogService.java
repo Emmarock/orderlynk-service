@@ -11,10 +11,14 @@ import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.integration.ImageUploads;
+import com.myorderlynk.app.integration.S3StorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -34,16 +38,41 @@ public class ServiceCatalogService {
     private final AvailabilityRuleRepository rules;
     private final BlockedSlotRepository blocked;
     private final BookingMapper mapper;
+    private final S3StorageService storage;
 
     public ServiceCatalogService(ServiceProviderProfileRepository profiles, ServiceOfferingRepository services,
                                  ServiceAddOnRepository addOns, AvailabilityRuleRepository rules,
-                                 BlockedSlotRepository blocked, BookingMapper mapper) {
+                                 BlockedSlotRepository blocked, BookingMapper mapper, S3StorageService storage) {
         this.profiles = profiles;
         this.services = services;
         this.addOns = addOns;
         this.rules = rules;
         this.blocked = blocked;
         this.mapper = mapper;
+        this.storage = storage;
+    }
+
+    /**
+     * Store a service image uploaded from the vendor's device in S3 and return its public URL.
+     * The vendor saves this URL as the service's {@code imageUrl} (mirrors product image upload).
+     */
+    public String uploadServiceImage(UUID vendorId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("No image file was provided");
+        }
+        String contentType = file.getContentType();
+        String ext = ImageUploads.extensionOrThrow(contentType);
+        String key = "services/" + vendorId + "/" + UUID.randomUUID() + "." + ext;
+        log.info("Uploading service image for vendor {}: type={} size={}B key={}",
+                vendorId, contentType, file.getSize(), key);
+        try {
+            String url = storage.uploadPublic(file.getBytes(), contentType, key);
+            log.info("Service image uploaded for vendor {} -> {}", vendorId, url);
+            return url;
+        } catch (IOException e) {
+            log.error("Failed to read uploaded service image for vendor {}", vendorId, e);
+            throw ApiException.badRequest("Could not read the uploaded image");
+        }
     }
 
     // ---- Provider profile ----

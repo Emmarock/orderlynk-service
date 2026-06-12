@@ -13,6 +13,7 @@ import com.myorderlynk.app.booking.ServiceDtos.AvailabilityRuleRequest;
 import com.myorderlynk.app.booking.ServiceDtos.AvailabilityRuleResponse;
 import com.myorderlynk.app.booking.ServiceDtos.BlockedSlotRequest;
 import com.myorderlynk.app.booking.ServiceDtos.BlockedSlotResponse;
+import com.myorderlynk.app.booking.ServiceDtos.ImageUploadResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
@@ -32,7 +33,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -89,6 +92,12 @@ public class VendorBookingController {
     @PostMapping("/services")
     public ServiceResponse createService(@Valid @RequestBody ServiceRequest req) {
         return catalog.createService(vendorId(), req);
+    }
+
+    /** Upload a service image from the vendor's device; returns the public URL to store as imageUrl. */
+    @PostMapping(value = "/services/image", consumes = "multipart/form-data")
+    public ImageUploadResponse uploadServiceImage(@RequestPart("file") MultipartFile file) {
+        return new ImageUploadResponse(catalog.uploadServiceImage(vendorId(), file));
     }
 
     @PutMapping("/services/{id}")
