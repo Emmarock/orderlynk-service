@@ -1,6 +1,6 @@
 package com.myorderlynk.app.security;
 
-import com.myorderlynk.app.domain.enums.UserRole;
+import com.myorderlynk.app.common.enums.UserRole;
 
 import java.util.UUID;
 

@@ -1,7 +1,7 @@
 package com.myorderlynk.app.shipping;
 
-import com.myorderlynk.app.dto.AddressDtos.AddressDto;
-import com.myorderlynk.app.dto.OrderDtos.CartLine;
+import com.myorderlynk.app.identity.AddressDtos.AddressDto;
+import com.myorderlynk.app.order.OrderDtos.CartLine;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

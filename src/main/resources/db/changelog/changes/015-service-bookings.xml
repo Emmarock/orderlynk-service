@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Service Provider Booking module (service-provider.MD MVP). Portable across MySQL, TiDB and
+      H2 (tests): string UUID keys, enums as VARCHAR, money as DECIMAL, no DB-level foreign keys
+      (relationships are by id column + index, matching the rest of the schema).
+    -->
+    <changeSet id="015-service-bookings" author="orderlynk">
+
+        <!-- service_provider_profiles: per-vendor Services settings + scheduling defaults -->
+        <createTable tableName="service_provider_profiles">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="service_enabled" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="bio" type="VARCHAR(2000)"/>
+            <column name="service_area" type="VARCHAR(255)"/>
+            <column name="location_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="approval_mode" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="cancellation_policy" type="VARCHAR(2000)"/>
+            <column name="deposit_policy" type="VARCHAR(2000)"/>
+            <column name="business_hours_summary" type="VARCHAR(255)"/>
+            <column name="lead_time_hours" type="INT" defaultValueNumeric="12"><constraints nullable="false"/></column>
+            <column name="buffer_minutes" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="max_advance_days" type="INT" defaultValueNumeric="30"><constraints nullable="false"/></column>
+            <column name="default_capacity" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="slot_hold_minutes" type="INT" defaultValueNumeric="15"><constraints nullable="false"/></column>
+            <column name="timezone" type="VARCHAR(64)" defaultValue="America/Toronto"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="service_provider_profiles" indexName="uq_spp_vendor" unique="true">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <!-- services: the bookable service catalog -->
+        <createTable tableName="services">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="category" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="description" type="VARCHAR(2000)"/>
+            <column name="base_price" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)"><constraints nullable="false"/></column>
+            <column name="duration_minutes" type="INT" defaultValueNumeric="60"><constraints nullable="false"/></column>
+            <column name="image_url" type="VARCHAR(1024)"/>
+            <column name="deposit_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="deposit_value" type="DECIMAL(19,2)"/>
+            <column name="tax_rate" type="DECIMAL(6,4)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="services" indexName="idx_service_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="services" indexName="idx_service_category"><column name="category"/></createIndex>
+
+        <!-- service_add_ons -->
+        <createTable tableName="service_add_ons">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="service_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="price_delta" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="duration_delta" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="required" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="max_selection" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="service_add_ons" indexName="idx_addon_service"><column name="service_id"/></createIndex>
+
+        <!-- availability_rules: recurring weekly working hours -->
+        <createTable tableName="availability_rules">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="day_of_week" type="VARCHAR(12)"><constraints nullable="false"/></column>
+            <column name="start_time" type="TIME"><constraints nullable="false"/></column>
+            <column name="end_time" type="TIME"><constraints nullable="false"/></column>
+            <column name="capacity" type="INT"/>
+            <column name="buffer_minutes" type="INT"/>
+            <column name="lead_time_hours" type="INT"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="availability_rules" indexName="idx_availrule_vendor"><column name="vendor_id"/></createIndex>
+
+        <!-- blocked_slots -->
+        <createTable tableName="blocked_slots">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="start_datetime" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="end_datetime" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="reason" type="VARCHAR(255)"/>
+        </createTable>
+        <createIndex tableName="blocked_slots" indexName="idx_blocked_vendor"><column name="vendor_id"/></createIndex>
+
+        <!-- bookings: customer appointments with their own lifecycle -->
+        <createTable tableName="bookings">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="public_booking_id" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="customer_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_phone" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="customer_email" type="VARCHAR(255)"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="service_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="service_name_snapshot" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="appointment_start" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="appointment_end" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="approval_mode" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="location_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="customer_house_number" type="VARCHAR(255)"/>
+            <column name="customer_street" type="VARCHAR(255)"/>
+            <column name="customer_city" type="VARCHAR(255)"/>
+            <column name="customer_state" type="VARCHAR(255)"/>
+            <column name="customer_postcode" type="VARCHAR(255)"/>
+            <column name="customer_country" type="VARCHAR(255)"/>
+            <column name="service_price" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tax_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="deposit_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="deposit_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount_paid" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="refunded_amount" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="payment_status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="hold_expires_at" type="DATETIME"/>
+            <column name="last_reminder_at" type="DATETIME"/>
+            <column name="source_channel" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="notes" type="VARCHAR(2000)"/>
+            <column name="status_reason" type="VARCHAR(255)"/>
+        </createTable>
+        <createIndex tableName="bookings" indexName="idx_booking_public_id" unique="true">
+            <column name="public_booking_id"/>
+        </createIndex>
+        <createIndex tableName="bookings" indexName="idx_booking_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="bookings" indexName="idx_booking_customer"><column name="customer_user_id"/></createIndex>
+        <createIndex tableName="bookings" indexName="idx_booking_start"><column name="appointment_start"/></createIndex>
+
+        <!-- booking_add_ons: selected add-ons snapshot per booking -->
+        <createTable tableName="booking_add_ons">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="booking_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="add_on_id" type="VARCHAR(36)"/>
+            <column name="name_snapshot" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="price_delta" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="duration_delta" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="quantity" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="booking_add_ons" indexName="idx_bookingaddon_booking"><column name="booking_id"/></createIndex>
+
+        <!-- booking_payments: deposit / balance / full / refund records -->
+        <createTable tableName="booking_payments">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="booking_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="payment_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="amount" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="method" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="transaction_reference" type="VARCHAR(255)"/>
+            <column name="paid_at" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="booking_payments" indexName="idx_bookingpay_booking"><column name="booking_id"/></createIndex>
+
+        <!-- booking_reviews: one review per booking, feeds provider service rating -->
+        <createTable tableName="booking_reviews">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="booking_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="service_id" type="VARCHAR(36)"/>
+            <column name="customer_user_id" type="VARCHAR(36)"/>
+            <column name="rating" type="INT"><constraints nullable="false"/></column>
+            <column name="comment" type="VARCHAR(1000)"/>
+            <column name="visible" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="booking_reviews" indexName="uq_review_booking" unique="true">
+            <column name="booking_id"/>
+        </createIndex>
+        <createIndex tableName="booking_reviews" indexName="idx_review_vendor"><column name="vendor_id"/></createIndex>
+
+        <!-- booking_notifications: reminder engine + event log -->
+        <createTable tableName="booking_notifications">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="booking_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="recipient_role" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="channel" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="recipient" type="VARCHAR(255)"/>
+            <column name="template" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="body" type="VARCHAR(2000)"/>
+            <column name="scheduled_at" type="DATETIME"/>
+            <column name="sent_at" type="DATETIME"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="SENT"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="booking_notifications" indexName="idx_booknotif_booking"><column name="booking_id"/></createIndex>
+
+    </changeSet>
+</databaseChangeLog>

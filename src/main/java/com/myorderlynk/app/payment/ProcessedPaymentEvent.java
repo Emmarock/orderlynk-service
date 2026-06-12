@@ -1,6 +1,6 @@
 package com.myorderlynk.app.payment;
 
-import com.myorderlynk.app.domain.BaseEntity;
+import com.myorderlynk.app.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

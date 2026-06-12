@@ -1,12 +1,12 @@
 package com.myorderlynk.app.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.myorderlynk.app.domain.User;
-import com.myorderlynk.app.domain.Vendor;
-import com.myorderlynk.app.domain.enums.UserRole;
-import com.myorderlynk.app.domain.enums.VendorStatus;
-import com.myorderlynk.app.repository.UserRepository;
-import com.myorderlynk.app.repository.VendorRepository;
+import com.myorderlynk.app.identity.User;
+import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.common.enums.UserRole;
+import com.myorderlynk.app.common.enums.VendorStatus;
+import com.myorderlynk.app.identity.UserRepository;
+import com.myorderlynk.app.vendor.VendorRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;

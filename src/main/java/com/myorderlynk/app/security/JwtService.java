@@ -1,6 +1,6 @@
 package com.myorderlynk.app.security;
 
-import com.myorderlynk.app.domain.User;
+import com.myorderlynk.app.identity.User;
 import com.myorderlynk.app.exception.ApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;

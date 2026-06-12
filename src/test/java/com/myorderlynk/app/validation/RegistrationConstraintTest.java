@@ -1,7 +1,7 @@
 package com.myorderlynk.app.validation;
 
-import com.myorderlynk.app.dto.AuthDtos.RegisterRequest;
-import com.myorderlynk.app.dto.VendorDtos.SellerRegistrationRequest;
+import com.myorderlynk.app.identity.AuthDtos.RegisterRequest;
+import com.myorderlynk.app.vendor.VendorDtos.SellerRegistrationRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

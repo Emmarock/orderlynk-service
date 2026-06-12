@@ -1,6 +1,6 @@
 package com.myorderlynk.app.payment;
 
-import com.myorderlynk.app.domain.Order;
+import com.myorderlynk.app.order.Order;
 import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountRequest;
 import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountStatus;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentRequest;
@@ -81,6 +81,58 @@ public class PaymentClient {
 
         log.info("payment-service created payment {} for order {} (status {})",
                 response == null ? null : response.reference(), order.getPublicOrderId(),
+                response == null ? null : response.status());
+        return response;
+    }
+
+    /**
+     * Create a payment / PaymentIntent for a service booking (deposit or balance). Keyed by the
+     * public booking id (disjoint from order ids), so the same payment-service contract, webhook
+     * and idempotency machinery handle bookings without any change. The platform commission is
+     * taken as a destination application fee (gross − PRODUCT); the rest settles to the vendor.
+     *
+     * @param idempotencySuffix distinguishes a booking's deposit from its balance charge
+     */
+    public CreatePaymentResponse createBookingPayment(String publicBookingId, String customerId, UUID vendorId,
+                                                      String currency, BigDecimal amount, BigDecimal commissionRate,
+                                                      String idempotencySuffix) {
+        BigDecimal platformFee = commissionRate == null ? BigDecimal.ZERO
+                : amount.multiply(commissionRate).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (platformFee.compareTo(amount) > 0) {
+            platformFee = amount;
+        }
+        BigDecimal vendorPortion = amount.subtract(platformFee);
+        Map<String, BigDecimal> allocations = new LinkedHashMap<>();
+        putIfPositive(allocations, "PRODUCT", vendorPortion);
+        putIfPositive(allocations, "PLATFORM_FEE", platformFee);
+        if (allocations.isEmpty()) {
+            putIfPositive(allocations, "PRODUCT", amount);
+        }
+
+        ConnectAccountStatus connect = connectStatus(vendorId);
+        String vendorAccountId = connect.canReceiveFunds() ? connect.accountId() : null;
+        if (vendorAccountId == null) {
+            log.warn("vendor {} has no Stripe account that can receive funds (chargesEnabled={}); "
+                            + "creating booking payment without a destination for {}",
+                    vendorId, connect.chargesEnabled(), publicBookingId);
+        }
+
+        String idempotencyKey = publicBookingId + "-" + idempotencySuffix;
+        CreatePaymentRequest body = new CreatePaymentRequest(
+                publicBookingId, customerId, vendorId.toString(), vendorAccountId,
+                currency, amount, allocations, idempotencyKey);
+
+        CreatePaymentResponse response = restClient.post()
+                .uri("/payments")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(CreatePaymentResponse.class);
+
+        log.info("payment-service created booking payment {} for {} ({})",
+                response == null ? null : response.reference(), publicBookingId,
                 response == null ? null : response.status());
         return response;
     }

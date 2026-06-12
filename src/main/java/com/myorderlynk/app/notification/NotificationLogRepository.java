@@ -1,0 +1,14 @@
+package com.myorderlynk.app.notification;
+
+import com.myorderlynk.app.notification.NotificationLog;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface NotificationLogRepository extends JpaRepository<NotificationLog, UUID> {
+    List<NotificationLog> findByOrderIdOrderByCreatedAtDesc(UUID orderId);
+
+    Optional<NotificationLog> findFirstByProviderMessageIdOrderByCreatedAtDesc(String providerMessageId);
+}

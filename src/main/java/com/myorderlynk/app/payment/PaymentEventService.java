@@ -2,13 +2,14 @@ package com.myorderlynk.app.payment;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.myorderlynk.app.domain.Order;
-import com.myorderlynk.app.domain.PaymentRecord;
-import com.myorderlynk.app.domain.enums.FulfillmentStatus;
-import com.myorderlynk.app.domain.enums.PaymentMethod;
-import com.myorderlynk.app.domain.enums.PaymentStatus;
-import com.myorderlynk.app.repository.OrderRepository;
-import com.myorderlynk.app.repository.PaymentRecordRepository;
+import com.myorderlynk.app.booking.BookingService;
+import com.myorderlynk.app.order.Order;
+import com.myorderlynk.app.order.PaymentRecord;
+import com.myorderlynk.app.common.enums.FulfillmentStatus;
+import com.myorderlynk.app.common.enums.PaymentMethod;
+import com.myorderlynk.app.common.enums.PaymentStatus;
+import com.myorderlynk.app.order.OrderRepository;
+import com.myorderlynk.app.order.PaymentRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class PaymentEventService {
     private final OrderRepository orders;
     private final PaymentRecordRepository payments;
     private final ProcessedPaymentEventRepository processed;
+    private final BookingService bookingService;
 
     // Instantiated directly (matches ShippoWebhookController/TwilioWhatsAppProvider):
     // Boot 4 auto-configures only the Jackson 3 ObjectMapper, so there is no
@@ -68,7 +70,17 @@ public class PaymentEventService {
     }
 
     private void onSucceeded(JsonNode payload) {
-        findOrder(payload).ifPresent(order -> {
+        String referenceId = payload.path("orderId").asText(null);
+        Optional<Order> orderOpt = referenceId == null ? Optional.empty() : orders.findByPublicOrderId(referenceId);
+        if (orderOpt.isEmpty()) {
+            // Not an order — route service-booking payments to the booking module (ids are disjoint).
+            if (referenceId != null) {
+                BigDecimal amount = decimal(payload, "grossAmount", BigDecimal.ZERO);
+                bookingService.recordStripePayment(referenceId, amount, payload.path("reference").asText(null));
+            }
+            return;
+        }
+        orderOpt.ifPresent(order -> {
             if (order.getPaymentStatus() == PaymentStatus.PAID) {
                 return;
             }
@@ -99,7 +111,16 @@ public class PaymentEventService {
     }
 
     private void onRefunded(JsonNode payload) {
-        findOrder(payload).ifPresent(order -> {
+        String referenceId = payload.path("orderId").asText(null);
+        Optional<Order> orderOpt = referenceId == null ? Optional.empty() : orders.findByPublicOrderId(referenceId);
+        if (orderOpt.isEmpty()) {
+            if (referenceId != null) {
+                BigDecimal amount = decimal(payload, "amount", BigDecimal.ZERO);
+                bookingService.recordStripeRefund(referenceId, amount, payload.path("reference").asText(null));
+            }
+            return;
+        }
+        orderOpt.ifPresent(order -> {
             BigDecimal amount = decimal(payload, "amount", BigDecimal.ZERO);
             BigDecimal refunded = order.getRefundedAmount() == null ? BigDecimal.ZERO : order.getRefundedAmount();
             order.setRefundedAmount(refunded.add(amount));
