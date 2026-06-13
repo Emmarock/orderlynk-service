@@ -7,6 +7,7 @@ import com.myorderlynk.app.batch.BatchDtos.BatchRequest;
 import com.myorderlynk.app.batch.BatchDtos.BatchResponse;
 import com.myorderlynk.app.batch.BatchDtos.BatchSummary;
 import com.myorderlynk.app.batch.BatchDtos.CopyFromBatchRequest;
+import com.myorderlynk.app.batch.BatchDtos.ManualPaymentRequest;
 import com.myorderlynk.app.batch.BatchDtos.StatusUpdateRequest;
 import com.myorderlynk.app.batch.BatchOrderDtos.BatchOrderResponse;
 import com.myorderlynk.app.batch.BatchOrderDtos.OrderStatusUpdateRequest;
@@ -133,6 +134,13 @@ public class VendorBatchController {
         return batchOrders.updateStatus(vendorId(), id, req.status(), req.note(), actor());
     }
 
+    /** Record a manual (card) payment for a batch order — only when manual payments are enabled. */
+    @PostMapping("/batch-orders/{id}/payments")
+    public BatchOrderResponse recordOrderPayment(@PathVariable UUID id, @Valid @RequestBody(required = false) ManualPaymentRequest req) {
+        return batchOrders.recordManualPayment(vendorId(), id, req == null ? null : req.amount(),
+                req == null ? null : req.reference(), actor());
+    }
+
     // ---- Shipment requests ----
 
     @GetMapping("/batches/{id}/shipment-requests")
@@ -159,6 +167,13 @@ public class VendorBatchController {
     public ShipmentRequestResponse updateShipmentStatus(@PathVariable UUID id,
                                                         @Valid @RequestBody ShipmentStatusUpdateRequest req) {
         return shipmentRequests.updateStatus(vendorId(), id, req.status(), req.note(), actor());
+    }
+
+    /** Record a manual (card) payment for a shipment request — only when manual payments are enabled. */
+    @PostMapping("/shipment-requests/{id}/payments")
+    public ShipmentRequestResponse recordShipmentPayment(@PathVariable UUID id, @Valid @RequestBody(required = false) ManualPaymentRequest req) {
+        return shipmentRequests.recordManualPayment(vendorId(), id, req == null ? null : req.amount(),
+                req == null ? null : req.reference(), actor());
     }
 
     private UUID vendorId() {

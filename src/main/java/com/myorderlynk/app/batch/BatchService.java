@@ -12,10 +12,16 @@ import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.vendor.Vendor;
 import com.myorderlynk.app.vendor.VendorRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,11 +42,23 @@ public class BatchService {
     private final VendorRepository vendors;
     private final BatchMapper mapper;
     private final BatchNotificationService notifications;
+    private final ZoneId lifecycleZone;
+    private final int closingSoonDays;
+    private final int closeHour;
+    private final int sourcingDelayDays;
+
+    /** Lifecycle statuses the scheduler auto-advances, in order. Vendor-set later stages are left alone. */
+    private static final List<BatchStatus> AUTO_MANAGED = List.of(
+            BatchStatus.OPEN, BatchStatus.CLOSING_SOON, BatchStatus.CLOSED, BatchStatus.SOURCING);
 
     public BatchService(BatchRepository batches, BatchProductRepository batchProducts,
                         BatchOrderRepository batchOrders, ShipmentRequestRepository shipmentRequests,
                         ProductRepository products, VendorRepository vendors, BatchMapper mapper,
-                        BatchNotificationService notifications) {
+                        BatchNotificationService notifications,
+                        @Value("${app.batches.timezone:America/Toronto}") String batchTimezone,
+                        @Value("${app.batches.closing-soon-days:5}") int closingSoonDays,
+                        @Value("${app.batches.close-hour:18}") int closeHour,
+                        @Value("${app.batches.sourcing-delay-days:2}") int sourcingDelayDays) {
         this.batches = batches;
         this.batchProducts = batchProducts;
         this.batchOrders = batchOrders;
@@ -49,6 +67,10 @@ public class BatchService {
         this.vendors = vendors;
         this.mapper = mapper;
         this.notifications = notifications;
+        this.lifecycleZone = ZoneId.of(batchTimezone);
+        this.closingSoonDays = closingSoonDays;
+        this.closeHour = closeHour;
+        this.sourcingDelayDays = sourcingDelayDays;
     }
 
     // ---- Batch cycles ----
@@ -78,8 +100,28 @@ public class BatchService {
     @Transactional
     public BatchResponse update(UUID vendorId, UUID batchId, BatchRequest req) {
         Batch b = owned(vendorId, batchId);
+        // Pricing is locked once a batch is open for orders — customers may already have ordered
+        // (or be about to) at the published rate/currency, so they can't change underneath them.
+        if (b.getBatchStatus() == BatchStatus.OPEN
+                && (moneyChanged(b.getRatePerKg(), req.ratePerKg())
+                    || moneyChanged(b.getHandlingFee(), req.handlingFee())
+                    || currencyChanged(b.getCurrency(), req.currency()))) {
+            throw ApiException.badRequest(
+                    "Rate per kg, handling fee and currency can't be changed while the batch is open for orders");
+        }
         apply(b, req);
         return mapper.batch(batches.save(b), vendorName(vendorId));
+    }
+
+    private static boolean moneyChanged(BigDecimal current, BigDecimal incoming) {
+        if (incoming == null) {
+            return false; // field not supplied → not a change
+        }
+        return current == null || current.compareTo(incoming) != 0;
+    }
+
+    private static boolean currencyChanged(String current, String incoming) {
+        return incoming != null && !incoming.isBlank() && !incoming.equalsIgnoreCase(current);
     }
 
     /** Publish a batch so customers can reach it: opens orders and makes it at least link-visible. */
@@ -181,6 +223,51 @@ public class BatchService {
     @Transactional
     public void removeProduct(UUID vendorId, UUID batchId, UUID batchProductId) {
         batchProducts.delete(ownedProduct(vendorId, batchId, batchProductId));
+    }
+
+    // ---- automated lifecycle (scheduler) ----
+
+    /**
+     * Advances open-cycle batches by their configured close date (batch-cargo spec §8.1):
+     * OPEN → CLOSING_SOON 5 days before close, → CLOSED at the close date 18:00 local, →
+     * SOURCING 2 days after close. Forward-only and idempotent; vendor/admin-set later stages
+     * (CONSOLIDATING, SHIPPED, …) and DRAFT/DELAYED batches are left untouched. Returns #changed.
+     */
+    @Transactional
+    public int advanceLifecycle() {
+        Instant now = Instant.now();
+        int changed = 0;
+        for (Batch b : batches.findByBatchStatusInAndCloseDateNotNull(AUTO_MANAGED)) {
+            BatchStatus target = targetStatus(now, b.getCloseDate());
+            if (rank(target) > rank(b.getBatchStatus())) {
+                BatchStatus from = b.getBatchStatus();
+                b.setBatchStatus(target);
+                batches.save(b);
+                notifyBatchCustomers(b, target);
+                changed++;
+                log.info("Batch {} auto-advanced {} -> {} (close {})", b.getId(), from, target, b.getCloseDate());
+            }
+        }
+        if (changed > 0) {
+            log.info("Batch lifecycle pass advanced {} batch(es)", changed);
+        }
+        return changed;
+    }
+
+    /** The status a batch should hold given the current time and its close date. */
+    private BatchStatus targetStatus(Instant now, LocalDate closeDate) {
+        Instant closingSoonAt = closeDate.minusDays(closingSoonDays).atStartOfDay(lifecycleZone).toInstant();
+        Instant closeAt = closeDate.atTime(LocalTime.of(closeHour, 0)).atZone(lifecycleZone).toInstant();
+        Instant sourcingAt = closeAt.plus(Duration.ofDays(sourcingDelayDays));
+        if (!now.isBefore(sourcingAt)) return BatchStatus.SOURCING;
+        if (!now.isBefore(closeAt)) return BatchStatus.CLOSED;
+        if (!now.isBefore(closingSoonAt)) return BatchStatus.CLOSING_SOON;
+        return BatchStatus.OPEN;
+    }
+
+    /** Position of a status in the auto-managed progression; -1 if not auto-managed. */
+    private static int rank(BatchStatus status) {
+        return AUTO_MANAGED.indexOf(status);
     }
 
     // ---- admin ----

@@ -115,7 +115,8 @@ public final class VendorDtos {
             String payoutEmail,
             boolean notifyByEmail,
             boolean notifyByWhatsapp,
-            boolean lowStockAlerts) {
+            boolean lowStockAlerts,
+            boolean alternativePaymentsEnabled) {
     }
 
     /** Submitted by a customer to rate a vendor (1–5 stars). */

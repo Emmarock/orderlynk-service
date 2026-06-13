@@ -341,12 +341,16 @@ public class BookingService {
 
     // ===================== Payments =====================
 
-    /** Vendor-initiated manual payment (cash, e-transfer, etc). */
+    /** Vendor-initiated manual payment. Non-card methods require admin-enabled alternative payments. */
     @Transactional
     public PaymentResponse recordPayment(UUID vendorId, UUID bookingId, PaymentRequest req, String actor) {
         Booking b = owned(vendorId, bookingId);
-        BigDecimal amount = req.amount() != null ? req.amount() : defaultPaymentAmount(b, req.paymentType());
         PaymentMethod method = req.method() == null ? PaymentMethod.OTHER : req.method();
+        if (method != PaymentMethod.CARD
+                && !vendors.findById(vendorId).map(Vendor::isAlternativePaymentsEnabled).orElse(false)) {
+            throw ApiException.forbidden("Your account isn't enabled for non-card payments");
+        }
+        BigDecimal amount = req.amount() != null ? req.amount() : defaultPaymentAmount(b, req.paymentType());
         return mapper.payment(applyPayment(b, req.paymentType(), amount, method, req.transactionReference(), actor));
     }
 

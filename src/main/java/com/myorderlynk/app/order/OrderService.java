@@ -125,6 +125,9 @@ public class OrderService {
     @Transactional
     public OrderResponse checkout(CheckoutRequest req, UUID customerUserId) {
         Vendor vendor = approvedVendor(req.vendorId());
+        if (req.paymentMethod() != PaymentMethod.CARD && !vendor.isAlternativePaymentsEnabled()) {
+            throw ApiException.badRequest("This vendor currently only accepts card payments");
+        }
         log.info("Checkout: vendor={} items={} customerUser={} fulfillment={} payment={}",
                 vendor.getId(), req.items().size(), customerUserId, req.fulfillmentType(), req.paymentMethod());
 
@@ -306,6 +309,11 @@ public class OrderService {
         Order order = orders.findById(orderId).orElseThrow(() -> ApiException.notFound("Order not found"));
         if (actingVendorId != null && !order.getVendorId().equals(actingVendorId)) {
             throw ApiException.forbidden("This order belongs to another vendor");
+        }
+        // A vendor may only record non-card payments if an admin has enabled alternative methods.
+        if (actingVendorId != null && req.method() != null && req.method() != PaymentMethod.CARD
+                && !vendors.findById(actingVendorId).map(Vendor::isAlternativePaymentsEnabled).orElse(false)) {
+            throw ApiException.forbidden("Your account isn't enabled for non-card payments");
         }
         PaymentStatus from = order.getPaymentStatus();
         PaymentStatus to = req.status();

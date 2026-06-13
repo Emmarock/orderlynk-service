@@ -90,6 +90,16 @@ public class AdminService {
         return vendorMapper.vendor(vendor);
     }
 
+    /** Admin grants/revokes a vendor's ability to accept non-card payment methods (transfers, cash). */
+    @Transactional
+    public VendorResponse setAlternativePayments(UUID vendorId, boolean enabled) {
+        Vendor vendor = require(vendorId);
+        vendor.setAlternativePaymentsEnabled(enabled);
+        vendors.save(vendor);
+        log.info("Vendor {} alternative payments {}", vendorId, enabled ? "ENABLED" : "disabled");
+        return vendorMapper.vendor(vendor);
+    }
+
     @Transactional(readOnly = true)
     public List<OrderResponse> allOrders() {
         return orders.findAllByOrderByCreatedAtDesc().stream()

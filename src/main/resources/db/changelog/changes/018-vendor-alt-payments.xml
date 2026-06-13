@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Per-vendor capability to accept non-card payment methods (bank transfer, e-transfer, cash).
+      Off by default; only an admin can enable it. When false the vendor is card-only across orders,
+      service bookings and batch/cargo.
+    -->
+    <changeSet id="018-vendor-alt-payments" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="alternative_payments_enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

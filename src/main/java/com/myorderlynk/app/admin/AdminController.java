@@ -66,6 +66,12 @@ public class AdminController {
         return adminService.suspendVendor(id);
     }
 
+    /** Enable/disable non-card payment methods (transfers, cash) for a specific vendor. */
+    @PostMapping("/vendors/{id}/alternative-payments")
+    public VendorResponse alternativePayments(@PathVariable UUID id, @RequestParam boolean enabled) {
+        return adminService.setAlternativePayments(id, enabled);
+    }
+
     // ---- Order oversight ----
 
     @GetMapping("/orders")

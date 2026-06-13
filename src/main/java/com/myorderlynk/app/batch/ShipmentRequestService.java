@@ -57,6 +57,38 @@ public class ShipmentRequestService {
         this.audit = audit;
     }
 
+    /** Vendor records a manual payment collected out-of-band; only for admin-enabled (non-card) vendors. */
+    @Transactional
+    public ShipmentRequestResponse recordManualPayment(UUID vendorId, UUID requestId, BigDecimal amount, String reference, String actor) {
+        Vendor vendor = vendors.findById(vendorId).orElseThrow(() -> ApiException.notFound("Vendor not found"));
+        if (!vendor.isAlternativePaymentsEnabled()) {
+            throw ApiException.forbidden("Your account isn't enabled for non-card payments");
+        }
+        ShipmentRequest s = owned(vendorId, requestId);
+        if (s.getActualWeight() == null) {
+            throw ApiException.badRequest("Weigh the items to set the charge before recording a payment");
+        }
+        BigDecimal amt = amount != null ? amount : s.balanceDue();
+        if (amt.signum() <= 0) {
+            throw ApiException.badRequest("Payment amount must be positive");
+        }
+        s.setAmountPaid(s.getAmountPaid().add(amt));
+        if (s.getAmountPaid().compareTo(s.getTotalCharge()) >= 0) {
+            s.setPaymentStatus(PaymentStatus.PAID);
+            if (terminalBeforeShipping(s.getStatus())) {
+                transition(s, ShipmentRequestStatus.ADDED_TO_BATCH, actor, "Paid (manual)");
+            }
+            notifyCustomer(s, "PAYMENT_CONFIRMED", "Payment received for " + s.getPublicRequestId()
+                    + " — your items are added to the batch.");
+        } else if (s.getAmountPaid().signum() > 0) {
+            s.setPaymentStatus(PaymentStatus.PARTIAL);
+        }
+        audit.logChange(s.getId(), "SHIPMENT_PAYMENT", null, "MANUAL", actor, reference);
+        requests.save(s);
+        log.info("Manual payment {} {} recorded on {} by {}", amt, s.getCurrency(), s.getPublicRequestId(), actor);
+        return response(s);
+    }
+
     @Transactional
     public ShipmentRequestResponse create(ShipmentRequestCreate req, UUID customerUserId) {
         Batch batch = batches.findById(req.batchId())

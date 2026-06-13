@@ -114,4 +114,12 @@ public class Vendor extends BaseEntity {
 
     @Column(nullable = false)
     private boolean lowStockAlerts = true;
+
+    /**
+     * Whether this vendor may accept non-card payment methods (bank transfer, e-transfer, cash) in
+     * addition to card. Off by default; only an admin can enable it. When false the vendor is
+     * card-only across orders, service bookings and batch/cargo.
+     */
+    @Column(nullable = false)
+    private boolean alternativePaymentsEnabled = false;
 }

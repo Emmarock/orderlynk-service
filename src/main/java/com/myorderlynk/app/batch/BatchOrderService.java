@@ -60,6 +60,26 @@ public class BatchOrderService {
         this.audit = audit;
     }
 
+    /** Vendor records a manual payment collected out-of-band; only for admin-enabled (non-card) vendors. */
+    @Transactional
+    public BatchOrderResponse recordManualPayment(UUID vendorId, UUID orderId, BigDecimal amount, String reference, String actor) {
+        Vendor vendor = vendors.findById(vendorId).orElseThrow(() -> ApiException.notFound("Vendor not found"));
+        if (!vendor.isAlternativePaymentsEnabled()) {
+            throw ApiException.forbidden("Your account isn't enabled for non-card payments");
+        }
+        BatchOrder o = owned(vendorId, orderId);
+        BigDecimal amt = amount != null ? amount : o.balanceDue();
+        if (amt.signum() <= 0) {
+            throw ApiException.badRequest("Payment amount must be positive");
+        }
+        o.setAmountPaid(o.getAmountPaid().add(amt));
+        applyPaymentStatus(o, reference != null ? reference : "manual");
+        orders.save(o);
+        audit.logChange(o.getId(), "BATCH_ORDER_PAYMENT", null, "MANUAL", actor, reference);
+        log.info("Manual payment {} {} recorded on {} by {}", amt, o.getCurrency(), o.getPublicOrderId(), actor);
+        return response(o, batchName(o.getBatchId()), vendorName(vendorId));
+    }
+
     @Transactional
     public BatchOrderResponse create(BatchOrderRequest req, UUID customerUserId) {
         Batch batch = batches.findById(req.batchId())

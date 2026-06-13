@@ -50,3 +50,6 @@ databaseChangeLog:
   - include:
       file: changes/017-batch-cargo.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/018-vendor-alt-payments.xml
+      relativeToChangelogFile: true

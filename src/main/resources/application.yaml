@@ -79,6 +79,15 @@ app:
   tokens:
     # Purge of used/expired email-verification & password-reset tokens.
     cleanup-cron: "0 30 3 * * *"
+  batches:
+    # Automated batch-cycle lifecycle (OPEN → CLOSING_SOON → CLOSED → SOURCING). All configurable
+    # via env vars. Day offsets are relative to a batch's configured close date; close-hour is the
+    # local hour-of-day (timezone below) at which an open batch flips to CLOSED.
+    timezone: ${APP_BATCHES_TIMEZONE:America/Toronto}
+    lifecycle-cron: ${APP_BATCHES_LIFECYCLE_CRON:0 0 * * * *}
+    closing-soon-days: ${APP_BATCHES_CLOSING_SOON_DAYS:5}
+    close-hour: ${APP_BATCHES_CLOSE_HOUR:18}
+    sourcing-delay-days: ${APP_BATCHES_SOURCING_DELAY_DAYS:2}
   fees:
     service-fee-rate: 0.03
     processing-rate: 0.029

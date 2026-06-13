@@ -16,4 +16,7 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
     /** Marketplace listing: publicly visible batches still open for orders/requests. */
     List<Batch> findByVisibilityAndBatchStatusInOrderByCloseDateAsc(
             BatchVisibility visibility, Collection<BatchStatus> statuses);
+
+    /** Batches in the given statuses with a close date set — drives the lifecycle scheduler. */
+    List<Batch> findByBatchStatusInAndCloseDateNotNull(Collection<BatchStatus> statuses);
 }

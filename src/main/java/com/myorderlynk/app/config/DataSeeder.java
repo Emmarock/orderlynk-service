@@ -70,6 +70,9 @@ public class DataSeeder implements CommandLineRunner {
                 "Winnipeg", "Canada", "+12045551234", "@mamatfoods",
                 Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.LOCAL_DELIVERY, FulfillmentType.DOMESTIC_SHIPPING),
                 "4.8", 24);
+        // Admin has enabled non-card (transfer) payments for this vendor — used by the demo order below.
+        mamaTFoods.setAlternativePaymentsEnabled(true);
+        vendors.save(mamaTFoods);
         mamaT.setVendorId(mamaTFoods.getId());
         users.save(mamaT);
 

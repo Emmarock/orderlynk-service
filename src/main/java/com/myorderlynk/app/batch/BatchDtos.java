@@ -158,4 +158,8 @@ public final class BatchDtos {
 
     public record PayRequest(String contact) {
     }
+
+    /** Vendor-recorded manual (card) payment; amount defaults to the outstanding balance. */
+    public record ManualPaymentRequest(@PositiveOrZero BigDecimal amount, String reference) {
+    }
 }
