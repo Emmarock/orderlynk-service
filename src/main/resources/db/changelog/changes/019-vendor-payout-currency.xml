@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Currency-aware bank details for the manual / alternative-payment path (the destination a
+      customer transfers to when not paying by card). Card payouts go via Stripe Connect, which
+      collects its own bank details; these fields cover currencies/countries Stripe can't pay out to
+      (notably NGN) plus any vendor on a manual bank-transfer arrangement.
+    -->
+    <changeSet id="019-vendor-payout-currency" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="payout_currency" type="VARCHAR(3)"/>
+            <column name="payout_sort_code" type="VARCHAR(20)"/>
+            <column name="payout_routing_number" type="VARCHAR(20)"/>
+            <column name="payout_institution_number" type="VARCHAR(10)"/>
+            <column name="payout_transit_number" type="VARCHAR(10)"/>
+            <column name="payout_iban" type="VARCHAR(40)"/>
+            <column name="payout_bic" type="VARCHAR(20)"/>
+            <column name="payout_bank_code" type="VARCHAR(20)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

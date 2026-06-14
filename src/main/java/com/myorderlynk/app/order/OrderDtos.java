@@ -127,7 +127,15 @@ public final class OrderDtos {
             String accountName,
             String bankName,
             String accountNumber,
-            String email) {
+            String email,
+            String currency,
+            String sortCode,
+            String routingNumber,
+            String institutionNumber,
+            String transitNumber,
+            String iban,
+            String bic,
+            String bankCode) {
     }
 
     public record OrderResponse(

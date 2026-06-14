@@ -104,6 +104,34 @@ public class Vendor extends BaseEntity {
     /** Email for Interac e-Transfer payouts. */
     private String payoutEmail;
 
+    /**
+     * Settlement currency for manual bank-transfer payments (NGN, USD, CAD, GBP, EUR). Drives which
+     * of the country-specific fields below are populated/shown. Card payouts go through Stripe Connect,
+     * which collects its own bank details; these fields are for the manual/alternative-payment path.
+     */
+    private String payoutCurrency;
+
+    /** GBP — 6-digit sort code. */
+    private String payoutSortCode;
+
+    /** USD — 9-digit ACH routing number. */
+    private String payoutRoutingNumber;
+
+    /** CAD — 3-digit institution number. */
+    private String payoutInstitutionNumber;
+
+    /** CAD — 5-digit branch transit number. */
+    private String payoutTransitNumber;
+
+    /** EUR — IBAN. */
+    private String payoutIban;
+
+    /** EUR / international — BIC / SWIFT code (8 or 11 chars). */
+    private String payoutBic;
+
+    /** NGN — optional CBN bank code, alongside the bank name. */
+    private String payoutBankCode;
+
     // ---- Notification preferences (Settings → Notification preferences) ----
 
     @Column(nullable = false)

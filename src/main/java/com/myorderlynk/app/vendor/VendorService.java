@@ -160,18 +160,125 @@ public class VendorService {
             vendor.getFulfillmentTypes().clear();
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
         }
-        // Payout details
+        // Manual bank-transfer / payout details. Only validated when the payout section is the one
+        // being submitted (i.e. it carries a currency), so saving other sections never trips it.
+        if (req.payoutCurrency() != null && !req.payoutCurrency().isBlank()) {
+            validatePayoutDetails(req);
+        }
         if (req.payoutMethod() != null) vendor.setPayoutMethod(req.payoutMethod());
         if (req.payoutAccountName() != null) vendor.setPayoutAccountName(req.payoutAccountName());
         if (req.payoutAccountNumber() != null) vendor.setPayoutAccountNumber(req.payoutAccountNumber());
         if (req.payoutBankName() != null) vendor.setPayoutBankName(req.payoutBankName());
         if (req.payoutEmail() != null) vendor.setPayoutEmail(req.payoutEmail());
+        if (req.payoutCurrency() != null) vendor.setPayoutCurrency(emptyToNull(req.payoutCurrency()));
+        if (req.payoutSortCode() != null) vendor.setPayoutSortCode(emptyToNull(req.payoutSortCode()));
+        if (req.payoutRoutingNumber() != null) vendor.setPayoutRoutingNumber(emptyToNull(req.payoutRoutingNumber()));
+        if (req.payoutInstitutionNumber() != null) vendor.setPayoutInstitutionNumber(emptyToNull(req.payoutInstitutionNumber()));
+        if (req.payoutTransitNumber() != null) vendor.setPayoutTransitNumber(emptyToNull(req.payoutTransitNumber()));
+        if (req.payoutIban() != null) vendor.setPayoutIban(normalize(req.payoutIban()));
+        if (req.payoutBic() != null) vendor.setPayoutBic(normalize(req.payoutBic()));
+        if (req.payoutBankCode() != null) vendor.setPayoutBankCode(emptyToNull(req.payoutBankCode()));
         // Notification preferences
         if (req.notifyByEmail() != null) vendor.setNotifyByEmail(req.notifyByEmail());
         if (req.notifyByWhatsapp() != null) vendor.setNotifyByWhatsapp(req.notifyByWhatsapp());
         if (req.lowStockAlerts() != null) vendor.setLowStockAlerts(req.lowStockAlerts());
         log.info("Storefront settings updated for vendor {}", vendorId);
         return vendorMapper.vendor(vendors.save(vendor));
+    }
+
+    /** Supported manual-payout currencies (Stripe Connect handles card payouts for everything else). */
+    private static final java.util.Set<String> PAYOUT_CURRENCIES = java.util.Set.of("NGN", "USD", "CAD", "GBP", "EUR");
+
+    /**
+     * Validate the manual bank-transfer details for the chosen currency. Mirrors the frontend's
+     * inline checks so a vendor can't save details that would fail at payment time. Interac
+     * e-transfer (CAD) only needs an email; every other arrangement needs account holder + bank
+     * plus the currency-specific routing fields.
+     */
+    private static void validatePayoutDetails(VendorUpdateRequest req) {
+        String currency = req.payoutCurrency().trim().toUpperCase();
+        if (!PAYOUT_CURRENCIES.contains(currency)) {
+            throw ApiException.badRequest("Unsupported payout currency: " + req.payoutCurrency());
+        }
+        // Interac e-Transfer (CAD): email is the only detail required.
+        if ("INTERAC".equalsIgnoreCase(req.payoutMethod())) {
+            if (blank(req.payoutEmail())) {
+                throw ApiException.badRequest("Enter the Interac e-Transfer email");
+            }
+            return;
+        }
+        require("account holder name", req.payoutAccountName());
+        require("bank name", req.payoutBankName());
+        switch (currency) {
+            case "NGN" -> requireDigits("account number (NUBAN)", req.payoutAccountNumber(), 10);
+            case "USD" -> {
+                require("account number", req.payoutAccountNumber());
+                requireDigits("routing number", req.payoutRoutingNumber(), 9);
+            }
+            case "CAD" -> {
+                require("account number", req.payoutAccountNumber());
+                requireDigits("institution number", req.payoutInstitutionNumber(), 3);
+                requireDigits("transit number", req.payoutTransitNumber(), 5);
+            }
+            case "GBP" -> {
+                requireDigits("account number", req.payoutAccountNumber(), 8);
+                requireDigits("sort code", req.payoutSortCode(), 6);
+            }
+            case "EUR" -> {
+                requireIban(req.payoutIban());
+                requireBic(req.payoutBic());
+            }
+            default -> throw ApiException.badRequest("Unsupported payout currency: " + currency);
+        }
+    }
+
+    private static boolean blank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private static String emptyToNull(String s) {
+        return blank(s) ? null : s.trim();
+    }
+
+    /** Uppercase + strip spaces (for IBAN/BIC), returning null when blank. */
+    private static String normalize(String s) {
+        return blank(s) ? null : s.replaceAll("\\s+", "").toUpperCase();
+    }
+
+    private static void require(String label, String value) {
+        if (blank(value)) {
+            throw ApiException.badRequest("Enter the " + label);
+        }
+    }
+
+    private static void requireDigits(String label, String value, int length) {
+        String digits = value == null ? "" : value.replaceAll("[\\s-]", "");
+        if (!digits.matches("\\d{" + length + "}")) {
+            throw ApiException.badRequest("Enter a valid " + label + " (" + length + " digits)");
+        }
+    }
+
+    private static void requireBic(String value) {
+        String bic = value == null ? "" : value.replaceAll("\\s", "").toUpperCase();
+        if (!bic.matches("[A-Z0-9]{8}([A-Z0-9]{3})?")) {
+            throw ApiException.badRequest("Enter a valid BIC / SWIFT code (8 or 11 characters)");
+        }
+    }
+
+    /** Structural + ISO 7064 mod-97 IBAN check. */
+    private static void requireIban(String value) {
+        String iban = value == null ? "" : value.replaceAll("\\s", "").toUpperCase();
+        if (!iban.matches("[A-Z]{2}\\d{2}[A-Z0-9]{10,30}")) {
+            throw ApiException.badRequest("Enter a valid IBAN");
+        }
+        String rearranged = iban.substring(4) + iban.substring(0, 4);
+        StringBuilder numeric = new StringBuilder();
+        for (char c : rearranged.toCharArray()) {
+            numeric.append(Character.isLetter(c) ? Integer.toString(c - 'A' + 10) : c);
+        }
+        if (new java.math.BigInteger(numeric.toString()).mod(java.math.BigInteger.valueOf(97)).intValue() != 1) {
+            throw ApiException.badRequest("Enter a valid IBAN (checksum failed)");
+        }
     }
 
     /**

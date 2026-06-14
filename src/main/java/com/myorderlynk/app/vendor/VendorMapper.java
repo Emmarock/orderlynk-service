@@ -23,6 +23,9 @@ public class VendorMapper {
                 v.getRatingCount(), v.getCommissionRate(),
                 v.getPayoutMethod(), v.getPayoutAccountName(), v.getPayoutAccountNumber(),
                 v.getPayoutBankName(), v.getPayoutEmail(),
+                v.getPayoutCurrency(), v.getPayoutSortCode(), v.getPayoutRoutingNumber(),
+                v.getPayoutInstitutionNumber(), v.getPayoutTransitNumber(), v.getPayoutIban(),
+                v.getPayoutBic(), v.getPayoutBankCode(),
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
                 v.isAlternativePaymentsEnabled());
     }
@@ -40,6 +43,7 @@ public class VendorMapper {
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
                 null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
                 v.isAlternativePaymentsEnabled());
     }

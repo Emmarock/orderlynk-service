@@ -74,6 +74,9 @@ public class OrderMapper {
         }
         return new OrderDtos.PaymentInstructions(
                 v.getPayoutMethod(), v.getPayoutAccountName(), v.getPayoutBankName(),
-                v.getPayoutAccountNumber(), v.getPayoutEmail());
+                v.getPayoutAccountNumber(), v.getPayoutEmail(),
+                v.getPayoutCurrency(), v.getPayoutSortCode(), v.getPayoutRoutingNumber(),
+                v.getPayoutInstitutionNumber(), v.getPayoutTransitNumber(), v.getPayoutIban(),
+                v.getPayoutBic(), v.getPayoutBankCode());
     }
 }
