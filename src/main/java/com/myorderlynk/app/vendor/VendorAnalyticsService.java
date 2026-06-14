@@ -68,7 +68,8 @@ public class VendorAnalyticsService {
 
         long paidOrders = os.stream().filter(o -> o.getPaymentStatus() == PaymentStatus.PAID).count();
         long openFulfillment = os.stream()
-                .filter(o -> !TERMINAL_FULFILLMENT.contains(o.getFulfillmentStatus()))
+                // A null status counts as open; Set.of(...).contains(null) would otherwise NPE.
+                .filter(o -> o.getFulfillmentStatus() == null || !TERMINAL_FULFILLMENT.contains(o.getFulfillmentStatus()))
                 .count();
         BigDecimal gross = os.stream()
                 .map(Order::getTotalAmount)
