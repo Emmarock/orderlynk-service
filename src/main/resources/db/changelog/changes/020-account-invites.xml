@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Invited accounts + email-verification gating.
+      1) password_hash becomes nullable: a guest checkout with a new email pre-creates an account
+         (name/phone/address prefilled, no password) and emails a "set your password" invite.
+      2) Grandfather every EXISTING user as verified, so enabling the login email-verification gate
+         doesn't lock out current accounts (including admin). Only new signups/invites must verify.
+    -->
+    <changeSet id="020-account-invites-nullable-password" author="orderlynk">
+        <dropNotNullConstraint tableName="users" columnName="password_hash" columnDataType="VARCHAR(255)"/>
+    </changeSet>
+
+    <changeSet id="020-account-invites-grandfather-verified" author="orderlynk">
+        <update tableName="users">
+            <column name="email_verified" valueBoolean="true"/>
+            <where>email_verified = :value</where>
+            <whereParams>
+                <param valueBoolean="false"/>
+            </whereParams>
+        </update>
+    </changeSet>
+</databaseChangeLog>

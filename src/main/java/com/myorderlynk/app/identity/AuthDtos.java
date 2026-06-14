@@ -63,6 +63,15 @@ public final class AuthDtos {
             @StrongPassword String newPassword) {
     }
 
+    /** Claim an invited account (created from a guest order): set the first password from the email link. */
+    @FieldMatch(field = "password", fieldMatch = "confirmPassword",
+            message = "Password and confirmation do not match")
+    public record AcceptInviteRequest(
+            @NotBlank String token,
+            @StrongPassword String password,
+            @NotBlank String confirmPassword) {
+    }
+
     public record AuthResponse(
             String token,
             UUID userId,

@@ -56,3 +56,6 @@ databaseChangeLog:
   - include:
       file: changes/019-vendor-payout-currency.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/020-account-invites.xml
+      relativeToChangelogFile: true

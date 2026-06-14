@@ -24,7 +24,10 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    /**
+     * Null for "invited" accounts created from a guest order — the customer sets it via the emailed
+     * invite link, which also verifies their email. Required for password login.
+     */
     private String passwordHash;
 
     @Column(nullable = false)

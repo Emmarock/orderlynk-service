@@ -16,6 +16,7 @@ import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.vendor.VendorRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,11 +44,12 @@ public class ShipmentRequestService {
     private final PaymentServiceProperties paymentProps;
     private final BatchNotificationService notifications;
     private final AuditService audit;
+    private final AuthService authService;
 
     public ShipmentRequestService(ShipmentRequestRepository requests, BatchRepository batches,
                                   VendorRepository vendors, BatchMapper mapper, PaymentClient paymentClient,
                                   PaymentServiceProperties paymentProps, BatchNotificationService notifications,
-                                  AuditService audit) {
+                                  AuditService audit, AuthService authService) {
         this.requests = requests;
         this.batches = batches;
         this.vendors = vendors;
@@ -56,6 +58,7 @@ public class ShipmentRequestService {
         this.paymentProps = paymentProps;
         this.notifications = notifications;
         this.audit = audit;
+        this.authService = authService;
     }
 
     /** Vendor records a manual payment collected out-of-band; only for admin-enabled (non-card) vendors. */
@@ -102,10 +105,13 @@ public class ShipmentRequestService {
             throw ApiException.badRequest("This batch is not currently accepting shipment requests");
         }
 
+        UUID buyerId = customerUserId != null ? customerUserId
+                : authService.resolveOrInviteCustomer(req.customerName(), req.customerEmail(), req.customerPhone(), null, null);
+
         ShipmentRequest s = new ShipmentRequest();
         s.setBatchId(batch.getId());
         s.setVendorId(batch.getVendorId());
-        s.setCustomerUserId(customerUserId);
+        s.setCustomerUserId(buyerId);
         s.setCustomerName(req.customerName());
         s.setCustomerPhone(req.customerPhone());
         s.setCustomerEmail(req.customerEmail());

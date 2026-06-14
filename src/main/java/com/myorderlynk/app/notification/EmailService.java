@@ -57,6 +57,16 @@ public class EmailService {
                 Map.of("name", orDefault(name, "there"), "resetUrl", resetUrl));
     }
 
+    /**
+     * Invite a guest customer (whose account we pre-created from their order) to set a password and
+     * activate their account. Setting the password also verifies their email.
+     */
+    public void sendAccountInvite(String toEmail, String name, String token) {
+        String inviteUrl = baseUrl + "/accept-invite?token=" + enc(token);
+        publish(toEmail, "Finish setting up your MyOrderLynk account", "account-invite",
+                Map.of("name", orDefault(name, "there"), "inviteUrl", inviteUrl));
+    }
+
     // ---- Orders ----
 
     public void sendOrderCreated(Order order, String vendorName) {

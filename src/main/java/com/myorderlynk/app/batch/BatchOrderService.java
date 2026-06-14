@@ -17,6 +17,7 @@ import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.vendor.VendorRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,11 +46,12 @@ public class BatchOrderService {
     private final PaymentServiceProperties paymentProps;
     private final BatchNotificationService notifications;
     private final AuditService audit;
+    private final AuthService authService;
 
     public BatchOrderService(BatchOrderRepository orders, BatchRepository batches,
                              BatchProductRepository batchProducts, VendorRepository vendors, BatchMapper mapper,
                              PaymentClient paymentClient, PaymentServiceProperties paymentProps,
-                             BatchNotificationService notifications, AuditService audit) {
+                             BatchNotificationService notifications, AuditService audit, AuthService authService) {
         this.orders = orders;
         this.batches = batches;
         this.batchProducts = batchProducts;
@@ -59,6 +61,7 @@ public class BatchOrderService {
         this.paymentProps = paymentProps;
         this.notifications = notifications;
         this.audit = audit;
+        this.authService = authService;
     }
 
     /** Vendor records a manual payment collected out-of-band; only for admin-enabled (non-card) vendors. */
@@ -90,10 +93,14 @@ public class BatchOrderService {
             throw ApiException.badRequest("This batch is not currently accepting orders");
         }
 
+        UUID buyerId = customerUserId != null ? customerUserId
+                : authService.resolveOrInviteCustomer(req.customerName(), req.customerEmail(),
+                        req.customerPhone(), req.customerCity(), req.customerCountry());
+
         BatchOrder order = new BatchOrder();
         order.setBatchId(batch.getId());
         order.setVendorId(batch.getVendorId());
-        order.setCustomerUserId(customerUserId);
+        order.setCustomerUserId(buyerId);
         order.setCustomerName(req.customerName());
         order.setCustomerPhone(req.customerPhone());
         order.setCustomerEmail(req.customerEmail());

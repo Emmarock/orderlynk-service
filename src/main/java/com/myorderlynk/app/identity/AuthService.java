@@ -34,8 +34,10 @@ public class AuthService {
 
     private static final String TYPE_VERIFY = "EMAIL_VERIFY";
     private static final String TYPE_RESET = "PASSWORD_RESET";
+    private static final String TYPE_INVITE = "ACCOUNT_INVITE";
     private static final Duration VERIFY_TTL = Duration.ofHours(48);
     private static final Duration RESET_TTL = Duration.ofHours(1);
+    private static final Duration INVITE_TTL = Duration.ofDays(14);
 
     private final UserRepository users;
     private final UserTokenRepository userTokens;
@@ -132,6 +134,60 @@ public class AuthService {
     }
 
     /**
+     * Resolve the customer behind a guest order to a user id: returns the existing account if the
+     * email is already known, otherwise pre-creates an "invited" account (no password) from the order's
+     * details and emails a set-password invite. Returns null when there's no email to invite.
+     * Called from the checkout/create flows so guest orders are attributed to (and later claimable by)
+     * an account.
+     */
+    @Transactional
+    public UUID resolveOrInviteCustomer(String fullName, String email, String phone, String city, String country) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        String normalized = email.trim().toLowerCase();
+        return users.findByEmailIgnoreCase(normalized)
+                .map(User::getId)
+                .orElseGet(() -> {
+                    User user = new User();
+                    user.setEmail(normalized);
+                    user.setPasswordHash(null); // invited — set later via the emailed link
+                    user.setFullName(isSet(fullName) ? fullName : "there");
+                    user.setPhone(phone);
+                    user.setCity(city);
+                    user.setCountry(country);
+                    user.setRole(UserRole.CUSTOMER);
+                    users.save(user);
+                    log.info("Created invited customer {} ({}) from a guest order", user.getId(), normalized);
+                    emailService.sendAccountInvite(user.getEmail(), user.getFullName(),
+                            createToken(user, TYPE_INVITE, INVITE_TTL));
+                    return user.getId();
+                });
+    }
+
+    /**
+     * Claim an invited account from the emailed link: set the password and activate it. Clicking the
+     * link proves email ownership, so this also marks the email verified. The customer's guest orders
+     * were already attributed to this account at checkout, so they appear immediately.
+     */
+    @Transactional
+    public AuthResponse acceptInvite(String token, String newPassword) {
+        UserToken record = userTokens.findByTokenAndType(token, TYPE_INVITE)
+                .filter(UserToken::isUsable)
+                .orElseThrow(() -> ApiException.badRequest("This invite link is invalid or has expired"));
+        User user = users.findById(record.getUserId())
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setEmailVerified(true);
+        users.save(user);
+        record.setUsedAt(Instant.now());
+        userTokens.save(record);
+        log.info("Invite accepted — account {} activated", user.getId());
+        emailService.sendWelcome(user.getEmail(), user.getFullName());
+        return toResponse(user);
+    }
+
+    /**
      * Begin a password reset. Always succeeds silently (no account enumeration); an email is only
      * sent when an account exists for the address.
      */
@@ -178,16 +234,30 @@ public class AuthService {
         return token.getToken();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest req) {
         User user = users.findByEmailIgnoreCase(req.email())
                 .orElseThrow(() -> {
                     log.warn("Failed login (no such user) for {}", req.email());
                     return new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
                 });
+        // Invited account that hasn't set a password yet: re-send the invite instead of a generic error.
+        if (user.getPasswordHash() == null) {
+            emailService.sendAccountInvite(user.getEmail(), user.getFullName(), createToken(user, TYPE_INVITE, INVITE_TTL));
+            log.info("Login attempt on unclaimed invited account {} — re-sent invite", user.getId());
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "We've emailed you a link to set your password and activate your account.");
+        }
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             log.warn("Failed login (bad password) for {}", req.email());
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        }
+        // Email-verification gate: block unverified accounts and re-send the verification link.
+        if (!user.isEmailVerified()) {
+            emailService.sendEmailVerification(user.getEmail(), user.getFullName(), createToken(user, TYPE_VERIFY, VERIFY_TTL));
+            log.info("Login blocked for unverified user {} — re-sent verification", user.getId());
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Please verify your email to continue. We've re-sent the verification link to " + user.getEmail() + ".");
         }
         log.info("User {} logged in", user.getId());
         return toResponse(user);

@@ -1,5 +1,6 @@
 package com.myorderlynk.app.identity;
 
+import com.myorderlynk.app.identity.AuthDtos.AcceptInviteRequest;
 import com.myorderlynk.app.identity.AuthDtos.AuthResponse;
 import com.myorderlynk.app.identity.AuthDtos.ChangeEmailRequest;
 import com.myorderlynk.app.identity.AuthDtos.ChangePasswordRequest;
@@ -41,6 +42,12 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest req) {
         return authService.login(req);
+    }
+
+    /** Claim an invited account (from a guest-order invite email) by setting the first password. */
+    @PostMapping("/accept-invite")
+    public AuthResponse acceptInvite(@Valid @RequestBody AcceptInviteRequest req) {
+        return authService.acceptInvite(req.token(), req.password());
     }
 
     @GetMapping("/me")

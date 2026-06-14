@@ -27,6 +27,7 @@ import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.order.PaymentRecordRepository;
 import com.myorderlynk.app.catalog.ProductRepository;
+import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
@@ -64,6 +65,7 @@ public class OrderService {
     private final AuditService audit;
     private final OrderMapper mapper;
     private final EmailService emailService;
+    private final AuthService authService;
     private final WhatsAppService whatsAppService;
     private final OrderLinks orderLinks;
     private final JwtService jwtService;
@@ -75,7 +77,7 @@ public class OrderService {
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
                         PaymentRecordRepository payments, UserRepository users, FeeCalculator feeCalculator,
                         NotificationService notifications, AuditService audit, OrderMapper mapper,
-                        EmailService emailService, WhatsAppService whatsAppService,
+                        EmailService emailService, AuthService authService, WhatsAppService whatsAppService,
                         OrderLinks orderLinks, JwtService jwtService, ShippingService shippingService,
                         PaymentClient paymentClient, PaymentServiceProperties paymentServiceProperties,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
@@ -89,6 +91,7 @@ public class OrderService {
         this.audit = audit;
         this.mapper = mapper;
         this.emailService = emailService;
+        this.authService = authService;
         this.whatsAppService = whatsAppService;
         this.orderLinks = orderLinks;
         this.jwtService = jwtService;
@@ -134,9 +137,15 @@ public class OrderService {
         log.info("Checkout: vendor={} items={} customerUser={} fulfillment={} payment={}",
                 vendor.getId(), req.items().size(), customerUserId, req.fulfillmentType(), req.paymentMethod());
 
+        // Guests with a new email get an account pre-created + a set-password invite; existing emails
+        // are linked to their account. Either way the order is attributed to a user id.
+        UUID buyerId = customerUserId != null ? customerUserId
+                : authService.resolveOrInviteCustomer(req.customerName(), req.customerEmail(),
+                        req.customerPhone(), req.customerCity(), req.customerCountry());
+
         Order order = new Order();
         order.setVendorId(vendor.getId());
-        order.setCustomerUserId(customerUserId);
+        order.setCustomerUserId(buyerId);
         order.setCustomerName(req.customerName());
         order.setCustomerPhone(req.customerPhone());
         order.setCustomerEmail(req.customerEmail());

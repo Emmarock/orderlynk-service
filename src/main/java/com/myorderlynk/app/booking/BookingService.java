@@ -16,6 +16,7 @@ import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
+import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.common.AuditService;
 import com.myorderlynk.app.common.CodeGenerator;
@@ -60,13 +61,14 @@ public class BookingService {
     private final BookingMapper mapper;
     private final PaymentClient paymentClient;
     private final PaymentServiceProperties paymentProps;
+    private final AuthService authService;
 
     public BookingService(BookingRepository bookings, ServiceOfferingRepository services,
                           ServiceAddOnRepository addOns, ServiceProviderProfileRepository profiles,
                           BookingPaymentRepository payments, BookingReviewRepository reviews,
                           VendorRepository vendors, AvailabilityService availability,
                           BookingNotificationService notifications, AuditService audit, BookingMapper mapper,
-                          PaymentClient paymentClient, PaymentServiceProperties paymentProps) {
+                          PaymentClient paymentClient, PaymentServiceProperties paymentProps, AuthService authService) {
         this.bookings = bookings;
         this.services = services;
         this.addOns = addOns;
@@ -80,6 +82,7 @@ public class BookingService {
         this.mapper = mapper;
         this.paymentClient = paymentClient;
         this.paymentProps = paymentProps;
+        this.authService = authService;
     }
 
     // ===================== Customer flow =====================
@@ -96,11 +99,14 @@ public class BookingService {
             throw ApiException.badRequest("That service is not available from this provider");
         }
 
+        UUID buyerId = customerUserId != null ? customerUserId
+                : authService.resolveOrInviteCustomer(req.customerName(), req.customerEmail(), req.customerPhone(), null, null);
+
         Booking booking = new Booking();
         booking.setVendorId(vendor.getId());
         booking.setServiceId(service.getId());
         booking.setServiceNameSnapshot(service.getName());
-        booking.setCustomerUserId(customerUserId);
+        booking.setCustomerUserId(buyerId);
         booking.setCustomerName(req.customerName());
         booking.setCustomerPhone(req.customerPhone());
         booking.setCustomerEmail(req.customerEmail());
