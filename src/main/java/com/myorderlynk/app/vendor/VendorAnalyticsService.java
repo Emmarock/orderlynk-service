@@ -177,7 +177,8 @@ public class VendorAnalyticsService {
             this.name = latest.getCustomerName();
             this.phone = latest.getCustomerPhone();
             this.email = latest.getCustomerEmail();
-            this.city = latest.getDeliveryAddress().getCity();
+            // Pickup orders (and some legacy/imported rows) have no delivery address — guard against NPE.
+            this.city = latest.getDeliveryAddress() == null ? null : latest.getDeliveryAddress().getCity();
             this.lastOrderAt = latest.getCreatedAt();
         }
 
