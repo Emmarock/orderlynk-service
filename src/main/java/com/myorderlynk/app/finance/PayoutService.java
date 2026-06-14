@@ -14,8 +14,10 @@ import com.myorderlynk.app.finance.PayoutRepository;
 import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.notification.EmailService;
+import com.myorderlynk.app.common.PageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +101,11 @@ public class PayoutService {
     @Transactional(readOnly = true)
     public List<PayoutResponse> forVendor(UUID vendorId) {
         return payouts.findByVendorIdOrderByPeriodEndDesc(vendorId).stream().map(mapper::payout).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PayoutResponse> forVendorPaged(UUID vendorId, Pageable pageable) {
+        return PageResponse.of(payouts.findByVendorIdOrderByPeriodEndDesc(vendorId, pageable).map(mapper::payout));
     }
 
     @Transactional

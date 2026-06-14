@@ -7,6 +7,7 @@ import com.myorderlynk.app.booking.BookingDtos.PaymentInitResponse;
 import com.myorderlynk.app.booking.BookingDtos.ReviewRequest;
 import com.myorderlynk.app.booking.BookingDtos.ReviewResponse;
 import com.myorderlynk.app.booking.ServiceDtos.DayAvailabilityResponse;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.security.access.IsAuthenticated;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -78,8 +78,9 @@ public class BookingController {
 
     @GetMapping("/mine")
     @IsAuthenticated
-    public List<BookingResponse> myBookings() {
-        return bookingService.customerBookings(currentUser.require().userId());
+    public PageResponse<BookingResponse> myBookings(@RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "20") int size) {
+        return bookingService.customerBookings(currentUser.require().userId(), page, size);
     }
 
     /** Submit a review after completion. Authenticated by login, or by contact for guests. */

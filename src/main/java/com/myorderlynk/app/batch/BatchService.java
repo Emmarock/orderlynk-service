@@ -7,6 +7,7 @@ import com.myorderlynk.app.batch.BatchDtos.BatchResponse;
 import com.myorderlynk.app.batch.BatchDtos.BatchSummary;
 import com.myorderlynk.app.catalog.Product;
 import com.myorderlynk.app.catalog.ProductRepository;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.common.enums.BatchStatus;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.vendor.Vendor;
@@ -76,10 +77,11 @@ public class BatchService {
     // ---- Batch cycles ----
 
     @Transactional(readOnly = true)
-    public List<BatchSummary> listForVendor(UUID vendorId) {
+    public PageResponse<BatchSummary> listForVendor(UUID vendorId, int page, int size) {
         String name = vendorName(vendorId);
-        return batches.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
+        List<BatchSummary> summaries = batches.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
                 .map(b -> summary(b, name)).toList();
+        return PageResponse.of(summaries, page, size);
     }
 
     @Transactional(readOnly = true)
@@ -273,8 +275,10 @@ public class BatchService {
     // ---- admin ----
 
     @Transactional(readOnly = true)
-    public List<BatchSummary> adminListAll() {
-        return batches.findAll().stream().map(b -> summary(b, vendorName(b.getVendorId()))).toList();
+    public PageResponse<BatchSummary> adminListAll(int page, int size) {
+        List<BatchSummary> summaries = batches.findAll().stream()
+                .map(b -> summary(b, vendorName(b.getVendorId()))).toList();
+        return PageResponse.of(summaries, page, size);
     }
 
     @Transactional(readOnly = true)

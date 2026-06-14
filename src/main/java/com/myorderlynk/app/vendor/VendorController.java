@@ -36,6 +36,8 @@ import com.myorderlynk.app.support.SupportService;
 import com.myorderlynk.app.vendor.VendorAnalyticsService;
 import com.myorderlynk.app.vendor.VendorService;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.common.PageResponse;
+import com.myorderlynk.app.common.PageRequests;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import com.myorderlynk.app.security.access.IsAuthenticated;
@@ -163,8 +165,16 @@ public class VendorController {
 
     @GetMapping("/products")
     @IsVendor
-    public List<ProductResponse> products() {
-        return productService.listForVendor(vendorId());
+    public PageResponse<ProductResponse> products(@RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "20") int size) {
+        return productService.listForVendor(vendorId(), PageRequests.of(page, size));
+    }
+
+    /** Products at or below their low-stock threshold (bounded list for dashboard alerts). */
+    @GetMapping("/products/low-stock")
+    @IsVendor
+    public List<ProductResponse> lowStockProducts() {
+        return productService.lowStockForVendor(vendorId());
     }
 
     @PostMapping("/products")
@@ -209,10 +219,12 @@ public class VendorController {
 
     @GetMapping("/orders")
     @IsVendor
-    public List<OrderResponse> orders(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    public PageResponse<OrderResponse> orders(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                              @RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "20") int size) {
         Instant[] r = range(from, to);
-        return orderService.vendorOrders(vendorId(), r[0], r[1]);
+        return orderService.vendorOrders(vendorId(), r[0], r[1], PageRequests.of(page, size));
     }
 
     // ---- Customers & analytics ----
@@ -220,10 +232,19 @@ public class VendorController {
     /** Distinct customers who have ordered from this vendor (for outreach/broadcasts). */
     @GetMapping("/customers")
     @IsVendor
-    public List<CustomerSummary> customers(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    public PageResponse<CustomerSummary> customers(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                   @RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "20") int size) {
         Instant[] r = range(from, to);
-        return analyticsService.customers(vendorId(), r[0], r[1]);
+        return analyticsService.customersPaged(vendorId(), r[0], r[1], page, size);
+    }
+
+    /** All of one customer's orders with this vendor, matched by normalized phone. Newest-first, bounded. */
+    @GetMapping("/customers/{phone}/orders")
+    @IsVendor
+    public List<OrderResponse> customerOrders(@PathVariable String phone) {
+        return orderService.vendorCustomerOrders(vendorId(), phone);
     }
 
     /** Sales analytics: headline metrics plus top-5 customers and products. */
@@ -266,8 +287,9 @@ public class VendorController {
 
     @GetMapping("/support")
     @IsVendor
-    public List<SupportTicketResponse> supportTickets() {
-        return supportService.forVendor(vendorId());
+    public PageResponse<SupportTicketResponse> supportTickets(@RequestParam(defaultValue = "0") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        return supportService.forVendor(vendorId(), PageRequests.of(page, size));
     }
 
     @GetMapping("/orders/{id}")
@@ -294,8 +316,9 @@ public class VendorController {
 
     @GetMapping("/payouts")
     @IsVendor
-    public List<PayoutResponse> payouts() {
-        return payoutService.forVendor(vendorId());
+    public PageResponse<PayoutResponse> payouts(@RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "20") int size) {
+        return payoutService.forVendorPaged(vendorId(), PageRequests.of(page, size));
     }
 
     private UUID vendorId() {

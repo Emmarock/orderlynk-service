@@ -8,15 +8,16 @@ import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.catalog.ProductDtos.ProductRequest;
 import com.myorderlynk.app.catalog.ProductDtos.ProductResponse;
 import com.myorderlynk.app.catalog.ProductRepository;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -103,8 +104,14 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> listForVendor(UUID vendorId) {
-        return products.findByVendorId(vendorId).stream().map(mapper::product).toList();
+    public PageResponse<ProductResponse> listForVendor(UUID vendorId, Pageable pageable) {
+        return PageResponse.of(products.findByVendorId(vendorId, pageable).map(mapper::product));
+    }
+
+    /** A vendor's low-stock products (bounded by how many a vendor reasonably stocks), lowest stock first. */
+    @Transactional(readOnly = true)
+    public java.util.List<ProductResponse> lowStockForVendor(UUID vendorId) {
+        return products.findLowStockByVendor(vendorId).stream().map(mapper::product).toList();
     }
 
     @Transactional

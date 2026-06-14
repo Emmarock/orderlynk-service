@@ -14,6 +14,7 @@ import com.myorderlynk.app.batch.BatchOrderDtos.OrderStatusUpdateRequest;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.ShipmentRequestResponse;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.ShipmentStatusUpdateRequest;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.WeighRequest;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
@@ -55,8 +56,9 @@ public class VendorBatchController {
     // ---- Batch cycles ----
 
     @GetMapping("/batches")
-    public List<BatchSummary> batches() {
-        return batchService.listForVendor(vendorId());
+    public PageResponse<BatchSummary> batches(@RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "20") int size) {
+        return batchService.listForVendor(vendorId(), page, size);
     }
 
     @GetMapping("/batches/{id}")
@@ -120,13 +122,16 @@ public class VendorBatchController {
     // ---- Batch orders ----
 
     @GetMapping("/batches/{id}/orders")
-    public List<BatchOrderResponse> batchOrders(@PathVariable UUID id) {
-        return batchOrders.byBatch(vendorId(), id);
+    public PageResponse<BatchOrderResponse> batchOrders(@PathVariable UUID id,
+                                                        @RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        return batchOrders.byBatch(vendorId(), id, page, size);
     }
 
     @GetMapping("/batch-orders")
-    public List<BatchOrderResponse> allBatchOrders() {
-        return batchOrders.forVendor(vendorId());
+    public PageResponse<BatchOrderResponse> allBatchOrders(@RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        return batchOrders.forVendor(vendorId(), page, size);
     }
 
     @PatchMapping("/batch-orders/{id}/status")
@@ -144,13 +149,16 @@ public class VendorBatchController {
     // ---- Shipment requests ----
 
     @GetMapping("/batches/{id}/shipment-requests")
-    public List<ShipmentRequestResponse> batchShipmentRequests(@PathVariable UUID id) {
-        return shipmentRequests.byBatch(vendorId(), id);
+    public PageResponse<ShipmentRequestResponse> batchShipmentRequests(@PathVariable UUID id,
+                                                                       @RequestParam(defaultValue = "0") int page,
+                                                                       @RequestParam(defaultValue = "20") int size) {
+        return shipmentRequests.byBatch(vendorId(), id, page, size);
     }
 
     @GetMapping("/shipment-requests")
-    public List<ShipmentRequestResponse> allShipmentRequests() {
-        return shipmentRequests.forVendor(vendorId());
+    public PageResponse<ShipmentRequestResponse> allShipmentRequests(@RequestParam(defaultValue = "0") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return shipmentRequests.forVendor(vendorId(), page, size);
     }
 
     @PostMapping("/shipment-requests/{id}/receive")

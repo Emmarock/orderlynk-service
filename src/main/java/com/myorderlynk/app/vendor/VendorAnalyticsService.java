@@ -3,12 +3,14 @@ import com.myorderlynk.app.notification.NotificationService;
 
 import com.myorderlynk.app.order.Order;
 import com.myorderlynk.app.order.OrderItem;
+import com.myorderlynk.app.common.enums.FulfillmentStatus;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.vendor.AnalyticsDtos.BroadcastResult;
 import com.myorderlynk.app.vendor.AnalyticsDtos.CustomerSummary;
 import com.myorderlynk.app.vendor.AnalyticsDtos.ProductSalesSummary;
 import com.myorderlynk.app.vendor.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.order.OrderRepository;
+import com.myorderlynk.app.common.PageResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -32,6 +35,10 @@ import java.util.UUID;
 public class VendorAnalyticsService {
 
     private static final int TOP_N = 5;
+
+    /** Fulfillment statuses considered "closed" — anything else still needs vendor action. */
+    private static final Set<FulfillmentStatus> TERMINAL_FULFILLMENT = Set.of(
+            FulfillmentStatus.COMPLETED, FulfillmentStatus.DELIVERED, FulfillmentStatus.CANCELLED);
 
     private final OrderRepository orders;
     private final NotificationService notifications;
@@ -49,11 +56,20 @@ public class VendorAnalyticsService {
                 .toList();
     }
 
+    /** Paginated view of {@link #customers}: the full distinct-customer list, sliced in memory. */
+    @Transactional(readOnly = true)
+    public PageResponse<CustomerSummary> customersPaged(UUID vendorId, Instant from, Instant to, int page, int size) {
+        return PageResponse.of(customers(vendorId, from, to), page, size);
+    }
+
     @Transactional(readOnly = true)
     public VendorAnalytics analytics(UUID vendorId, Instant from, Instant to) {
         List<Order> os = load(vendorId, from, to);
 
         long paidOrders = os.stream().filter(o -> o.getPaymentStatus() == PaymentStatus.PAID).count();
+        long openFulfillment = os.stream()
+                .filter(o -> !TERMINAL_FULFILLMENT.contains(o.getFulfillmentStatus()))
+                .count();
         BigDecimal gross = os.stream()
                 .map(Order::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -71,7 +87,7 @@ public class VendorAnalyticsService {
                 .limit(TOP_N)
                 .toList();
 
-        return new VendorAnalytics(os.size(), paidOrders, gross, customers.size(), topCustomers, topProducts);
+        return new VendorAnalytics(os.size(), paidOrders, openFulfillment, gross, customers.size(), topCustomers, topProducts);
     }
 
     /**

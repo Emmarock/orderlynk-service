@@ -4,11 +4,12 @@ import com.myorderlynk.app.support.SupportTicket;
 import com.myorderlynk.app.support.SupportDtos.SupportRequest;
 import com.myorderlynk.app.support.SupportDtos.SupportTicketResponse;
 import com.myorderlynk.app.support.SupportTicketRepository;
+import com.myorderlynk.app.common.PageResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 /** Vendor support requests ("Message Us"). Tickets are persisted for the OrderLynk team to action. */
@@ -38,8 +39,8 @@ public class SupportService {
     }
 
     @Transactional(readOnly = true)
-    public List<SupportTicketResponse> forVendor(UUID vendorId) {
-        return tickets.findByVendorIdOrderByCreatedAtDesc(vendorId).stream().map(this::toResponse).toList();
+    public PageResponse<SupportTicketResponse> forVendor(UUID vendorId, Pageable pageable) {
+        return PageResponse.of(tickets.findByVendorIdOrderByCreatedAtDesc(vendorId, pageable).map(this::toResponse));
     }
 
     private SupportTicketResponse toResponse(SupportTicket t) {

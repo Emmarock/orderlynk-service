@@ -8,6 +8,7 @@ import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.vendor.VendorRatingService;
 import com.myorderlynk.app.vendor.VendorService;
+import com.myorderlynk.app.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /** Public, unauthenticated storefront + marketplace discovery (PRD §13 pages). */
 @RestController
@@ -37,9 +36,11 @@ public class StorefrontController {
 
     /** Marketplace: approved, active vendors, optionally filtered by city and/or product category. */
     @GetMapping
-    public List<VendorResponse> marketplace(@RequestParam(required = false) String city,
-                                            @RequestParam(required = false) ProductCategory category) {
-        return vendorService.marketplace(city, category);
+    public PageResponse<VendorResponse> marketplace(@RequestParam(required = false) String city,
+                                                    @RequestParam(required = false) ProductCategory category,
+                                                    @RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "20") int size) {
+        return vendorService.marketplace(city, category, page, size);
     }
 
     @GetMapping("/{slug}")

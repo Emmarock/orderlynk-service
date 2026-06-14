@@ -19,7 +19,10 @@ import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.common.AuditService;
 import com.myorderlynk.app.common.CodeGenerator;
+import com.myorderlynk.app.common.PageRequests;
+import com.myorderlynk.app.common.PageResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -543,13 +546,14 @@ public class BookingService {
     // ===================== Queries =====================
 
     @Transactional(readOnly = true)
-    public List<BookingResponse> vendorBookings(UUID vendorId, Instant from, Instant to) {
+    public PageResponse<BookingResponse> vendorBookings(UUID vendorId, Instant from, Instant to, int page, int size) {
         String name = vendorName(vendorId);
-        List<Booking> list = (from == null && to == null)
-                ? bookings.findByVendorIdOrderByAppointmentStartDesc(vendorId)
+        Page<Booking> bookingPage = (from == null && to == null)
+                ? bookings.findByVendorIdOrderByAppointmentStartDesc(vendorId, PageRequests.of(page, size))
                 : bookings.findByVendorIdAndAppointmentStartBetweenOrderByAppointmentStartAsc(
-                        vendorId, from == null ? Instant.EPOCH : from, to == null ? farFuture() : to);
-        return list.stream().map(b -> response(b, name)).toList();
+                        vendorId, from == null ? Instant.EPOCH : from, to == null ? farFuture() : to,
+                        PageRequests.of(page, size));
+        return PageResponse.of(bookingPage.map(b -> response(b, name)));
     }
 
     @Transactional(readOnly = true)
@@ -558,9 +562,10 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookingResponse> customerBookings(UUID customerUserId) {
-        return bookings.findByCustomerUserIdOrderByAppointmentStartDesc(customerUserId).stream()
-                .map(b -> response(b, vendorName(b.getVendorId()))).toList();
+    public PageResponse<BookingResponse> customerBookings(UUID customerUserId, int page, int size) {
+        return PageResponse.of(bookings
+                .findByCustomerUserIdOrderByAppointmentStartDesc(customerUserId, PageRequests.of(page, size))
+                .map(b -> response(b, vendorName(b.getVendorId()))));
     }
 
     @Transactional(readOnly = true)
@@ -577,9 +582,9 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookingResponse> allBookings() {
-        return bookings.findAllByOrderByAppointmentStartDesc().stream()
-                .map(b -> response(b, vendorName(b.getVendorId()))).toList();
+    public PageResponse<BookingResponse> allBookings(int page, int size) {
+        return PageResponse.of(bookings.findAllByOrderByAppointmentStartDesc(PageRequests.of(page, size))
+                .map(b -> response(b, vendorName(b.getVendorId()))));
     }
 
     // ===================== helpers =====================

@@ -1,5 +1,7 @@
 package com.myorderlynk.app.booking;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,12 +26,21 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     List<Booking> findByVendorIdOrderByAppointmentStartDesc(UUID vendorId);
 
+    Page<Booking> findByVendorIdOrderByAppointmentStartDesc(UUID vendorId, Pageable pageable);
+
     List<Booking> findByVendorIdAndAppointmentStartBetweenOrderByAppointmentStartAsc(
             UUID vendorId, Instant from, Instant to);
 
+    Page<Booking> findByVendorIdAndAppointmentStartBetweenOrderByAppointmentStartAsc(
+            UUID vendorId, Instant from, Instant to, Pageable pageable);
+
     List<Booking> findByCustomerUserIdOrderByAppointmentStartDesc(UUID customerUserId);
 
+    Page<Booking> findByCustomerUserIdOrderByAppointmentStartDesc(UUID customerUserId, Pageable pageable);
+
     List<Booking> findAllByOrderByAppointmentStartDesc();
+
+    Page<Booking> findAllByOrderByAppointmentStartDesc(Pageable pageable);
 
     /** Active bookings overlapping a window for a vendor — used for capacity checks. */
     @Query("select b from Booking b where b.vendorId = :vendorId "

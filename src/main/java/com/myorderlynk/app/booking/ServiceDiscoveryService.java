@@ -5,6 +5,7 @@ import com.myorderlynk.app.booking.BookingDtos.ReviewResponse;
 import com.myorderlynk.app.booking.BookingDtos.ServiceStorefrontResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
 import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.vendor.VendorRepository;
@@ -46,12 +47,13 @@ public class ServiceDiscoveryService {
 
     /** Service-provider cards for the marketplace, optionally filtered by category and/or city. */
     @Transactional(readOnly = true)
-    public List<ProviderCard> marketplace(ServiceCategory category, String city, boolean acceptsDepositsOnly) {
+    public PageResponse<ProviderCard> marketplace(ServiceCategory category, String city, boolean acceptsDepositsOnly,
+                                                  int page, int size) {
         List<UUID> vendorIds = category != null
                 ? services.findVendorIdsByActiveCategory(category)
                 : services.findVendorIdsWithActiveServices();
 
-        return vendorIds.stream()
+        List<ProviderCard> cards = vendorIds.stream()
                 .map(vendors::findById)
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
@@ -63,6 +65,7 @@ public class ServiceDiscoveryService {
                 .sorted(Comparator.comparing(
                         (ProviderCard c) -> c.rating() == null ? BigDecimal.ZERO : c.rating()).reversed())
                 .toList();
+        return PageResponse.of(cards, page, size);
     }
 
     /** A provider's full service storefront (profile + active services + reviews). */

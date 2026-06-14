@@ -24,6 +24,7 @@ import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.common.CodeGenerator;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -219,7 +220,7 @@ public class VendorService {
      * which, combined with the category filter, surfaces top-rated vendors per category.
      */
     @Transactional(readOnly = true)
-    public List<VendorResponse> marketplace(String city, ProductCategory category) {
+    public PageResponse<VendorResponse> marketplace(String city, ProductCategory category, int page, int size) {
         List<Vendor> list = (city == null || city.isBlank())
                 ? vendors.findByActiveTrueAndVerificationStatus(VendorStatus.APPROVED)
                 : vendors.findByActiveTrueAndVerificationStatusAndAddressCityIgnoreCase(VendorStatus.APPROVED, city);
@@ -229,7 +230,8 @@ public class VendorService {
             list = list.stream().filter(v -> vendorIdsInCategory.contains(v.getId())).toList();
         }
 
-        return list.stream().sorted(BY_RATING_DESC).map(vendorMapper::publicVendor).toList();
+        List<VendorResponse> all = list.stream().sorted(BY_RATING_DESC).map(vendorMapper::publicVendor).toList();
+        return PageResponse.of(all, page, size);
     }
 
     /** Highest average rating first (unrated last), tie-broken by number of ratings, then name. */

@@ -6,6 +6,8 @@ import com.myorderlynk.app.batch.ShipmentRequestDtos.ShipmentRequestResponse;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.WeighRequest;
 import com.myorderlynk.app.common.AuditService;
 import com.myorderlynk.app.common.CodeGenerator;
+import com.myorderlynk.app.common.PageRequests;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.common.enums.SourceChannel;
 import com.myorderlynk.app.common.enums.VendorStatus;
@@ -20,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -261,20 +262,23 @@ public class ShipmentRequestService {
     // ---- queries ----
 
     @Transactional(readOnly = true)
-    public List<ShipmentRequestResponse> byBatch(UUID vendorId, UUID batchId) {
-        return requests.findByBatchIdOrderByCreatedAtDesc(batchId).stream()
-                .filter(s -> s.getVendorId().equals(vendorId))
-                .map(this::response).toList();
+    public PageResponse<ShipmentRequestResponse> byBatch(UUID vendorId, UUID batchId, int page, int size) {
+        return PageResponse.of(requests
+                .findByBatchIdAndVendorIdOrderByCreatedAtDesc(batchId, vendorId, PageRequests.of(page, size))
+                .map(this::response));
     }
 
     @Transactional(readOnly = true)
-    public List<ShipmentRequestResponse> forVendor(UUID vendorId) {
-        return requests.findByVendorIdOrderByCreatedAtDesc(vendorId).stream().map(this::response).toList();
+    public PageResponse<ShipmentRequestResponse> forVendor(UUID vendorId, int page, int size) {
+        return PageResponse.of(requests.findByVendorIdOrderByCreatedAtDesc(vendorId, PageRequests.of(page, size))
+                .map(this::response));
     }
 
     @Transactional(readOnly = true)
-    public List<ShipmentRequestResponse> customerRequests(UUID customerUserId) {
-        return requests.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId).stream().map(this::response).toList();
+    public PageResponse<ShipmentRequestResponse> customerRequests(UUID customerUserId, int page, int size) {
+        return PageResponse.of(requests
+                .findByCustomerUserIdOrderByCreatedAtDesc(customerUserId, PageRequests.of(page, size))
+                .map(this::response));
     }
 
     @Transactional(readOnly = true)

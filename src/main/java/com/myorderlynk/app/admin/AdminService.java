@@ -9,6 +9,8 @@ import com.myorderlynk.app.vendor.Vendor;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.order.OrderMapper;
 import com.myorderlynk.app.vendor.VendorMapper;
+import com.myorderlynk.app.admin.AdminDtos.AdminSummary;
+import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.order.OrderDtos.OrderResponse;
 import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
 import com.myorderlynk.app.identity.User;
@@ -17,7 +19,10 @@ import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.notification.EmailService;
+import com.myorderlynk.app.common.PageResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,10 +55,32 @@ public class AdminService {
         this.emailService = emailService;
     }
 
+    private static final List<VendorStatus> PENDING_STATUSES =
+            List.of(VendorStatus.SUBMITTED, VendorStatus.UNDER_REVIEW);
+
+    /** Platform headline metrics plus a bounded preview of vendors awaiting approval. */
     @Transactional(readOnly = true)
-    public List<VendorResponse> listVendors(VendorStatus status) {
-        List<Vendor> list = status == null ? vendors.findAll() : vendors.findByVerificationStatus(status);
-        return list.stream().map(vendorMapper::vendor).toList();
+    public AdminSummary summary() {
+        long vendorCount = vendors.count();
+        long activeVendorCount = vendors.countByActiveTrue();
+        long pendingCount = vendors.countByVerificationStatusIn(PENDING_STATUSES);
+        long orderCount = orders.count();
+        long paidOrderCount = orders.countByPaymentStatus(PaymentStatus.PAID);
+        var grossRevenue = orders.sumTotalAmountByPaymentStatus(PaymentStatus.PAID);
+        var platformRevenue = orders.sumPlatformRevenueByPaymentStatus(PaymentStatus.PAID);
+        List<VendorResponse> pendingVendors = vendors
+                .findByVerificationStatusInOrderByCreatedAtDesc(PENDING_STATUSES, PageRequest.of(0, 10))
+                .stream().map(vendorMapper::vendor).toList();
+        return new AdminSummary(vendorCount, activeVendorCount, pendingCount, orderCount, paidOrderCount,
+                grossRevenue, platformRevenue, pendingVendors);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<VendorResponse> listVendors(VendorStatus status, Pageable pageable) {
+        var page = status == null
+                ? vendors.findAll(pageable)
+                : vendors.findByVerificationStatus(status, pageable);
+        return PageResponse.of(page.map(vendorMapper::vendor));
     }
 
     @Transactional
@@ -101,9 +128,9 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> allOrders() {
-        return orders.findAllByOrderByCreatedAtDesc().stream()
-                .map(o -> orderMapper.order(o, vendorName(o.getVendorId()))).toList();
+    public PageResponse<OrderResponse> allOrders(Pageable pageable) {
+        return PageResponse.of(orders.findAllByOrderByCreatedAtDesc(pageable)
+                .map(o -> orderMapper.order(o, vendorName(o.getVendorId()))));
     }
 
     @Transactional(readOnly = true)

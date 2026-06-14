@@ -37,6 +37,7 @@ public final class AnalyticsDtos {
     public record VendorAnalytics(
             long totalOrders,
             long paidOrders,
+            long openFulfillmentOrders,
             BigDecimal grossRevenue,
             long uniqueCustomers,
             List<CustomerSummary> topCustomers,

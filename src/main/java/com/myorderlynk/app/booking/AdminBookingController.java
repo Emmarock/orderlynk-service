@@ -2,6 +2,7 @@ package com.myorderlynk.app.booking;
 
 import com.myorderlynk.app.booking.BookingDtos.BookingResponse;
 import com.myorderlynk.app.booking.BookingDtos.CancelRequest;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.security.access.IsAdmin;
@@ -11,9 +12,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 /** Admin oversight of service bookings (PRD §15: "Admin can view and support service bookings"). */
@@ -31,8 +32,9 @@ public class AdminBookingController {
     }
 
     @GetMapping
-    public List<BookingResponse> all() {
-        return bookings.allBookings();
+    public PageResponse<BookingResponse> all(@RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "20") int size) {
+        return bookings.allBookings(page, size);
     }
 
     /** Admin escalation: cancel a booking on the provider's behalf (PRD §14 provider-cancel path). */

@@ -10,6 +10,8 @@ import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
+import com.myorderlynk.app.common.PageRequests;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.integration.ImageUploads;
 import com.myorderlynk.app.integration.S3StorageService;
@@ -119,10 +121,9 @@ public class ServiceCatalogService {
     // ---- Services ----
 
     @Transactional(readOnly = true)
-    public List<ServiceResponse> listServices(UUID vendorId) {
-        return services.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
-                .map(s -> mapper.service(s, addOns.findByServiceIdOrderByCreatedAtAsc(s.getId())))
-                .toList();
+    public PageResponse<ServiceResponse> listServices(UUID vendorId, int page, int size) {
+        return PageResponse.of(services.findByVendorIdOrderByCreatedAtDesc(vendorId, PageRequests.of(page, size))
+                .map(s -> mapper.service(s, addOns.findByServiceIdOrderByCreatedAtAsc(s.getId()))));
     }
 
     @Transactional(readOnly = true)

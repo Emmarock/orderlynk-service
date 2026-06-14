@@ -22,6 +22,7 @@ import com.myorderlynk.app.order.OrderDtos.PaymentUpdateRequest;
 import com.myorderlynk.app.order.OrderDtos.QuoteRequest;
 import com.myorderlynk.app.order.OrderDtos.QuoteResponse;
 import com.myorderlynk.app.order.OrderRepository;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.order.PaymentRecordRepository;
@@ -36,6 +37,8 @@ import com.myorderlynk.app.shipping.ShippingRate;
 import com.myorderlynk.app.shipping.ShippingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
@@ -257,19 +260,35 @@ public class OrderService {
 
     /** Vendor's orders, optionally restricted to a created-at window (null bounds = unbounded). */
     @Transactional(readOnly = true)
-    public List<OrderResponse> vendorOrders(UUID vendorId, Instant from, Instant to) {
+    public PageResponse<OrderResponse> vendorOrders(UUID vendorId, Instant from, Instant to, Pageable pageable) {
         String name = vendorName(vendorId);
-        List<Order> list = (from == null && to == null)
-                ? orders.findByVendorIdOrderByCreatedAtDesc(vendorId)
+        Page<Order> page = (from == null && to == null)
+                ? orders.findByVendorIdOrderByCreatedAtDesc(vendorId, pageable)
                 : orders.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-                        vendorId, from == null ? Instant.EPOCH : from, to == null ? Instant.now() : to);
-        return list.stream().map(o -> mapper.order(o, name)).toList();
+                        vendorId, from == null ? Instant.EPOCH : from, to == null ? Instant.now() : to, pageable);
+        return PageResponse.of(page.map(o -> mapper.order(o, name)));
+    }
+
+    /**
+     * All of a single customer's orders with this vendor, matched by normalized phone (digits only),
+     * mirroring the customer-identity key used in {@code VendorAnalyticsService}. Newest-first; bounded
+     * because it's scoped to one customer.
+     */
+    @Transactional(readOnly = true)
+    public List<OrderResponse> vendorCustomerOrders(UUID vendorId, String phone) {
+        String target = phone == null ? "" : phone.replaceAll("\\D", "");
+        String name = vendorName(vendorId);
+        return orders.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
+                .filter(o -> o.getCustomerPhone() != null
+                        && o.getCustomerPhone().replaceAll("\\D", "").equals(target))
+                .map(o -> mapper.order(o, name))
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> customerOrders(UUID customerUserId) {
-        return orders.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId).stream()
-                .map(o -> mapper.order(o, vendors.findById(o.getVendorId()).orElse(null))).toList();
+    public PageResponse<OrderResponse> customerOrders(UUID customerUserId, Pageable pageable) {
+        return PageResponse.of(orders.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId, pageable)
+                .map(o -> mapper.order(o, vendors.findById(o.getVendorId()).orElse(null))));
     }
 
     @Transactional(readOnly = true)

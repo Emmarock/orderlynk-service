@@ -8,6 +8,7 @@ import com.myorderlynk.app.batch.BatchOrderDtos.BatchOrderRequest;
 import com.myorderlynk.app.batch.BatchOrderDtos.BatchOrderResponse;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.ShipmentRequestCreate;
 import com.myorderlynk.app.batch.ShipmentRequestDtos.ShipmentRequestResponse;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.security.access.IsAuthenticated;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -49,10 +49,12 @@ public class BatchController {
     // ---- Discovery ----
 
     @GetMapping
-    public List<BatchCard> marketplace(@RequestParam(required = false) String originCountry,
-                                       @RequestParam(required = false) String destinationCity,
-                                       @RequestParam(required = false) BatchType batchType) {
-        return discovery.marketplace(originCountry, destinationCity, batchType);
+    public PageResponse<BatchCard> marketplace(@RequestParam(required = false) String originCountry,
+                                               @RequestParam(required = false) String destinationCity,
+                                               @RequestParam(required = false) BatchType batchType,
+                                               @RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "20") int size) {
+        return discovery.marketplace(originCountry, destinationCity, batchType, page, size);
     }
 
     @GetMapping("/{id}")
@@ -74,8 +76,9 @@ public class BatchController {
 
     @GetMapping("/orders/mine")
     @IsAuthenticated
-    public List<BatchOrderResponse> myOrders() {
-        return batchOrders.customerOrders(currentUser.require().userId());
+    public PageResponse<BatchOrderResponse> myOrders(@RequestParam(defaultValue = "0") int page,
+                                                     @RequestParam(defaultValue = "20") int size) {
+        return batchOrders.customerOrders(currentUser.require().userId(), page, size);
     }
 
     @PostMapping("/orders/{publicId}/pay")
@@ -97,8 +100,9 @@ public class BatchController {
 
     @GetMapping("/shipment-requests/mine")
     @IsAuthenticated
-    public List<ShipmentRequestResponse> myShipmentRequests() {
-        return shipmentRequests.customerRequests(currentUser.require().userId());
+    public PageResponse<ShipmentRequestResponse> myShipmentRequests(@RequestParam(defaultValue = "0") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        return shipmentRequests.customerRequests(currentUser.require().userId(), page, size);
     }
 
     @PostMapping("/shipment-requests/{publicId}/pay")

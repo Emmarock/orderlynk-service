@@ -7,6 +7,8 @@ import com.myorderlynk.app.batch.BatchOrderDtos.CartLine;
 import com.myorderlynk.app.common.Address;
 import com.myorderlynk.app.common.AuditService;
 import com.myorderlynk.app.common.CodeGenerator;
+import com.myorderlynk.app.common.PageRequests;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.common.enums.SourceChannel;
 import com.myorderlynk.app.common.enums.VendorStatus;
@@ -21,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -232,17 +233,18 @@ public class BatchOrderService {
     // ---- vendor operations ----
 
     @Transactional(readOnly = true)
-    public List<BatchOrderResponse> byBatch(UUID vendorId, UUID batchId) {
-        return orders.findByBatchIdOrderByCreatedAtDesc(batchId).stream()
-                .filter(o -> o.getVendorId().equals(vendorId))
-                .map(o -> response(o, batchName(o.getBatchId()), vendorName(vendorId))).toList();
+    public PageResponse<BatchOrderResponse> byBatch(UUID vendorId, UUID batchId, int page, int size) {
+        String name = vendorName(vendorId);
+        return PageResponse.of(orders
+                .findByBatchIdAndVendorIdOrderByCreatedAtDesc(batchId, vendorId, PageRequests.of(page, size))
+                .map(o -> response(o, batchName(o.getBatchId()), name)));
     }
 
     @Transactional(readOnly = true)
-    public List<BatchOrderResponse> forVendor(UUID vendorId) {
+    public PageResponse<BatchOrderResponse> forVendor(UUID vendorId, int page, int size) {
         String name = vendorName(vendorId);
-        return orders.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
-                .map(o -> response(o, batchName(o.getBatchId()), name)).toList();
+        return PageResponse.of(orders.findByVendorIdOrderByCreatedAtDesc(vendorId, PageRequests.of(page, size))
+                .map(o -> response(o, batchName(o.getBatchId()), name)));
     }
 
     @Transactional
@@ -261,9 +263,10 @@ public class BatchOrderService {
     // ---- customer ----
 
     @Transactional(readOnly = true)
-    public List<BatchOrderResponse> customerOrders(UUID customerUserId) {
-        return orders.findByCustomerUserIdOrderByCreatedAtDesc(customerUserId).stream()
-                .map(o -> response(o, batchName(o.getBatchId()), vendorName(o.getVendorId()))).toList();
+    public PageResponse<BatchOrderResponse> customerOrders(UUID customerUserId, int page, int size) {
+        return PageResponse.of(orders
+                .findByCustomerUserIdOrderByCreatedAtDesc(customerUserId, PageRequests.of(page, size))
+                .map(o -> response(o, batchName(o.getBatchId()), vendorName(o.getVendorId()))));
     }
 
     @Transactional(readOnly = true)

@@ -11,13 +11,15 @@ import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.order.OrderService;
 import jakarta.validation.Valid;
 import com.myorderlynk.app.security.access.IsAuthenticated;
+import com.myorderlynk.app.common.PageResponse;
+import com.myorderlynk.app.common.PageRequests;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -61,7 +63,8 @@ public class OrderController {
 
     @GetMapping("/mine")
     @IsAuthenticated
-    public List<OrderResponse> myOrders() {
-        return orderService.customerOrders(currentUser.require().userId());
+    public PageResponse<OrderResponse> myOrders(@RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "20") int size) {
+        return orderService.customerOrders(currentUser.require().userId(), PageRequests.of(page, size));
     }
 }

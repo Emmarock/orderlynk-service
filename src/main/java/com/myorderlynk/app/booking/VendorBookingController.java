@@ -18,6 +18,7 @@ import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.security.AuthPrincipal;
 import com.myorderlynk.app.security.CurrentUser;
@@ -80,8 +81,9 @@ public class VendorBookingController {
     // ---- Services ----
 
     @GetMapping("/services")
-    public List<ServiceResponse> services() {
-        return catalog.listServices(vendorId());
+    public PageResponse<ServiceResponse> services(@RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "20") int size) {
+        return catalog.listServices(vendorId(), page, size);
     }
 
     @GetMapping("/services/{id}")
@@ -175,12 +177,14 @@ public class VendorBookingController {
     // ---- Booking dashboard ----
 
     @GetMapping("/bookings")
-    public List<BookingResponse> bookings(
+    public PageResponse<BookingResponse> bookings(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         Instant start = from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = to == null ? null : to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        return bookings.vendorBookings(vendorId(), start, end);
+        return bookings.vendorBookings(vendorId(), start, end, page, size);
     }
 
     @GetMapping("/bookings/{id}")

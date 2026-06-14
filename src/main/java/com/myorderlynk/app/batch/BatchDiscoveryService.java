@@ -3,6 +3,7 @@ package com.myorderlynk.app.batch;
 import com.myorderlynk.app.batch.BatchDtos.BatchCard;
 import com.myorderlynk.app.batch.BatchDtos.BatchProductResponse;
 import com.myorderlynk.app.batch.BatchDtos.PublicBatchResponse;
+import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.common.enums.BatchStatus;
 import com.myorderlynk.app.exception.ApiException;
 import com.myorderlynk.app.vendor.Vendor;
@@ -37,8 +38,10 @@ public class BatchDiscoveryService {
 
     /** Marketplace-visible, open batches, optionally filtered by route endpoints and type. */
     @Transactional(readOnly = true)
-    public List<BatchCard> marketplace(String originCountry, String destinationCity, BatchType batchType) {
-        return batches.findByVisibilityAndBatchStatusInOrderByCloseDateAsc(BatchVisibility.MARKETPLACE, OPEN_STATUSES)
+    public PageResponse<BatchCard> marketplace(String originCountry, String destinationCity, BatchType batchType,
+                                               int page, int size) {
+        List<BatchCard> cards = batches
+                .findByVisibilityAndBatchStatusInOrderByCloseDateAsc(BatchVisibility.MARKETPLACE, OPEN_STATUSES)
                 .stream()
                 .filter(b -> originCountry == null || originCountry.isBlank()
                         || originCountry.equalsIgnoreCase(b.getOriginCountry()))
@@ -47,6 +50,7 @@ public class BatchDiscoveryService {
                 .filter(b -> batchType == null || b.getBatchType() == batchType)
                 .map(this::card)
                 .toList();
+        return PageResponse.of(cards, page, size);
     }
 
     /** A provider's public batch page (cycle + available products). */

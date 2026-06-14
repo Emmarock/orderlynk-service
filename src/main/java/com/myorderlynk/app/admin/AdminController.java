@@ -8,10 +8,13 @@ import com.myorderlynk.app.order.OrderDtos.PaymentUpdateRequest;
 import com.myorderlynk.app.finance.PayoutDtos.GeneratePayoutRequest;
 import com.myorderlynk.app.finance.PayoutDtos.PayoutResponse;
 import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
+import com.myorderlynk.app.admin.AdminDtos.AdminSummary;
 import com.myorderlynk.app.security.CurrentUser;
 import com.myorderlynk.app.admin.AdminService;
 import com.myorderlynk.app.order.OrderService;
 import com.myorderlynk.app.finance.PayoutService;
+import com.myorderlynk.app.common.PageResponse;
+import com.myorderlynk.app.common.PageRequests;
 import jakarta.validation.Valid;
 import com.myorderlynk.app.security.access.IsAdmin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,11 +47,19 @@ public class AdminController {
         this.currentUser = currentUser;
     }
 
+    /** Platform headline metrics + the approval queue preview for the admin dashboard. */
+    @GetMapping("/summary")
+    public AdminSummary summary() {
+        return adminService.summary();
+    }
+
     // ---- Vendor approval (PRD §14) ----
 
     @GetMapping("/vendors")
-    public List<VendorResponse> vendors(@RequestParam(required = false) VendorStatus status) {
-        return adminService.listVendors(status);
+    public PageResponse<VendorResponse> vendors(@RequestParam(required = false) VendorStatus status,
+                                                @RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "20") int size) {
+        return adminService.listVendors(status, PageRequests.of(page, size));
     }
 
     @PostMapping("/vendors/{id}/approve")
@@ -75,8 +86,9 @@ public class AdminController {
     // ---- Order oversight ----
 
     @GetMapping("/orders")
-    public List<OrderResponse> orders() {
-        return adminService.allOrders();
+    public PageResponse<OrderResponse> orders(@RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "20") int size) {
+        return adminService.allOrders(PageRequests.of(page, size));
     }
 
     @GetMapping("/orders/{id}")
