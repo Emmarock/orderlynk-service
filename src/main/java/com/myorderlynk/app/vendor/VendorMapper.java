@@ -18,7 +18,7 @@ public class VendorMapper {
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
                 a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(), a.getPostcode(), a.getCountry(),
-                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
+                v.getWhatsappNumber(), v.getInstagramHandle(), v.getTiktokHandle(), v.getFacebookPage(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
                 v.getPayoutMethod(), v.getPayoutAccountName(), v.getPayoutAccountNumber(),
@@ -39,7 +39,7 @@ public class VendorMapper {
         return new VendorDtos.VendorResponse(
                 v.getId(), v.getBusinessName(), v.getDescription(),
                 a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(), a.getPostcode(), a.getCountry(),
-                v.getWhatsappNumber(), v.getInstagramHandle(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
+                v.getWhatsappNumber(), v.getInstagramHandle(), v.getTiktokHandle(), v.getFacebookPage(), v.getLogoUrl(), v.getBannerUrl(), v.getStoreSlug(),
                 v.getVerificationStatus(), v.getFulfillmentTypes(), v.isActive(), v.getRating(),
                 v.getRatingCount(), v.getCommissionRate(),
                 null, null, null, null, null,

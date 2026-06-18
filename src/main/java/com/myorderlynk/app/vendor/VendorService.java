@@ -5,7 +5,6 @@ import com.myorderlynk.app.identity.AuthService;
 
 import com.myorderlynk.app.common.Address;
 import com.myorderlynk.app.identity.User;
-import com.myorderlynk.app.vendor.Vendor;
 import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.common.enums.UserRole;
 import com.myorderlynk.app.common.enums.VendorStatus;
@@ -21,7 +20,6 @@ import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
 import com.myorderlynk.app.vendor.VendorDtos.VendorUpdateRequest;
 import com.myorderlynk.app.catalog.ProductRepository;
 import com.myorderlynk.app.identity.UserRepository;
-import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.common.CodeGenerator;
 import com.myorderlynk.app.common.PageResponse;
@@ -116,6 +114,8 @@ public class VendorService {
         vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
+        vendor.setTiktokHandle(req.tiktokHandle());
+        vendor.setFacebookPage(req.facebookPage());
         vendor.setLogoUrl(req.logoUrl());
         if (req.fulfillmentTypes() != null) {
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
@@ -154,6 +154,8 @@ public class VendorService {
         if (req.country() != null) addr.setCountry(req.country());
         if (req.whatsappNumber() != null) vendor.setWhatsappNumber(req.whatsappNumber());
         if (req.instagramHandle() != null) vendor.setInstagramHandle(req.instagramHandle());
+        if (req.tiktokHandle() != null) vendor.setTiktokHandle(req.tiktokHandle());
+        if (req.facebookPage() != null) vendor.setFacebookPage(req.facebookPage());
         if (req.logoUrl() != null) vendor.setLogoUrl(req.logoUrl());
         if (req.bannerUrl() != null) vendor.setBannerUrl(req.bannerUrl());
         if (req.fulfillmentTypes() != null) {

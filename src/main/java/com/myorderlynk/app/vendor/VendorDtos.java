@@ -5,11 +5,7 @@ import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.validation.FieldMatch;
 import com.myorderlynk.app.validation.StrongPassword;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -59,6 +55,8 @@ public final class VendorDtos {
             String country,
             String whatsappNumber,
             String instagramHandle,
+            @Pattern(regexp = "^@?[A-Za-z0-9._]+$", message = "Invalid TikTok handle") String tiktokHandle,
+            @Pattern(regexp = "^(https://)?(www\\.)?facebook\\.com/.+$", message = "Invalid Facebook URL") String facebookPage,
             String logoUrl,
             Set<FulfillmentType> fulfillmentTypes) {
     }
@@ -74,6 +72,8 @@ public final class VendorDtos {
             String country,
             String whatsappNumber,
             String instagramHandle,
+            String tiktokHandle,
+            String facebookPage,
             String logoUrl,
             String bannerUrl,
             Set<FulfillmentType> fulfillmentTypes,
@@ -107,6 +107,8 @@ public final class VendorDtos {
             String country,
             String whatsappNumber,
             String instagramHandle,
+            String tiktokHandle,
+            String facebookPage,
             String logoUrl,
             String bannerUrl,
             String storeSlug,

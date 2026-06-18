@@ -57,6 +57,8 @@ public class Vendor extends BaseEntity {
     private String whatsappNumber;
 
     private String instagramHandle;
+    private String tiktokHandle;
+    private String facebookPage;
 
     private String logoUrl;
 

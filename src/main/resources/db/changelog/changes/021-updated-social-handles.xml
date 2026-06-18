@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="add-social-media-fields-to-vendor" author="babajide">
+
+        <addColumn tableName="vendors">
+            <column name="facebook_url" type="varchar(500)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="vendors">
+            <column name="tiktok_handle" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+    </changeSet>
+    <changeSet id="rename-facebook-url-column" author="babajide">
+
+        <renameColumn
+                tableName="vendors"
+                oldColumnName="facebook_url"
+                newColumnName="facebook_page"
+                columnDataType="varchar(500)"/>
+
+    </changeSet>
+</databaseChangeLog>
