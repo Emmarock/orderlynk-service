@@ -3,9 +3,11 @@ package com.myorderlynk.app.booking;
 import com.myorderlynk.app.booking.ServiceDtos.DayAvailabilityResponse;
 import com.myorderlynk.app.booking.ServiceDtos.SlotResponse;
 import com.myorderlynk.app.exception.ApiException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,8 +23,12 @@ import java.util.UUID;
  * duration, buffer, lead time, max-advance window, {@link BlockedSlot}s and existing-booking
  * capacity (PRD §9). Simple and vendor-level for MVP, but extensible to staff/resources later.
  */
+@Slf4j
 @Service
 public class AvailabilityService {
+
+    /** Used when a provider's stored timezone is missing or not a recognized IANA id. */
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("America/Toronto");
 
     private final ServiceOfferingRepository services;
     private final ServiceProviderProfileRepository profiles;
@@ -49,7 +55,7 @@ public class AvailabilityService {
             throw ApiException.badRequest("This service is not currently bookable");
         }
         ServiceProviderProfile profile = profile(service.getVendorId());
-        ZoneId zone = ZoneId.of(profile.getTimezone());
+        ZoneId zone = zoneOf(profile);
         int duration = service.getDurationMinutes();
 
         List<SlotResponse> slots = new ArrayList<>();
@@ -100,7 +106,7 @@ public class AvailabilityService {
      */
     @Transactional(readOnly = true)
     public void assertBookable(ServiceProviderProfile profile, UUID vendorId, Instant start, Instant end) {
-        ZoneId zone = ZoneId.of(profile.getTimezone());
+        ZoneId zone = zoneOf(profile);
         LocalDateTime localStart = LocalDateTime.ofInstant(start, zone);
         LocalDateTime localEnd = LocalDateTime.ofInstant(end, zone);
 
@@ -135,6 +141,24 @@ public class AvailabilityService {
     private ServiceProviderProfile profile(UUID vendorId) {
         return profiles.findByVendorId(vendorId)
                 .orElseThrow(() -> ApiException.badRequest("This provider has not set up availability yet"));
+    }
+
+    /**
+     * Resolves the provider's timezone, tolerating missing or legacy/free-text values. Slot
+     * generation must never crash just because a profile holds e.g. "EST" or "" — that would
+     * surface to the customer as "no slots". Falls back to {@link #DEFAULT_ZONE} and logs.
+     */
+    private ZoneId zoneOf(ServiceProviderProfile profile) {
+        String tz = profile.getTimezone();
+        if (tz != null && !tz.isBlank()) {
+            try {
+                return ZoneId.of(tz.trim());
+            } catch (DateTimeException e) {
+                log.warn("Vendor {} has an unrecognized service timezone '{}' — using {} for slots",
+                        profile.getVendorId(), tz, DEFAULT_ZONE);
+            }
+        }
+        return DEFAULT_ZONE;
     }
 
     private int effectiveLead(ServiceProviderProfile profile, AvailabilityRule rule) {

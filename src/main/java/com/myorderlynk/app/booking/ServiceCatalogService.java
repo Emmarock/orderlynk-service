@@ -102,7 +102,15 @@ public class ServiceCatalogService {
         if (req.maxAdvanceDays() != null) p.setMaxAdvanceDays(req.maxAdvanceDays());
         if (req.defaultCapacity() != null) p.setDefaultCapacity(req.defaultCapacity());
         if (req.slotHoldMinutes() != null) p.setSlotHoldMinutes(req.slotHoldMinutes());
-        if (req.timezone() != null && !req.timezone().isBlank()) p.setTimezone(req.timezone());
+        if (req.timezone() != null && !req.timezone().isBlank()) {
+            String tz = req.timezone().trim();
+            try {
+                java.time.ZoneId.of(tz);
+            } catch (java.time.DateTimeException e) {
+                throw ApiException.badRequest("Unrecognized timezone: " + tz);
+            }
+            p.setTimezone(tz);
+        }
         log.info("Service profile updated for vendor {} (enabled={}, approval={})",
                 vendorId, p.isServiceEnabled(), p.getApprovalMode());
         return mapper.profile(profiles.save(p));
