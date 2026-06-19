@@ -1,5 +1,17 @@
 package com.myorderlynk.app.config;
 
+import com.myorderlynk.app.booking.ApprovalMode;
+import com.myorderlynk.app.booking.AvailabilityRule;
+import com.myorderlynk.app.booking.AvailabilityRuleRepository;
+import com.myorderlynk.app.booking.DepositType;
+import com.myorderlynk.app.booking.ServiceCategory;
+import com.myorderlynk.app.booking.ServiceLocationType;
+import com.myorderlynk.app.booking.ServiceOffering;
+import com.myorderlynk.app.booking.ServiceOfferingRepository;
+import com.myorderlynk.app.booking.ServiceProviderProfile;
+import com.myorderlynk.app.booking.ServiceProviderProfileRepository;
+import com.myorderlynk.app.booking.ServiceVariant;
+import com.myorderlynk.app.booking.ServiceVariantRepository;
 import com.myorderlynk.app.catalog.Product;
 import com.myorderlynk.app.identity.User;
 import com.myorderlynk.app.vendor.Vendor;
@@ -23,6 +35,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -42,14 +56,24 @@ public class DataSeeder implements CommandLineRunner {
     private final ProductRepository products;
     private final OrderService orderService;
     private final PasswordEncoder encoder;
+    private final ServiceProviderProfileRepository serviceProfiles;
+    private final ServiceOfferingRepository serviceOfferings;
+    private final ServiceVariantRepository serviceVariants;
+    private final AvailabilityRuleRepository availabilityRules;
 
     public DataSeeder(UserRepository users, VendorRepository vendors, ProductRepository products,
-                      OrderService orderService, PasswordEncoder encoder) {
+                      OrderService orderService, PasswordEncoder encoder,
+                      ServiceProviderProfileRepository serviceProfiles, ServiceOfferingRepository serviceOfferings,
+                      ServiceVariantRepository serviceVariants, AvailabilityRuleRepository availabilityRules) {
         this.users = users;
         this.vendors = vendors;
         this.products = products;
         this.orderService = orderService;
         this.encoder = encoder;
+        this.serviceProfiles = serviceProfiles;
+        this.serviceOfferings = serviceOfferings;
+        this.serviceVariants = serviceVariants;
+        this.availabilityRules = availabilityRules;
     }
 
     @Override
@@ -95,7 +119,11 @@ public class DataSeeder implements CommandLineRunner {
                 Set.of(FulfillmentType.LOCAL_PICKUP, FulfillmentType.IMPORT_BATCH, FulfillmentType.DOMESTIC_SHIPPING),
                 "4.9", 37);
         beautyOwner.setVendorId(beauty.getId());
+        beautyOwner.setEmailVerified(true); // demo: let this vendor sign in to manage services
         users.save(beautyOwner);
+
+        // Bookable services (braiding) with priced sub-services + open availability, so the booking flow is demoable.
+        seedBraidingServices(beauty.getId());
 
         product(beauty.getId(), "Raw Shea Butter 500g", ProductCategory.BEAUTY,
                 "15.00", 50, FulfillmentType.DOMESTIC_SHIPPING);
@@ -138,6 +166,57 @@ public class DataSeeder implements CommandLineRunner {
                   Vendor   -> beauty@orderlynk.app / vendor12345   (Naija Beauty Hub, approved)
                   Vendor   -> pending@orderlynk.app / vendor12345  (Lagos Pantry, awaiting approval)
                   Customer -> customer@orderlynk.app / customer12345""");
+    }
+
+    /** Auto-approving braiding service with sub-services and 7-day availability (demo booking flow). */
+    private void seedBraidingServices(UUID vendorId) {
+        ServiceProviderProfile profile = new ServiceProviderProfile();
+        profile.setVendorId(vendorId);
+        profile.setServiceEnabled(true);
+        profile.setApprovalMode(ApprovalMode.AUTO);
+        profile.setLocationType(ServiceLocationType.AT_PROVIDER);
+        profile.setLeadTimeHours(0);   // demo: show slots starting today
+        profile.setBusinessHoursSummary("Mon–Sun, 9am–6pm");
+        profile.setBio("Protective styling specialists — braids, weaves and cornrows.");
+        serviceProfiles.save(profile);
+
+        ServiceOffering braids = new ServiceOffering();
+        braids.setVendorId(vendorId);
+        braids.setName("Braiding");
+        braids.setCategory(ServiceCategory.HAIR);
+        braids.setDescription("Protective braiding styles. Pick your style below — price varies by style.");
+        braids.setBasePrice(new BigDecimal("90.00"));
+        braids.setDurationMinutes(120);
+        braids.setDepositType(DepositType.NONE);
+        braids.setLocationType(ServiceLocationType.AT_PROVIDER);
+        braids.setActive(true);
+        ServiceOffering savedBraids = serviceOfferings.save(braids);
+
+        variant(savedBraids, "Braids with Gel", "80.00", 120);
+        variant(savedBraids, "1 Million Braids", "120.00", 180);
+        variant(savedBraids, "Knotless Braids", "150.00", 210);
+        variant(savedBraids, "Weaving (Cornrows)", "90.00", 90);
+
+        for (DayOfWeek day : DayOfWeek.values()) {
+            AvailabilityRule rule = new AvailabilityRule();
+            rule.setVendorId(vendorId);
+            rule.setDayOfWeek(day);
+            rule.setStartTime(LocalTime.of(9, 0));
+            rule.setEndTime(LocalTime.of(18, 0));
+            rule.setActive(true);
+            availabilityRules.save(rule);
+        }
+    }
+
+    private void variant(ServiceOffering service, String name, String price, int durationMinutes) {
+        ServiceVariant v = new ServiceVariant();
+        v.setServiceId(service.getId());
+        v.setVendorId(service.getVendorId());
+        v.setName(name);
+        v.setPrice(new BigDecimal(price));
+        v.setDurationMinutes(durationMinutes);
+        v.setActive(true);
+        serviceVariants.save(v);
     }
 
     private User createUser(String email, String password, String name, UserRole role, boolean admin, UUID vendorId) {
