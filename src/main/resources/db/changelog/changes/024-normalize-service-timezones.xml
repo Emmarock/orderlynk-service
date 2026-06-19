@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Reset any legacy/invalid service timezones (free-text values from before the dropdown) to the
+      platform default. Uses a Java customChange so validity is checked against the JVM's IANA tz
+      database; valid ids are left untouched.
+    -->
+    <changeSet id="024-normalize-invalid-service-timezones" author="babajide">
+        <customChange class="com.myorderlynk.app.config.NormalizeServiceTimezones"/>
+    </changeSet>
+
+</databaseChangeLog>

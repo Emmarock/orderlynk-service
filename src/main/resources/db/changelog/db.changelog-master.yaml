@@ -68,3 +68,6 @@ databaseChangeLog:
   - include:
       file: changes/023-service-per-service-location-fee.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/024-normalize-service-timezones.xml
+      relativeToChangelogFile: true

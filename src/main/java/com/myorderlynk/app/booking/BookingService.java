@@ -180,15 +180,16 @@ public class BookingService {
         booking.setDepositAmount(depositFor(service.getDepositType(), service.getDepositValue(), total));
         booking.setPaymentStatus(PaymentStatus.PENDING);
 
-        // Initial status: manual → REQUESTED; auto → DEPOSIT_PENDING (if deposit) or CONFIRMED.
+        // Initial status:
+        //  - deposit required → DEPOSIT_PENDING in BOTH approval modes, so the customer can pay the
+        //    deposit inline and proceed; the paid deposit secures the slot (held until paid).
+        //  - no deposit → auto-approve (CONFIRMED) or, under manual approval, await the vendor (REQUESTED).
         boolean depositRequired = booking.getDepositAmount().signum() > 0;
-        if (profile.getApprovalMode() == ApprovalMode.AUTO) {
-            if (depositRequired) {
-                booking.setStatus(BookingStatus.DEPOSIT_PENDING);
-                booking.setHoldExpiresAt(Instant.now().plus(Duration.ofMinutes(profile.getSlotHoldMinutes())));
-            } else {
-                booking.setStatus(BookingStatus.CONFIRMED);
-            }
+        if (depositRequired) {
+            booking.setStatus(BookingStatus.DEPOSIT_PENDING);
+            booking.setHoldExpiresAt(Instant.now().plus(Duration.ofMinutes(profile.getSlotHoldMinutes())));
+        } else if (profile.getApprovalMode() == ApprovalMode.AUTO) {
+            booking.setStatus(BookingStatus.CONFIRMED);
         } else {
             booking.setStatus(BookingStatus.REQUESTED);
         }
@@ -223,11 +224,12 @@ public class BookingService {
                                 + " has been received. You'll be notified when it's approved.");
             }
             case DEPOSIT_PENDING -> {
-                notifications.notifyProvider(booking, "BOOKING_AUTO_APPROVED",
-                        "Booking " + booking.getPublicBookingId() + " auto-approved; awaiting deposit.");
+                notifications.notifyProvider(booking, "BOOKING_AWAITING_DEPOSIT",
+                        "Booking " + booking.getPublicBookingId() + " created; awaiting the deposit to confirm.");
                 notifications.notifyCustomer(booking, "DEPOSIT_REQUIRED",
-                        "Your booking " + booking.getPublicBookingId() + " is approved. Please pay the "
-                                + money(booking.getDepositAmount(), booking) + " deposit to lock your time.");
+                        "Hi " + booking.getCustomerName() + ", please pay the "
+                                + money(booking.getDepositAmount(), booking) + " deposit to confirm your booking "
+                                + booking.getPublicBookingId() + " and lock your time.");
             }
             case CONFIRMED -> {
                 notifications.notifyProvider(booking, "BOOKING_CONFIRMED",
