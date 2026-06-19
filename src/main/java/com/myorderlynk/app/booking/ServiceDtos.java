@@ -96,7 +96,27 @@ public final class ServiceDtos {
             BigDecimal depositAmount,
             BigDecimal taxRate,
             boolean active,
+            List<VariantResponse> variants,
             List<AddOnResponse> addOns) {
+    }
+
+    // ---- Sub-services (variants) ----
+
+    public record VariantRequest(
+            @NotBlank String name,
+            @NotNull @PositiveOrZero BigDecimal price,
+            @Positive int durationMinutes,
+            Boolean active) {
+    }
+
+    public record VariantResponse(
+            UUID id,
+            UUID serviceId,
+            UUID vendorId,
+            String name,
+            BigDecimal price,
+            int durationMinutes,
+            boolean active) {
     }
 
     // ---- Add-ons ----

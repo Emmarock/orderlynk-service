@@ -37,17 +37,20 @@ public class ServiceCatalogService {
     private final ServiceProviderProfileRepository profiles;
     private final ServiceOfferingRepository services;
     private final ServiceAddOnRepository addOns;
+    private final ServiceVariantRepository variants;
     private final AvailabilityRuleRepository rules;
     private final BlockedSlotRepository blocked;
     private final BookingMapper mapper;
     private final S3StorageService storage;
 
     public ServiceCatalogService(ServiceProviderProfileRepository profiles, ServiceOfferingRepository services,
-                                 ServiceAddOnRepository addOns, AvailabilityRuleRepository rules,
+                                 ServiceAddOnRepository addOns, ServiceVariantRepository variants,
+                                 AvailabilityRuleRepository rules,
                                  BlockedSlotRepository blocked, BookingMapper mapper, S3StorageService storage) {
         this.profiles = profiles;
         this.services = services;
         this.addOns = addOns;
+        this.variants = variants;
         this.rules = rules;
         this.blocked = blocked;
         this.mapper = mapper;
@@ -132,13 +135,19 @@ public class ServiceCatalogService {
     @Transactional(readOnly = true)
     public PageResponse<ServiceResponse> listServices(UUID vendorId, int page, int size) {
         return PageResponse.of(services.findByVendorIdOrderByCreatedAtDesc(vendorId, PageRequests.of(page, size))
-                .map(s -> mapper.service(s, addOns.findByServiceIdOrderByCreatedAtAsc(s.getId()))));
+                .map(this::response));
     }
 
     @Transactional(readOnly = true)
     public ServiceResponse getService(UUID vendorId, UUID serviceId) {
-        ServiceOffering s = ownedService(vendorId, serviceId);
-        return mapper.service(s, addOns.findByServiceIdOrderByCreatedAtAsc(serviceId));
+        return response(ownedService(vendorId, serviceId));
+    }
+
+    /** Maps a service with its add-ons and sub-service variants. */
+    private ServiceResponse response(ServiceOffering s) {
+        return mapper.service(s,
+                addOns.findByServiceIdOrderByCreatedAtAsc(s.getId()),
+                variants.findByServiceIdOrderByCreatedAtAsc(s.getId()));
     }
 
     @Transactional
@@ -153,7 +162,7 @@ public class ServiceCatalogService {
         apply(s, req);
         ServiceOffering saved = services.save(s);
         log.info("Service created: {} '{}' for vendor {}", saved.getId(), saved.getName(), vendorId);
-        return mapper.service(saved, List.of());
+        return mapper.service(saved, List.of(), List.of());
     }
 
     @Transactional
@@ -161,20 +170,21 @@ public class ServiceCatalogService {
         ServiceOffering s = ownedService(vendorId, serviceId);
         apply(s, req);
         log.info("Service updated: {} for vendor {}", serviceId, vendorId);
-        return mapper.service(services.save(s), addOns.findByServiceIdOrderByCreatedAtAsc(serviceId));
+        return response(services.save(s));
     }
 
     @Transactional
     public ServiceResponse toggleService(UUID vendorId, UUID serviceId, boolean active) {
         ServiceOffering s = ownedService(vendorId, serviceId);
         s.setActive(active);
-        return mapper.service(services.save(s), addOns.findByServiceIdOrderByCreatedAtAsc(serviceId));
+        return response(services.save(s));
     }
 
     @Transactional
     public void deleteService(UUID vendorId, UUID serviceId) {
         ServiceOffering s = ownedService(vendorId, serviceId);
         addOns.deleteByServiceId(serviceId);
+        variants.deleteByServiceId(serviceId);
         services.delete(s);
         log.info("Service deleted: {} for vendor {}", serviceId, vendorId);
     }
@@ -250,6 +260,47 @@ public class ServiceCatalogService {
             throw ApiException.forbidden("This add-on belongs to another service");
         }
         return a;
+    }
+
+    // ---- Sub-services (variants) ----
+
+    @Transactional
+    public ServiceDtos.VariantResponse addVariant(UUID vendorId, UUID serviceId, ServiceDtos.VariantRequest req) {
+        ownedService(vendorId, serviceId);
+        ServiceVariant v = new ServiceVariant();
+        v.setServiceId(serviceId);
+        v.setVendorId(vendorId);
+        applyVariant(v, req);
+        return mapper.variant(variants.save(v));
+    }
+
+    @Transactional
+    public ServiceDtos.VariantResponse updateVariant(UUID vendorId, UUID serviceId, UUID variantId,
+                                                     ServiceDtos.VariantRequest req) {
+        ServiceVariant v = ownedVariant(vendorId, serviceId, variantId);
+        applyVariant(v, req);
+        return mapper.variant(variants.save(v));
+    }
+
+    @Transactional
+    public void deleteVariant(UUID vendorId, UUID serviceId, UUID variantId) {
+        variants.delete(ownedVariant(vendorId, serviceId, variantId));
+    }
+
+    private void applyVariant(ServiceVariant v, ServiceDtos.VariantRequest req) {
+        v.setName(req.name());
+        v.setPrice(req.price());
+        v.setDurationMinutes(req.durationMinutes());
+        if (req.active() != null) v.setActive(req.active());
+    }
+
+    private ServiceVariant ownedVariant(UUID vendorId, UUID serviceId, UUID variantId) {
+        ServiceVariant v = variants.findById(variantId)
+                .orElseThrow(() -> ApiException.notFound("Sub-service not found"));
+        if (!v.getVendorId().equals(vendorId) || !v.getServiceId().equals(serviceId)) {
+            throw ApiException.forbidden("This sub-service belongs to another service");
+        }
+        return v;
     }
 
     // ---- Availability rules ----

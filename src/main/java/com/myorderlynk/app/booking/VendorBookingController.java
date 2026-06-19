@@ -17,6 +17,8 @@ import com.myorderlynk.app.booking.ServiceDtos.ImageUploadResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
+import com.myorderlynk.app.booking.ServiceDtos.VariantRequest;
+import com.myorderlynk.app.booking.ServiceDtos.VariantResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
 import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
@@ -133,6 +135,24 @@ public class VendorBookingController {
     @DeleteMapping("/services/{serviceId}/add-ons/{addOnId}")
     public void deleteAddOn(@PathVariable UUID serviceId, @PathVariable UUID addOnId) {
         catalog.deleteAddOn(vendorId(), serviceId, addOnId);
+    }
+
+    // ---- Sub-services (variants) ----
+
+    @PostMapping("/services/{serviceId}/variants")
+    public VariantResponse addVariant(@PathVariable UUID serviceId, @Valid @RequestBody VariantRequest req) {
+        return catalog.addVariant(vendorId(), serviceId, req);
+    }
+
+    @PutMapping("/services/{serviceId}/variants/{variantId}")
+    public VariantResponse updateVariant(@PathVariable UUID serviceId, @PathVariable UUID variantId,
+                                         @Valid @RequestBody VariantRequest req) {
+        return catalog.updateVariant(vendorId(), serviceId, variantId, req);
+    }
+
+    @DeleteMapping("/services/{serviceId}/variants/{variantId}")
+    public void deleteVariant(@PathVariable UUID serviceId, @PathVariable UUID variantId) {
+        catalog.deleteVariant(vendorId(), serviceId, variantId);
     }
 
     // ---- Availability ----

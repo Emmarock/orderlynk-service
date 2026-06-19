@@ -33,6 +33,8 @@ public final class BookingDtos {
     public record BookingRequest(
             @NotNull UUID vendorId,
             @NotNull UUID serviceId,
+            // Chosen sub-service / variant — required when the service defines active variants.
+            UUID serviceVariantId,
             @NotBlank String customerName,
             @NotBlank String customerPhone,
             @Email String customerEmail,
@@ -71,6 +73,8 @@ public final class BookingDtos {
             String vendorName,
             UUID serviceId,
             String serviceName,
+            UUID serviceVariantId,
+            String variantName,
             List<BookingAddOnResponse> addOns,
             Instant appointmentStart,
             Instant appointmentEnd,

@@ -30,16 +30,19 @@ public class ServiceDiscoveryService {
     private final VendorRepository vendors;
     private final ServiceOfferingRepository services;
     private final ServiceAddOnRepository addOns;
+    private final ServiceVariantRepository variants;
     private final ServiceProviderProfileRepository profiles;
     private final BookingReviewRepository reviews;
     private final BookingMapper mapper;
 
     public ServiceDiscoveryService(VendorRepository vendors, ServiceOfferingRepository services,
-                                   ServiceAddOnRepository addOns, ServiceProviderProfileRepository profiles,
+                                   ServiceAddOnRepository addOns, ServiceVariantRepository variants,
+                                   ServiceProviderProfileRepository profiles,
                                    BookingReviewRepository reviews, BookingMapper mapper) {
         this.vendors = vendors;
         this.services = services;
         this.addOns = addOns;
+        this.variants = variants;
         this.profiles = profiles;
         this.reviews = reviews;
         this.mapper = mapper;
@@ -81,7 +84,7 @@ public class ServiceDiscoveryService {
             throw ApiException.notFound("This provider does not offer bookable services");
         }
         List<ServiceResponse> activeServices = services.findByVendorIdAndActiveTrue(v.getId()).stream()
-                .map(s -> mapper.service(s, addOns.findByServiceIdAndActiveTrue(s.getId())))
+                .map(s -> mapper.service(s, addOns.findByServiceIdAndActiveTrue(s.getId()), variants.findByServiceIdAndActiveTrue(s.getId())))
                 .toList();
         List<ReviewResponse> recentReviews = reviews.findByVendorIdAndVisibleTrueOrderByCreatedAtDesc(v.getId())
                 .stream().limit(20).map(mapper::review).toList();
@@ -107,7 +110,7 @@ public class ServiceDiscoveryService {
             return List.of();
         }
         return services.findByVendorIdAndActiveTrue(vendorId).stream()
-                .map(s -> mapper.service(s, addOns.findByServiceIdAndActiveTrue(s.getId())))
+                .map(s -> mapper.service(s, addOns.findByServiceIdAndActiveTrue(s.getId()), variants.findByServiceIdAndActiveTrue(s.getId())))
                 .toList();
     }
 

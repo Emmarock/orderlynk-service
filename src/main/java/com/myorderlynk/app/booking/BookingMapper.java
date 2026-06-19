@@ -9,6 +9,7 @@ import com.myorderlynk.app.booking.ServiceDtos.AvailabilityRuleResponse;
 import com.myorderlynk.app.booking.ServiceDtos.BlockedSlotResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
+import com.myorderlynk.app.booking.ServiceDtos.VariantResponse;
 import com.myorderlynk.app.common.Address;
 import org.springframework.stereotype.Component;
 
@@ -35,15 +36,22 @@ public class BookingMapper {
                 a.getDurationDelta(), a.isRequired(), a.getMaxSelection(), a.isActive());
     }
 
-    public ServiceResponse service(ServiceOffering s, List<ServiceAddOn> addOns) {
+    public VariantResponse variant(ServiceVariant v) {
+        return new VariantResponse(v.getId(), v.getServiceId(), v.getVendorId(), v.getName(),
+                v.getPrice(), v.getDurationMinutes(), v.isActive());
+    }
+
+    public ServiceResponse service(ServiceOffering s, List<ServiceAddOn> addOns, List<ServiceVariant> variants) {
         List<AddOnResponse> addOnResponses = addOns == null ? List.of()
                 : addOns.stream().map(this::addOn).toList();
+        List<VariantResponse> variantResponses = variants == null ? List.of()
+                : variants.stream().map(this::variant).toList();
         return new ServiceResponse(
                 s.getId(), s.getVendorId(), s.getName(), s.getCategory(), s.getDescription(),
                 s.getBasePrice(), s.getCurrency(), s.getDurationMinutes(), s.getImageUrl(),
                 s.getLocationType(), s.getCustomerLocationFee(),
                 s.getDepositType(), s.getDepositValue(), s.depositFor(s.getBasePrice()),
-                s.getTaxRate(), s.isActive(), addOnResponses);
+                s.getTaxRate(), s.isActive(), variantResponses, addOnResponses);
     }
 
     public AvailabilityRuleResponse rule(AvailabilityRule r) {
@@ -86,7 +94,8 @@ public class BookingMapper {
         return new BookingResponse(
                 b.getId(), b.getPublicBookingId(), b.getCustomerUserId(), b.getCustomerName(),
                 b.getCustomerPhone(), b.getCustomerEmail(), b.getVendorId(), vendorName,
-                b.getServiceId(), b.getServiceNameSnapshot(), addOns,
+                b.getServiceId(), b.getServiceNameSnapshot(),
+                b.getServiceVariantId(), b.getVariantNameSnapshot(), addOns,
                 b.getAppointmentStart(), b.getAppointmentEnd(), b.getStatus(), b.getApprovalMode(),
                 b.getLocationType(), a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(),
                 a.getPostcode(), a.getCountry(),

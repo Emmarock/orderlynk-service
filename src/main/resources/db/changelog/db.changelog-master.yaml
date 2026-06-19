@@ -71,3 +71,6 @@ databaseChangeLog:
   - include:
       file: changes/024-normalize-service-timezones.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/025-service-variants.xml
+      relativeToChangelogFile: true

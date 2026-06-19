@@ -68,6 +68,11 @@ public class Booking extends BaseEntity {
     @Column(nullable = false)
     private String serviceNameSnapshot;
 
+    /** Chosen sub-service / variant, if the service offered any (nullable + name snapshot). */
+    private UUID serviceVariantId;
+
+    private String variantNameSnapshot;
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     private List<BookingAddOn> addOns = new ArrayList<>();

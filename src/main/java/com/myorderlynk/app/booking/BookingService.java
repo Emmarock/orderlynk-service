@@ -51,6 +51,7 @@ public class BookingService {
     private final BookingRepository bookings;
     private final ServiceOfferingRepository services;
     private final ServiceAddOnRepository addOns;
+    private final ServiceVariantRepository variants;
     private final ServiceProviderProfileRepository profiles;
     private final BookingPaymentRepository payments;
     private final BookingReviewRepository reviews;
@@ -64,7 +65,8 @@ public class BookingService {
     private final AuthService authService;
 
     public BookingService(BookingRepository bookings, ServiceOfferingRepository services,
-                          ServiceAddOnRepository addOns, ServiceProviderProfileRepository profiles,
+                          ServiceAddOnRepository addOns, ServiceVariantRepository variants,
+                          ServiceProviderProfileRepository profiles,
                           BookingPaymentRepository payments, BookingReviewRepository reviews,
                           VendorRepository vendors, AvailabilityService availability,
                           BookingNotificationService notifications, AuditService audit, BookingMapper mapper,
@@ -72,6 +74,7 @@ public class BookingService {
         this.bookings = bookings;
         this.services = services;
         this.addOns = addOns;
+        this.variants = variants;
         this.profiles = profiles;
         this.payments = payments;
         this.reviews = reviews;
@@ -139,9 +142,24 @@ public class BookingService {
         }
         booking.setTravelFee(travelFee.setScale(2, RoundingMode.HALF_UP));
 
-        // Price + duration from base service plus required and selected add-ons.
+        // Price + duration start from the base service, or the chosen sub-service variant when the
+        // service defines any. A variant is mandatory once the service has active variants.
         BigDecimal price = service.getBasePrice();
         int durationMinutes = service.getDurationMinutes();
+        List<ServiceVariant> activeVariants = variants.findByServiceIdAndActiveTrue(service.getId());
+        if (!activeVariants.isEmpty()) {
+            ServiceVariant chosen = req.serviceVariantId() == null ? null
+                    : activeVariants.stream().filter(v -> v.getId().equals(req.serviceVariantId()))
+                        .findFirst().orElse(null);
+            if (chosen == null) {
+                throw ApiException.badRequest("Please choose a " + service.getName() + " option");
+            }
+            price = chosen.getPrice();
+            durationMinutes = chosen.getDurationMinutes();
+            booking.setServiceVariantId(chosen.getId());
+            booking.setVariantNameSnapshot(chosen.getName());
+        }
+
         Map<UUID, Integer> selected = selectionMap(req.addOns());
         for (ServiceAddOn addOn : addOns.findByServiceIdAndActiveTrue(service.getId())) {
             int qty = addOn.isRequired() ? Math.max(1, selected.getOrDefault(addOn.getId(), 1))
