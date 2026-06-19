@@ -72,6 +72,21 @@ public class BatchDiscoveryService {
                 products);
     }
 
+    /**
+     * A vendor's published (non-draft) batches for the unified product/service/cargo storefront,
+     * soonest-closing first. Draft batches stay hidden; private-link batches are shown since the
+     * storefront link is itself the channel the vendor shares.
+     */
+    @Transactional(readOnly = true)
+    public List<BatchCard> publicBatches(UUID vendorId) {
+        return batches.findByVendorId(vendorId).stream()
+                .filter(b -> b.getVisibility() != BatchVisibility.DRAFT)
+                .sorted(java.util.Comparator.comparing(Batch::getCloseDate,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .map(this::card)
+                .toList();
+    }
+
     private BatchCard card(Batch b) {
         Vendor v = vendors.findById(b.getVendorId()).orElse(null);
         long productCount = batchProducts.findByBatchIdOrderByCreatedAtAsc(b.getId()).stream()

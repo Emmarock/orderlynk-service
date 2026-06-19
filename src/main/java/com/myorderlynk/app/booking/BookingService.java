@@ -111,19 +111,33 @@ public class BookingService {
         booking.setCustomerPhone(req.customerPhone());
         booking.setCustomerEmail(req.customerEmail());
         booking.setCurrency(service.getCurrency());
-        booking.setLocationType(profile.getLocationType());
+        // Resolve where the service is delivered, from the service's own configuration. HYBRID
+        // services let the customer choose between the provider's premises and their own location;
+        // fixed-location services ignore the request's choice and always use their configured location.
+        ServiceLocationType location = service.getLocationType();
+        if (location == ServiceLocationType.HYBRID) {
+            location = req.locationType() == ServiceLocationType.CUSTOMER_LOCATION
+                    ? ServiceLocationType.CUSTOMER_LOCATION
+                    : ServiceLocationType.AT_PROVIDER;
+        }
+        booking.setLocationType(location);
         booking.setApprovalMode(profile.getApprovalMode());
         booking.setSourceChannel(req.sourceChannel() == null ? SourceChannel.VENDOR_LINK : req.sourceChannel());
         booking.setNotes(req.notes());
 
-        if (profile.getLocationType() == ServiceLocationType.CUSTOMER_LOCATION) {
+        // Travel surcharge applies only when the service is rendered at the customer's location.
+        BigDecimal travelFee = BigDecimal.ZERO;
+        if (location == ServiceLocationType.CUSTOMER_LOCATION) {
             Address addr = new Address(req.customerHouseNumber(), req.customerStreet(), req.customerCity(),
                     req.customerState(), req.customerPostcode(), req.customerCountry());
             if (addr.isEmpty()) {
                 throw ApiException.badRequest("This is a mobile service — please provide your address");
             }
             booking.setServiceAddress(addr);
+            travelFee = service.getCustomerLocationFee() == null
+                    ? BigDecimal.ZERO : service.getCustomerLocationFee().max(BigDecimal.ZERO);
         }
+        booking.setTravelFee(travelFee.setScale(2, RoundingMode.HALF_UP));
 
         // Price + duration from base service plus required and selected add-ons.
         BigDecimal price = service.getBasePrice();
@@ -158,7 +172,7 @@ public class BookingService {
         booking.setAppointmentEnd(end);
 
         BigDecimal tax = price.multiply(service.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = price.add(tax);
+        BigDecimal total = price.add(travelFee).add(tax);
         booking.setServicePrice(price.setScale(2, RoundingMode.HALF_UP));
         booking.setTaxAmount(tax);
         booking.setTotalAmount(total.setScale(2, RoundingMode.HALF_UP));
@@ -565,6 +579,18 @@ public class BookingService {
     @Transactional(readOnly = true)
     public BookingResponse getForVendor(UUID vendorId, UUID bookingId) {
         return response(owned(vendorId, bookingId));
+    }
+
+    /** A vendor's bookings for one customer, matched by normalized phone (mirrors order history). */
+    @Transactional(readOnly = true)
+    public List<BookingResponse> vendorCustomerBookings(UUID vendorId, String phone) {
+        String target = phone == null ? "" : phone.replaceAll("\\D", "");
+        String name = vendorName(vendorId);
+        return bookings.findByVendorIdOrderByAppointmentStartDesc(vendorId).stream()
+                .filter(b -> b.getCustomerPhone() != null
+                        && b.getCustomerPhone().replaceAll("\\D", "").equals(target))
+                .map(b -> response(b, name))
+                .toList();
     }
 
     @Transactional(readOnly = true)

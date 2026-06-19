@@ -96,6 +96,21 @@ public class ServiceDiscoveryService {
                 activeServices, recentReviews);
     }
 
+    /**
+     * A vendor's active services for the unified product/service/cargo storefront. Returns an empty
+     * list when the vendor has no enabled service profile, so the storefront can render unconditionally.
+     */
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> publicServices(UUID vendorId) {
+        ServiceProviderProfile profile = profiles.findByVendorId(vendorId).orElse(null);
+        if (profile == null || !profile.isServiceEnabled()) {
+            return List.of();
+        }
+        return services.findByVendorIdAndActiveTrue(vendorId).stream()
+                .map(s -> mapper.service(s, addOns.findByServiceIdAndActiveTrue(s.getId())))
+                .toList();
+    }
+
     private ProviderCard card(Vendor v) {
         List<ServiceOffering> active = services.findByVendorIdAndActiveTrue(v.getId());
         BigDecimal startingPrice = active.stream()

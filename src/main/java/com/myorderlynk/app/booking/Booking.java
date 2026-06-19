@@ -108,10 +108,14 @@ public class Booking extends BaseEntity {
     @Column(nullable = false)
     private BigDecimal servicePrice = BigDecimal.ZERO;
 
+    /** Travel surcharge snapshot, applied when {@code locationType == CUSTOMER_LOCATION} (0 otherwise). */
+    @Column(nullable = false)
+    private BigDecimal travelFee = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    /** servicePrice + taxAmount; the gross amount payable. */
+    /** servicePrice + travelFee + taxAmount; the gross amount payable. */
     @Column(nullable = false)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 

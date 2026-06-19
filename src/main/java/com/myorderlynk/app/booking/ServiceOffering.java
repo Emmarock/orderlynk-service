@@ -55,6 +55,19 @@ public class ServiceOffering extends BaseEntity {
 
     private String imageUrl;
 
+    /** Where this specific service is delivered (per-service, overrides any provider-level default). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ServiceLocationType locationType = ServiceLocationType.AT_PROVIDER;
+
+    /**
+     * Travel surcharge added when this service is rendered at the customer's location — i.e. when
+     * {@link #locationType} is {@link ServiceLocationType#CUSTOMER_LOCATION}, or the customer picks
+     * their location for a {@link ServiceLocationType#HYBRID} service. Defaults to 0 (free).
+     */
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal customerLocationFee = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DepositType depositType = DepositType.NONE;

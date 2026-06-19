@@ -31,6 +31,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findByVendorIdAndAppointmentStartBetweenOrderByAppointmentStartAsc(
             UUID vendorId, Instant from, Instant to);
 
+    /** Bookings a vendor took in a window, newest-first — for the customer list and earnings rollup. */
+    List<Booking> findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+            UUID vendorId, Instant from, Instant to);
+
     Page<Booking> findByVendorIdAndAppointmentStartBetweenOrderByAppointmentStartAsc(
             UUID vendorId, Instant from, Instant to, Pageable pageable);
 

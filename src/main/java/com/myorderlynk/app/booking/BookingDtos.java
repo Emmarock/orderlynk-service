@@ -38,6 +38,9 @@ public final class BookingDtos {
             @Email String customerEmail,
             @NotNull Instant appointmentStart,
             List<SelectedAddOn> addOns,
+            // Customer's chosen delivery location. Only honoured for HYBRID providers (pick
+            // AT_PROVIDER or CUSTOMER_LOCATION); ignored for fixed-location providers.
+            ServiceLocationType locationType,
             // Customer address — required only for mobile (CUSTOMER_LOCATION) services.
             String customerHouseNumber,
             String customerStreet,
@@ -81,6 +84,7 @@ public final class BookingDtos {
             String customerPostcode,
             String customerCountry,
             BigDecimal servicePrice,
+            BigDecimal travelFee,
             BigDecimal taxAmount,
             BigDecimal totalAmount,
             DepositType depositType,

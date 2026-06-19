@@ -68,6 +68,7 @@ public class VendorController {
     private final VendorService vendorService;
     private final ProductService productService;
     private final OrderService orderService;
+    private final com.myorderlynk.app.booking.BookingService bookingService;
     private final PayoutService payoutService;
     private final VendorAnalyticsService analyticsService;
     private final EarningsService earningsService;
@@ -76,12 +77,14 @@ public class VendorController {
     private final PaymentClient paymentClient;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
+                            com.myorderlynk.app.booking.BookingService bookingService,
                             PayoutService payoutService, VendorAnalyticsService analyticsService,
                             EarningsService earningsService, SupportService supportService,
                             CurrentUser currentUser, PaymentClient paymentClient) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
+        this.bookingService = bookingService;
         this.payoutService = payoutService;
         this.analyticsService = analyticsService;
         this.earningsService = earningsService;
@@ -245,6 +248,13 @@ public class VendorController {
     @IsVendor
     public List<OrderResponse> customerOrders(@PathVariable String phone) {
         return orderService.vendorCustomerOrders(vendorId(), phone);
+    }
+
+    /** All of one customer's service bookings with this vendor, matched by normalized phone. */
+    @GetMapping("/customers/{phone}/bookings")
+    @IsVendor
+    public List<com.myorderlynk.app.booking.BookingDtos.BookingResponse> customerBookings(@PathVariable String phone) {
+        return bookingService.vendorCustomerBookings(vendorId(), phone);
     }
 
     /** Sales analytics: headline metrics plus top-5 customers and products. */

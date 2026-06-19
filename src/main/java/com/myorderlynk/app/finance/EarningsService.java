@@ -1,11 +1,15 @@
 package com.myorderlynk.app.finance;
 import com.myorderlynk.app.order.FeeProperties;
 
+import com.myorderlynk.app.booking.Booking;
+import com.myorderlynk.app.booking.BookingRepository;
 import com.myorderlynk.app.order.Order;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.finance.FinanceDtos.EarningsSummary;
 import com.myorderlynk.app.finance.FinanceDtos.OrderEarning;
 import com.myorderlynk.app.order.OrderRepository;
+import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.vendor.VendorRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,10 +34,15 @@ import java.util.UUID;
 public class EarningsService {
 
     private final OrderRepository orders;
+    private final BookingRepository bookings;
+    private final VendorRepository vendors;
     private final FeeProperties fees;
 
-    public EarningsService(OrderRepository orders, FeeProperties fees) {
+    public EarningsService(OrderRepository orders, BookingRepository bookings,
+                           VendorRepository vendors, FeeProperties fees) {
         this.orders = orders;
+        this.bookings = bookings;
+        this.vendors = vendors;
         this.fees = fees;
     }
 
@@ -46,9 +56,11 @@ public class EarningsService {
         BigDecimal commission = BigDecimal.ZERO;
         BigDecimal processing = BigDecimal.ZERO;
         BigDecimal refunds = BigDecimal.ZERO;
-        long paidOrders = 0;
 
-        List<OrderEarning> lines = new ArrayList<>(os.size());
+        List<Booking> bs = bookings.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(vendorId, start, end);
+        long paidCount = 0;
+
+        List<OrderEarning> lines = new ArrayList<>(os.size() + bs.size());
         for (Order o : os) {
             BigDecimal orderCommission = nz(o.getProductSubtotal()).subtract(nz(o.getVendorPayable()));
             BigDecimal refund = nz(o.getRefundedAmount());
@@ -57,7 +69,7 @@ public class EarningsService {
                     scale(o.getProductSubtotal()), scale(orderCommission), scale(refund), scale(net)));
 
             if (o.getPaymentStatus() == PaymentStatus.PAID) {
-                paidOrders++;
+                paidCount++;
                 grossSales = grossSales.add(nz(o.getProductSubtotal()));
                 commission = commission.add(orderCommission);
                 processing = processing.add(nz(o.getProcessingFee()));
@@ -65,13 +77,35 @@ public class EarningsService {
             }
         }
 
+        // Service bookings: realized on the cash actually collected (deposits + balance), since
+        // bookings are commonly paid in stages. Commission is the platform's cut at the vendor's rate.
+        BigDecimal commissionRate = bs.isEmpty() ? BigDecimal.ZERO
+                : vendors.findById(vendorId).map(Vendor::getCommissionRate).map(EarningsService::nz).orElse(BigDecimal.ZERO);
+        for (Booking b : bs) {
+            BigDecimal collected = nz(b.getAmountPaid());
+            BigDecimal refund = nz(b.getRefundedAmount());
+            BigDecimal bookingCommission = scale(collected.multiply(commissionRate));
+            BigDecimal net = collected.subtract(bookingCommission).subtract(refund);
+            lines.add(new OrderEarning(b.getPublicBookingId(), b.getCreatedAt(), b.getPaymentStatus(),
+                    scale(collected), scale(bookingCommission), scale(refund), scale(net)));
+
+            if (collected.signum() > 0) {
+                paidCount++;
+                grossSales = grossSales.add(collected);
+                commission = commission.add(bookingCommission);
+                refunds = refunds.add(refund);
+            }
+        }
+
+        lines.sort(Comparator.comparing(OrderEarning::createdAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+
         BigDecimal netBeforeTax = grossSales.subtract(commission).subtract(refunds);
         BigDecimal tax = scale(netBeforeTax.multiply(nz(fees.getTaxRate())));
         BigDecimal netPayout = scale(netBeforeTax.subtract(tax));
 
         return new EarningsSummary(
                 scale(grossSales), scale(commission), scale(processing), scale(refunds),
-                nz(fees.getTaxRate()), tax, netPayout, os.size(), paidOrders, "CAD", lines);
+                nz(fees.getTaxRate()), tax, netPayout, os.size() + bs.size(), paidCount, "CAD", lines);
     }
 
     private static BigDecimal nz(BigDecimal v) {

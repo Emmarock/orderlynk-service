@@ -25,9 +25,9 @@ public class BookingMapper {
     public ProfileResponse profile(ServiceProviderProfile p) {
         return new ProfileResponse(
                 p.getId(), p.getVendorId(), p.isServiceEnabled(), p.getBio(), p.getServiceArea(),
-                p.getLocationType(), p.getApprovalMode(), p.getCancellationPolicy(), p.getDepositPolicy(),
-                p.getBusinessHoursSummary(), p.getLeadTimeHours(), p.getBufferMinutes(), p.getMaxAdvanceDays(),
-                p.getDefaultCapacity(), p.getSlotHoldMinutes(), p.getTimezone());
+                p.getLocationType(), p.getCustomerLocationFee(), p.getApprovalMode(), p.getCancellationPolicy(),
+                p.getDepositPolicy(), p.getBusinessHoursSummary(), p.getLeadTimeHours(), p.getBufferMinutes(),
+                p.getMaxAdvanceDays(), p.getDefaultCapacity(), p.getSlotHoldMinutes(), p.getTimezone());
     }
 
     public AddOnResponse addOn(ServiceAddOn a) {
@@ -41,6 +41,7 @@ public class BookingMapper {
         return new ServiceResponse(
                 s.getId(), s.getVendorId(), s.getName(), s.getCategory(), s.getDescription(),
                 s.getBasePrice(), s.getCurrency(), s.getDurationMinutes(), s.getImageUrl(),
+                s.getLocationType(), s.getCustomerLocationFee(),
                 s.getDepositType(), s.getDepositValue(), s.depositFor(s.getBasePrice()),
                 s.getTaxRate(), s.isActive(), addOnResponses);
     }
@@ -89,7 +90,7 @@ public class BookingMapper {
                 b.getAppointmentStart(), b.getAppointmentEnd(), b.getStatus(), b.getApprovalMode(),
                 b.getLocationType(), a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(),
                 a.getPostcode(), a.getCountry(),
-                b.getServicePrice(), b.getTaxAmount(), b.getTotalAmount(), b.getDepositType(),
+                b.getServicePrice(), b.getTravelFee(), b.getTaxAmount(), b.getTotalAmount(), b.getDepositType(),
                 b.getDepositAmount(), b.getAmountPaid(), b.balanceDue(), b.getRefundedAmount(),
                 b.getCurrency(), b.getPaymentStatus(), b.getHoldExpiresAt(), b.getSourceChannel(),
                 b.getNotes(), b.getStatusReason(), b.getCreatedAt(), review(review),

@@ -1,4 +1,6 @@
 package com.myorderlynk.app.vendor;
+import com.myorderlynk.app.batch.BatchDtos;
+import com.myorderlynk.app.booking.ServiceDtos;
 import com.myorderlynk.app.catalog.ProductDtos;
 
 import com.myorderlynk.app.common.enums.FulfillmentType;
@@ -150,10 +152,16 @@ public final class VendorDtos {
             Integer myStars) {
     }
 
-    /** Public storefront view: vendor profile + its active products. */
+    /**
+     * Public storefront view: the vendor profile plus everything it offers — active products,
+     * bookable services, and published batch/cargo. Services and batches are empty lists when the
+     * vendor doesn't offer them, so a single vendor link renders all three sections uniformly.
+     */
     public record StorefrontResponse(
             VendorResponse vendor,
-            List<ProductDtos.ProductResponse> products) {
+            List<ProductDtos.ProductResponse> products,
+            List<ServiceDtos.ServiceResponse> services,
+            List<BatchDtos.BatchCard> batches) {
     }
 
     /** Returned after a user applies as a vendor: a refreshed token carrying the VENDOR role. */

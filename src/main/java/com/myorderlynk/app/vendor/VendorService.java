@@ -51,10 +51,14 @@ public class VendorService {
     private final JwtService jwtService;
     private final AuthService authService;
     private final S3StorageService storage;
+    private final com.myorderlynk.app.booking.ServiceDiscoveryService serviceDiscovery;
+    private final com.myorderlynk.app.batch.BatchDiscoveryService batchDiscovery;
     private final String publicBaseUrl;
 
     public VendorService(VendorRepository vendors, UserRepository users, ProductRepository products,
                          VendorMapper vendorMapper, ProductMapper productMapper, JwtService jwtService, AuthService authService, S3StorageService storage,
+                         com.myorderlynk.app.booking.ServiceDiscoveryService serviceDiscovery,
+                         com.myorderlynk.app.batch.BatchDiscoveryService batchDiscovery,
                          @Value("${app.public-base-url:https://orderlynk.app}") String publicBaseUrl) {
         this.vendors = vendors;
         this.users = users;
@@ -64,6 +68,8 @@ public class VendorService {
         this.jwtService = jwtService;
         this.authService = authService;
         this.storage = storage;
+        this.serviceDiscovery = serviceDiscovery;
+        this.batchDiscovery = batchDiscovery;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -320,7 +326,11 @@ public class VendorService {
         }
         List<ProductResponse> activeProducts = products.findByVendorIdAndActiveTrue(vendor.getId())
                 .stream().map(productMapper::product).toList();
-        return new StorefrontResponse(vendorMapper.publicVendor(vendor), activeProducts);
+        return new StorefrontResponse(
+                vendorMapper.publicVendor(vendor),
+                activeProducts,
+                serviceDiscovery.publicServices(vendor.getId()),
+                batchDiscovery.publicBatches(vendor.getId()));
     }
 
     /**

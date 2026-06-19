@@ -44,6 +44,14 @@ public class ServiceProviderProfile extends BaseEntity {
     @Column(nullable = false)
     private ServiceLocationType locationType = ServiceLocationType.AT_PROVIDER;
 
+    /**
+     * Travel surcharge added when a service is rendered at the customer's location (applies to
+     * {@link ServiceLocationType#CUSTOMER_LOCATION} and the customer-location choice of
+     * {@link ServiceLocationType#HYBRID}). Defaults to 0 — i.e. free of charge.
+     */
+    @Column(nullable = false, precision = 19, scale = 2)
+    private java.math.BigDecimal customerLocationFee = java.math.BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ApprovalMode approvalMode = ApprovalMode.MANUAL;

@@ -41,17 +41,21 @@ public class VendorAnalyticsService {
             FulfillmentStatus.COMPLETED, FulfillmentStatus.DELIVERED, FulfillmentStatus.CANCELLED);
 
     private final OrderRepository orders;
+    private final com.myorderlynk.app.booking.BookingRepository bookings;
     private final NotificationService notifications;
 
-    public VendorAnalyticsService(OrderRepository orders, NotificationService notifications) {
+    public VendorAnalyticsService(OrderRepository orders,
+                                  com.myorderlynk.app.booking.BookingRepository bookings,
+                                  NotificationService notifications) {
         this.orders = orders;
+        this.bookings = bookings;
         this.notifications = notifications;
     }
 
-    /** Distinct customers who have ordered from the vendor, most recent first. */
+    /** Distinct customers who have ordered from or booked the vendor, most recent first. */
     @Transactional(readOnly = true)
     public List<CustomerSummary> customers(UUID vendorId, Instant from, Instant to) {
-        return aggregateCustomers(load(vendorId, from, to)).stream()
+        return aggregateCustomers(activities(vendorId, from, to)).stream()
                 .sorted(Comparator.comparing(CustomerSummary::lastOrderAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .toList();
     }
@@ -71,11 +75,11 @@ public class VendorAnalyticsService {
                 // A null status counts as open; Set.of(...).contains(null) would otherwise NPE.
                 .filter(o -> o.getFulfillmentStatus() == null || !TERMINAL_FULFILLMENT.contains(o.getFulfillmentStatus()))
                 .count();
-        BigDecimal gross = os.stream()
-                .map(Order::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<com.myorderlynk.app.booking.Booking> bs = loadBookings(vendorId, from, to);
+        BigDecimal gross = os.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(bs.stream().map(com.myorderlynk.app.booking.Booking::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
 
-        List<CustomerSummary> customers = aggregateCustomers(os);
+        List<CustomerSummary> customers = aggregateCustomers(activities(os, bs));
         List<CustomerSummary> topCustomers = customers.stream()
                 .sorted(Comparator.comparing(CustomerSummary::totalSpent).reversed()
                         .thenComparing(CustomerSummary::orderCount, Comparator.reverseOrder()))
@@ -97,7 +101,7 @@ public class VendorAnalyticsService {
      */
     @Transactional
     public BroadcastResult broadcast(UUID vendorId, String subject, String message, Instant from, Instant to) {
-        List<CustomerSummary> customers = aggregateCustomers(load(vendorId, from, to));
+        List<CustomerSummary> customers = aggregateCustomers(activities(vendorId, from, to));
         String body = subject + "\n\n" + message;
         int recipients = 0;
         for (CustomerSummary c : customers) {
@@ -118,11 +122,51 @@ public class VendorAnalyticsService {
         return orders.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(vendorId, start, end);
     }
 
-    /** Group orders into distinct customers. Orders arrive newest-first, so the first seen wins for display + lastOrderAt. */
-    private List<CustomerSummary> aggregateCustomers(List<Order> os) {
-        Map<String, CustomerAcc> byKey = new LinkedHashMap<>();
+    private List<com.myorderlynk.app.booking.Booking> loadBookings(UUID vendorId, Instant from, Instant to) {
+        Instant start = from == null ? Instant.EPOCH : from;
+        Instant end = to == null ? Instant.now() : to;
+        return bookings.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(vendorId, start, end);
+    }
+
+    /**
+     * A single customer-facing transaction (an order or a service booking), reduced to the fields
+     * the customer rollup needs. {@code at} drives "first seen wins" so the newest record supplies
+     * the display name/contact.
+     */
+    private record Activity(String name, String phone, String email, String city,
+                            BigDecimal amount, Instant at) {
+    }
+
+    /** Vendor's orders + bookings in range as a single newest-first activity stream. */
+    private List<Activity> activities(UUID vendorId, Instant from, Instant to) {
+        return activities(load(vendorId, from, to), loadBookings(vendorId, from, to));
+    }
+
+    private List<Activity> activities(List<Order> os, List<com.myorderlynk.app.booking.Booking> bs) {
+        List<Activity> all = new ArrayList<>(os.size() + bs.size());
         for (Order o : os) {
-            byKey.computeIfAbsent(customerKey(o), k -> new CustomerAcc(o)).add(o);
+            all.add(new Activity(o.getCustomerName(), o.getCustomerPhone(), o.getCustomerEmail(),
+                    o.getDeliveryAddress() == null ? null : o.getDeliveryAddress().getCity(),
+                    nz(o.getTotalAmount()), o.getCreatedAt()));
+        }
+        for (com.myorderlynk.app.booking.Booking b : bs) {
+            all.add(new Activity(b.getCustomerName(), b.getCustomerPhone(), b.getCustomerEmail(),
+                    b.getServiceAddress() == null ? null : b.getServiceAddress().getCity(),
+                    nz(b.getTotalAmount()), b.getCreatedAt()));
+        }
+        all.sort(Comparator.comparing(Activity::at, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+        return all;
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    /** Group activities into distinct customers. Activities arrive newest-first, so the first seen wins for display + lastOrderAt. */
+    private List<CustomerSummary> aggregateCustomers(List<Activity> activities) {
+        Map<String, CustomerAcc> byKey = new LinkedHashMap<>();
+        for (Activity a : activities) {
+            byKey.computeIfAbsent(customerKey(a), k -> new CustomerAcc(a)).add(a);
         }
         List<CustomerSummary> out = new ArrayList<>(byKey.size());
         for (CustomerAcc a : byKey.values()) {
@@ -133,21 +177,18 @@ public class VendorAnalyticsService {
 
     /**
      * Stable identity for a customer. Phone is the primary key — it's required on every
-     * order and is the real cross-channel identity for these (WhatsApp-first) vendors, so
-     * it merges a person's guest and signed-in orders. Falls back to email, account id, then name.
+     * order/booking and is the real cross-channel identity for these (WhatsApp-first) vendors, so
+     * it merges a person's guest and signed-in activity. Falls back to email, then name.
      */
-    private static String customerKey(Order o) {
-        String phoneDigits = o.getCustomerPhone() == null ? "" : o.getCustomerPhone().replaceAll("\\D", "");
+    private static String customerKey(Activity a) {
+        String phoneDigits = a.phone() == null ? "" : a.phone().replaceAll("\\D", "");
         if (!phoneDigits.isBlank()) {
             return "p:" + phoneDigits;
         }
-        if (o.getCustomerEmail() != null && !o.getCustomerEmail().isBlank()) {
-            return "e:" + o.getCustomerEmail().trim().toLowerCase();
+        if (a.email() != null && !a.email().isBlank()) {
+            return "e:" + a.email().trim().toLowerCase();
         }
-        if (o.getCustomerUserId() != null) {
-            return "u:" + o.getCustomerUserId();
-        }
-        return "n:" + (o.getCustomerName() == null ? "" : o.getCustomerName().trim().toLowerCase());
+        return "n:" + (a.name() == null ? "" : a.name().trim().toLowerCase());
     }
 
     private List<ProductSalesSummary> aggregateProducts(List<Order> os) {
@@ -172,19 +213,18 @@ public class VendorAnalyticsService {
         long orderCount;
         BigDecimal totalSpent = BigDecimal.ZERO;
 
-        CustomerAcc(Order latest) {
-            // os is newest-first, so the order that creates the accumulator is the most recent one.
-            this.name = latest.getCustomerName();
-            this.phone = latest.getCustomerPhone();
-            this.email = latest.getCustomerEmail();
-            // Pickup orders (and some legacy/imported rows) have no delivery address — guard against NPE.
-            this.city = latest.getDeliveryAddress() == null ? null : latest.getDeliveryAddress().getCity();
-            this.lastOrderAt = latest.getCreatedAt();
+        CustomerAcc(Activity latest) {
+            // activities are newest-first, so the one that creates the accumulator is the most recent.
+            this.name = latest.name();
+            this.phone = latest.phone();
+            this.email = latest.email();
+            this.city = latest.city();
+            this.lastOrderAt = latest.at();
         }
 
-        void add(Order o) {
+        void add(Activity a) {
             orderCount++;
-            totalSpent = totalSpent.add(o.getTotalAmount());
+            totalSpent = totalSpent.add(nz(a.amount()));
         }
     }
 

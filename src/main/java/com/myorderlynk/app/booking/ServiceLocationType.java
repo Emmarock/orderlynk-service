@@ -7,5 +7,11 @@ public enum ServiceLocationType {
     /** Provider travels to the customer; an address is collected at booking. */
     CUSTOMER_LOCATION,
     /** Remote/online service; no physical address needed. */
-    REMOTE
+    REMOTE,
+    /**
+     * Provider offers the service both at their premises and at the customer's location; the
+     * customer chooses which at booking time. Choosing the customer's location applies the
+     * provider's {@code customerLocationFee} travel surcharge.
+     */
+    HYBRID
 }

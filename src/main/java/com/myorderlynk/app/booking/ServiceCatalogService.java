@@ -92,6 +92,7 @@ public class ServiceCatalogService {
         p.setBio(req.bio());
         p.setServiceArea(req.serviceArea());
         if (req.locationType() != null) p.setLocationType(req.locationType());
+        if (req.customerLocationFee() != null) p.setCustomerLocationFee(req.customerLocationFee());
         if (req.approvalMode() != null) p.setApprovalMode(req.approvalMode());
         p.setCancellationPolicy(req.cancellationPolicy());
         p.setDepositPolicy(req.depositPolicy());
@@ -134,9 +135,13 @@ public class ServiceCatalogService {
 
     @Transactional
     public ServiceResponse createService(UUID vendorId, ServiceRequest req) {
-        profileEntity(vendorId); // ensure Services is enabled / profile exists
+        ServiceProviderProfile profile = profileEntity(vendorId); // ensure Services is enabled / profile exists
         ServiceOffering s = new ServiceOffering();
         s.setVendorId(vendorId);
+        // Seed location + travel fee from the provider's defaults; the request (when set) overrides.
+        s.setLocationType(profile.getLocationType());
+        s.setCustomerLocationFee(profile.getCustomerLocationFee() == null
+                ? BigDecimal.ZERO : profile.getCustomerLocationFee());
         apply(s, req);
         ServiceOffering saved = services.save(s);
         log.info("Service created: {} '{}' for vendor {}", saved.getId(), saved.getName(), vendorId);
@@ -174,6 +179,8 @@ public class ServiceCatalogService {
         if (req.currency() != null && !req.currency().isBlank()) s.setCurrency(req.currency());
         s.setDurationMinutes(req.durationMinutes());
         s.setImageUrl(req.imageUrl());
+        if (req.locationType() != null) s.setLocationType(req.locationType());
+        if (req.customerLocationFee() != null) s.setCustomerLocationFee(req.customerLocationFee().max(BigDecimal.ZERO));
         DepositType depositType = req.depositType() == null ? DepositType.NONE : req.depositType();
         s.setDepositType(depositType);
         s.setDepositValue(depositType == DepositType.NONE ? null : req.depositValue());
