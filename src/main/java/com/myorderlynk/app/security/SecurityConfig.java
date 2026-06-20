@@ -64,6 +64,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/vendor/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/storefronts/**").permitAll()
+                        // Public services discovery + guest booking; batch & cargo discovery + guest ordering.
+                        // Account-scoped sub-routes (…/mine) stay protected by method security (@IsAuthenticated).
+                        .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/bookings/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/batches/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/batches/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders/quote").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders/track").permitAll()
