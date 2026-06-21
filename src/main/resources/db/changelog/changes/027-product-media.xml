@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Multiple ordered images per product (first = cover) + one optional video. -->
+    <changeSet id="027-create-product-images" author="babajide">
+        <createTable tableName="product_images">
+            <column name="product_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="position" type="INT"><constraints nullable="false"/></column>
+            <column name="url" type="VARCHAR(1024)"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="product_images" indexName="idx_product_images_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="027-add-video-to-products" author="babajide">
+        <addColumn tableName="products">
+            <column name="video_url" type="VARCHAR(1024)"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Backfill: keep each existing product's single image as the cover (position 0) of its gallery. -->
+    <changeSet id="027-backfill-product-images" author="babajide">
+        <sql>
+            INSERT INTO product_images (product_id, position, url)
+            SELECT id, 0, product_image_url
+            FROM products
+            WHERE product_image_url IS NOT NULL AND product_image_url &lt;&gt; ''
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -193,6 +193,13 @@ public class VendorController {
         return new ImageUploadResponse(productService.uploadProductImage(vendorId(), file));
     }
 
+    /** Upload a product video from the vendor's device; returns the public URL to store as videoUrl. */
+    @PostMapping(value = "/products/video", consumes = "multipart/form-data")
+    @IsVendor
+    public ImageUploadResponse uploadProductVideo(@RequestPart("file") MultipartFile file) {
+        return new ImageUploadResponse(productService.uploadProductVideo(vendorId(), file));
+    }
+
     /** Generate a captivating, under-100-word product description from the name via AI. */
     @PostMapping("/products/description")
     @IsVendor

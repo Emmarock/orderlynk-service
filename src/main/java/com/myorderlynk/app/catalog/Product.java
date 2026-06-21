@@ -5,17 +5,25 @@ import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.shipping.DimensionUnit;
 import com.myorderlynk.app.shipping.WeightUnit;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -54,7 +62,20 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private int lowStockThreshold = 0;
 
+    /** Denormalized cover image — always kept in sync with {@link #imageUrls}[0] by the service. */
     private String productImageUrl;
+
+    /** Ordered gallery images (1–6); the first is the cover. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "url", length = 1024)
+    @BatchSize(size = 50) // mitigate N+1 when mapping a page of products
+    private List<String> imageUrls = new ArrayList<>();
+
+    /** Optional single product video. */
+    @Column(length = 1024)
+    private String videoUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

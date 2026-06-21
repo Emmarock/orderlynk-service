@@ -1,5 +1,6 @@
 package com.myorderlynk.app.catalog;
 import com.myorderlynk.app.integration.ImageUploads;
+import com.myorderlynk.app.integration.VideoUploads;
 import com.myorderlynk.app.integration.OpenAiService;
 import com.myorderlynk.app.integration.S3StorageService;
 
@@ -156,7 +157,7 @@ public class ProductService {
         if (req.currency() != null && !req.currency().isBlank()) p.setCurrency(req.currency());
         p.setQuantityAvailable(req.quantityAvailable());
         if (req.lowStockThreshold() != null) p.setLowStockThreshold(req.lowStockThreshold());
-        p.setProductImageUrl(req.productImageUrl());
+        applyMedia(p, req);
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
         p.setWeight(req.weight());
@@ -168,6 +169,56 @@ public class ProductService {
         if (req.availableNow() != null) p.setAvailableNow(req.availableNow());
         p.setBatchId(req.batchId());
         if (req.active() != null) p.setActive(req.active());
+    }
+
+    /**
+     * Resolve and validate the product's media: an ordered list of 1–6 images (first = cover)
+     * plus an optional single video. Falls back to the legacy single {@code productImageUrl}
+     * when {@code imageUrls} is absent so older clients keep working. The cover is denormalized
+     * onto {@link Product#setProductImageUrl} (= {@code imageUrls[0]}) for card/thumbnail views.
+     */
+    private void applyMedia(Product p, ProductRequest req) {
+        java.util.List<String> images = new java.util.ArrayList<>();
+        if (req.imageUrls() != null && !req.imageUrls().isEmpty()) {
+            for (String url : req.imageUrls()) {
+                if (url != null && !url.isBlank()) images.add(url.trim());
+            }
+        } else if (req.productImageUrl() != null && !req.productImageUrl().isBlank()) {
+            images.add(req.productImageUrl().trim());
+        }
+        if (images.isEmpty()) {
+            throw ApiException.badRequest("Add at least one product image");
+        }
+        if (images.size() > 6) {
+            throw ApiException.badRequest("A product can have at most 6 images");
+        }
+        p.setImageUrls(images);
+        p.setProductImageUrl(images.get(0));
+        String video = req.videoUrl();
+        p.setVideoUrl(video != null && !video.isBlank() ? video.trim() : null);
+    }
+
+    /**
+     * Store a product video uploaded from the vendor's device in S3 and return its
+     * public URL. The vendor saves this URL as the product's {@code videoUrl}.
+     */
+    public String uploadProductVideo(UUID vendorId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("No video file was provided");
+        }
+        String contentType = file.getContentType();
+        String ext = VideoUploads.extensionOrThrow(contentType);
+        String key = "products/" + vendorId + "/videos/" + UUID.randomUUID() + "." + ext;
+        log.info("Uploading product video for vendor {}: type={} size={}B key={}",
+                vendorId, contentType, file.getSize(), key);
+        try {
+            String url = storage.uploadPublic(file.getBytes(), contentType, key);
+            log.info("Product video uploaded for vendor {} -> {}", vendorId, url);
+            return url;
+        } catch (IOException e) {
+            log.error("Failed to read uploaded video for vendor {}", vendorId, e);
+            throw ApiException.badRequest("Could not read the uploaded video");
+        }
     }
 
     private Product ownedProduct(UUID vendorId, UUID productId) {

@@ -77,3 +77,6 @@ databaseChangeLog:
   - include:
       file: changes/026-service-variant-image.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/027-product-media.xml
+      relativeToChangelogFile: true

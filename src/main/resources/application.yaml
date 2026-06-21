@@ -23,9 +23,9 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   servlet:
     multipart:
-      # Vendor product photos; keep modest to avoid abuse.
-      max-file-size: 5MB
-      max-request-size: 5MB
+      # Vendor product photos are small; the cap is sized for the optional product video.
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 server:
   # Render (and most PaaS) inject the listening port via $PORT.

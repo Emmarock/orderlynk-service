@@ -10,8 +10,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public final class ProductDtos {
@@ -29,6 +31,8 @@ public final class ProductDtos {
             @PositiveOrZero int quantityAvailable,
             @PositiveOrZero Integer lowStockThreshold,
             String productImageUrl,
+            @Size(max = 6, message = "A product can have at most 6 images") List<String> imageUrls,
+            String videoUrl,
             @NotNull FulfillmentType fulfillmentType,
             String originCountry,
             @PositiveOrZero BigDecimal weight,
@@ -67,6 +71,8 @@ public final class ProductDtos {
             int lowStockThreshold,
             boolean lowStock,
             String productImageUrl,
+            List<String> imageUrls,
+            String videoUrl,
             FulfillmentType fulfillmentType,
             String originCountry,
             BigDecimal weight,
