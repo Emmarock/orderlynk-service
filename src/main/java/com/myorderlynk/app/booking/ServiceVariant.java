@@ -34,6 +34,9 @@ public class ServiceVariant extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    /** Optional image for this sub-service, shown to customers when picking an option. */
+    private String imageUrl;
+
     /** Absolute price of this sub-service (replaces the parent's base price when chosen). */
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal price = BigDecimal.ZERO;

@@ -38,7 +38,7 @@ public class BookingMapper {
 
     public VariantResponse variant(ServiceVariant v) {
         return new VariantResponse(v.getId(), v.getServiceId(), v.getVendorId(), v.getName(),
-                v.getPrice(), v.getDurationMinutes(), v.isActive());
+                v.getPrice(), v.getDurationMinutes(), v.getImageUrl(), v.isActive());
     }
 
     public ServiceResponse service(ServiceOffering s, List<ServiceAddOn> addOns, List<ServiceVariant> variants) {

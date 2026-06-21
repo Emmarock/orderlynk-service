@@ -291,6 +291,7 @@ public class ServiceCatalogService {
         v.setName(req.name());
         v.setPrice(req.price());
         v.setDurationMinutes(req.durationMinutes());
+        v.setImageUrl(req.imageUrl());
         if (req.active() != null) v.setActive(req.active());
     }
 

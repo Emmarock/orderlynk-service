@@ -106,6 +106,7 @@ public final class ServiceDtos {
             @NotBlank String name,
             @NotNull @PositiveOrZero BigDecimal price,
             @Positive int durationMinutes,
+            String imageUrl,
             Boolean active) {
     }
 
@@ -116,6 +117,7 @@ public final class ServiceDtos {
             String name,
             BigDecimal price,
             int durationMinutes,
+            String imageUrl,
             boolean active) {
     }
 
