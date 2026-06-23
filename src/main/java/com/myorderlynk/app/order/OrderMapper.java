@@ -30,6 +30,14 @@ public class OrderMapper {
         return buildOrder(o, vendorName, null, false);
     }
 
+    /**
+     * Vendor single-order view: like {@link #order(Order, String)} but optionally includes the
+     * signed track token so the vendor can re-share a card-payment link for an unpaid order.
+     */
+    public OrderDtos.OrderResponse order(Order o, String vendorName, boolean includeTrackToken) {
+        return buildOrder(o, vendorName, null, includeTrackToken);
+    }
+
     /** Customer-facing order view: includes the vendor's payment instructions and a tracking token. */
     public OrderDtos.OrderResponse order(Order o, Vendor vendor) {
         String name = vendor == null ? "Vendor" : vendor.getBusinessName();

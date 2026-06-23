@@ -61,6 +61,16 @@ public class OrderController {
         return orderService.trackByToken(req.token());
     }
 
+    /**
+     * Resolve a signed order link to a card-payment session (order + Stripe client secret) so a
+     * customer can pay by card from a link the vendor shared over WhatsApp/Instagram/etc. Public:
+     * the signed token is the bearer credential, same as tracking.
+     */
+    @PostMapping("/pay-token")
+    public OrderResponse payByToken(@Valid @RequestBody TrackTokenRequest req) {
+        return orderService.payByToken(req.token());
+    }
+
     @GetMapping("/mine")
     @IsAuthenticated
     public PageResponse<OrderResponse> myOrders(@RequestParam(defaultValue = "0") int page,

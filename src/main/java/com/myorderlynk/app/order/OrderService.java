@@ -108,6 +108,50 @@ public class OrderService {
         return track(claims.publicOrderId(), claims.contact());
     }
 
+    /**
+     * Resolve a signed order link into a card-payment session: returns the order plus a Stripe client
+     * secret so the customer can pay by card from a link the vendor shared (WhatsApp, Instagram, …).
+     * The PaymentIntent is idempotent per order id, so re-opening the link reuses the same intent.
+     * An already-paid order comes back with no secret (the page shows "paid"); a card payment that
+     * can't be started surfaces a clear error rather than a broken page.
+     */
+    @Transactional(readOnly = true)
+    public OrderResponse payByToken(String token) {
+        JwtService.OrderTrackToken claims = jwtService.parseOrderTrackToken(token);
+        Order order = orders.findByPublicOrderId(claims.publicOrderId().trim())
+                .orElseThrow(() -> ApiException.notFound("Order not found"));
+        String needle = claims.contact() == null ? "" : claims.contact().trim();
+        boolean matches = needle.equalsIgnoreCase(order.getCustomerPhone())
+                || (order.getCustomerEmail() != null && needle.equalsIgnoreCase(order.getCustomerEmail()));
+        if (!matches) {
+            throw ApiException.notFound("Order not found");
+        }
+
+        Vendor vendor = vendors.findById(order.getVendorId()).orElse(null);
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return mapper.order(order, vendor);
+        }
+        if (!paymentServiceProperties.isEnabled()) {
+            throw ApiException.badRequest("Card payments aren't available right now");
+        }
+        String clientSecret = null;
+        String paymentReference = null;
+        try {
+            var payment = paymentClient.createPayment(order); // idempotent on the public order id
+            if (payment != null) {
+                clientSecret = payment.clientSecret();
+                paymentReference = payment.reference();
+            }
+        } catch (Exception e) {
+            log.warn("pay-by-token createPayment failed for order {} ({})", order.getPublicOrderId(), e.getMessage());
+            throw ApiException.badRequest("Could not start card payment — please try again");
+        }
+        if (clientSecret == null) {
+            throw ApiException.badRequest("Could not start card payment — please try again");
+        }
+        return mapper.order(order, vendor, clientSecret, paymentReference);
+    }
+
     @Transactional(readOnly = true)
     public QuoteResponse quote(QuoteRequest req) {
         Vendor vendor = approvedVendor(req.vendorId());
@@ -303,7 +347,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderResponse getForVendor(UUID vendorId, UUID orderId) {
         Order order = vendorOwnedOrder(vendorId, orderId);
-        return mapper.order(order, vendorName(vendorId));
+        return mapper.order(order, vendorName(vendorId), true);
     }
 
     @Transactional
@@ -312,7 +356,7 @@ public class OrderService {
         FulfillmentStatus from = order.getFulfillmentStatus();
         FulfillmentStatus to = req.status();
         if (from == to) {
-            return mapper.order(order, vendorName(vendorId));
+            return mapper.order(order, vendorName(vendorId), true);
         }
         if (!FulfillmentFlows.isValidTransition(order.getFulfillmentType(), from, to)) {
             throw ApiException.badRequest("Cannot move order from " + from + " to " + to
@@ -329,7 +373,7 @@ public class OrderService {
         notifyFulfillment(order, to);
         emailService.sendOrderStatusChange(order, vendorName(vendorId), to);
         vendors.findById(vendorId).ifPresent(v -> whatsAppService.fulfillmentUpdated(order, v, to));
-        return mapper.order(order, vendorName(vendorId));
+        return mapper.order(order, vendorName(vendorId), true);
     }
 
     @Transactional
