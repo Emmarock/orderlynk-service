@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Per-vendor capability to use chat-order import (paste a WhatsApp/Instagram conversation and
+      turn it into a structured draft order). Off by default; only an admin can enable it per vendor.
+    -->
+    <changeSet id="028-vendor-chat-orders" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="chat_order_enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

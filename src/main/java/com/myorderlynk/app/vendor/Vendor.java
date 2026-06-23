@@ -152,4 +152,11 @@ public class Vendor extends BaseEntity {
      */
     @Column(nullable = false)
     private boolean alternativePaymentsEnabled = false;
+
+    /**
+     * Whether this vendor may use chat-order import (paste a WhatsApp/Instagram thread → structured
+     * draft order). Off by default; only an admin can enable it per vendor.
+     */
+    @Column(nullable = false)
+    private boolean chatOrderEnabled = false;
 }

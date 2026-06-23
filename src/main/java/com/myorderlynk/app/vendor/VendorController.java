@@ -7,9 +7,13 @@ import com.myorderlynk.app.vendor.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.finance.FinanceDtos.EarningsSummary;
 import com.myorderlynk.app.support.SupportDtos.SupportRequest;
 import com.myorderlynk.app.support.SupportDtos.SupportTicketResponse;
+import com.myorderlynk.app.order.OrderDtos.CheckoutRequest;
 import com.myorderlynk.app.order.OrderDtos.FulfillmentUpdateRequest;
 import com.myorderlynk.app.order.OrderDtos.OrderResponse;
 import com.myorderlynk.app.order.OrderDtos.PaymentUpdateRequest;
+import com.myorderlynk.app.order.ChatOrderDtos.DraftOrder;
+import com.myorderlynk.app.order.ChatOrderDtos.ParseChatRequest;
+import com.myorderlynk.app.order.ChatOrderParser;
 import com.myorderlynk.app.finance.PayoutDtos.PayoutResponse;
 import com.myorderlynk.app.catalog.ProductDtos.DescriptionRequest;
 import com.myorderlynk.app.catalog.ProductDtos.DescriptionResponse;
@@ -73,6 +77,7 @@ public class VendorController {
     private final VendorAnalyticsService analyticsService;
     private final EarningsService earningsService;
     private final SupportService supportService;
+    private final ChatOrderParser chatOrderParser;
     private final CurrentUser currentUser;
     private final PaymentClient paymentClient;
 
@@ -80,6 +85,7 @@ public class VendorController {
                             com.myorderlynk.app.booking.BookingService bookingService,
                             PayoutService payoutService, VendorAnalyticsService analyticsService,
                             EarningsService earningsService, SupportService supportService,
+                            ChatOrderParser chatOrderParser,
                             CurrentUser currentUser, PaymentClient paymentClient) {
         this.vendorService = vendorService;
         this.productService = productService;
@@ -89,6 +95,7 @@ public class VendorController {
         this.analyticsService = analyticsService;
         this.earningsService = earningsService;
         this.supportService = supportService;
+        this.chatOrderParser = chatOrderParser;
         this.currentUser = currentUser;
         this.paymentClient = paymentClient;
     }
@@ -235,6 +242,40 @@ public class VendorController {
                                               @RequestParam(defaultValue = "20") int size) {
         Instant[] r = range(from, to);
         return orderService.vendorOrders(vendorId(), r[0], r[1], PageRequests.of(page, size));
+    }
+
+    /**
+     * Parse a pasted/forwarded chat thread (WhatsApp, Instagram, …) into a structured draft order
+     * the vendor reviews before creating. Advisory only — nothing is persisted; line items are
+     * matched against this vendor's catalogue and anything ambiguous is returned for manual fixup.
+     */
+    @PostMapping("/orders/parse-chat")
+    @IsVendor
+    public DraftOrder parseChatOrder(@Valid @RequestBody ParseChatRequest req) {
+        UUID vid = vendorId();
+        requireChatOrders(vid);
+        return chatOrderParser.parse(vid, req.text());
+    }
+
+    /**
+     * Vendor records an order on a customer's behalf — e.g. confirming a draft parsed from a chat.
+     * The order is forced onto the authenticated vendor (the body's vendorId is ignored) and created
+     * as a guest order attributed to the customer, reusing the same checkout pipeline (stock, fees,
+     * customer invite) as the public storefront. Gated on the same admin-granted capability as parsing.
+     */
+    @PostMapping("/orders")
+    @IsVendor
+    public OrderResponse createOrder(@Valid @RequestBody CheckoutRequest req) {
+        UUID vid = vendorId();
+        requireChatOrders(vid);
+        return orderService.checkout(req.withVendorId(vid), null);
+    }
+
+    /** Chat-order import is an opt-in capability an admin grants per vendor; 403 when it's off. */
+    private void requireChatOrders(UUID vid) {
+        if (!vendorService.myVendor(vid).chatOrderEnabled()) {
+            throw ApiException.forbidden("Chat order import isn't enabled for your account");
+        }
     }
 
     // ---- Customers & analytics ----

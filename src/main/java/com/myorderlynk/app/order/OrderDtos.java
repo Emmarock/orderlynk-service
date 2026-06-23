@@ -47,6 +47,17 @@ public final class OrderDtos {
             String notes,
             /** Selected shipping rate's service-level token (e.g. "usps_priority") from a prior /api/shipping/rates call; null = cheapest. */
             String shippingServiceToken) {
+
+        /**
+         * Copy of this request pinned to a specific vendor. Used by vendor-side order entry to force
+         * the order onto the authenticated vendor, ignoring whatever the client put in the body.
+         */
+        public CheckoutRequest withVendorId(UUID vendorId) {
+            return new CheckoutRequest(vendorId, items, customerName, customerPhone, customerEmail,
+                    customerHouseNumber, customerStreet, customerCity, customerState, customerPostcode,
+                    customerCountry, fulfillmentType, paymentMethod, sourceChannel, campaign, notes,
+                    shippingServiceToken);
+        }
     }
 
     /**

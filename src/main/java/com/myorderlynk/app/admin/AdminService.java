@@ -133,6 +133,16 @@ public class AdminService {
         return vendorMapper.vendor(vendor);
     }
 
+    /** Admin grants/revokes a vendor's ability to use chat-order import (paste a chat → draft order). */
+    @Transactional
+    public VendorResponse setChatOrders(UUID vendorId, boolean enabled) {
+        Vendor vendor = require(vendorId);
+        vendor.setChatOrderEnabled(enabled);
+        vendors.save(vendor);
+        log.info("Vendor {} chat orders {}", vendorId, enabled ? "ENABLED" : "disabled");
+        return vendorMapper.vendor(vendor);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> allOrders(Pageable pageable) {
         return PageResponse.of(orders.findAllByOrderByCreatedAtDesc(pageable)

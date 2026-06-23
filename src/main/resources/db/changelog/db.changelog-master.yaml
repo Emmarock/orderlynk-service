@@ -80,3 +80,6 @@ databaseChangeLog:
   - include:
       file: changes/027-product-media.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/028-vendor-chat-orders.xml
+      relativeToChangelogFile: true

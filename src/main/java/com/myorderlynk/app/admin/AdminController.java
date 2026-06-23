@@ -83,6 +83,12 @@ public class AdminController {
         return adminService.setAlternativePayments(id, enabled);
     }
 
+    /** Enable/disable chat-order import (paste a chat → draft order) for a specific vendor. */
+    @PostMapping("/vendors/{id}/chat-orders")
+    public VendorResponse chatOrders(@PathVariable UUID id, @RequestParam boolean enabled) {
+        return adminService.setChatOrders(id, enabled);
+    }
+
     // ---- Order oversight ----
 
     @GetMapping("/orders")
