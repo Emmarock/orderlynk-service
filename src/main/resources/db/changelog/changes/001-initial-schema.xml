@@ -6,7 +6,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!--
-      Initial Orderlynk schema. Dialect-portable so it applies identically on
+      Initial OrderLynk schema. Dialect-portable so it applies identically on
       MySQL, TiDB (MySQL-compatible) and H2 (tests). Design choices for TiDB:
         * String UUID primary keys (no AUTO_INCREMENT hotspots).
         * Enums persisted as VARCHAR.

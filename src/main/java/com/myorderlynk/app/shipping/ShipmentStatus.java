@@ -1,7 +1,7 @@
 package com.myorderlynk.app.shipping;
 
 /**
- * Lifecycle of a {@link Shipment} within Orderlynk, independent of any carrier's own status
+ * Lifecycle of a {@link Shipment} within OrderLynk, independent of any carrier's own status
  * vocabulary. A {@link ShippingProvider} maps its native states onto these.
  */
 public enum ShipmentStatus {

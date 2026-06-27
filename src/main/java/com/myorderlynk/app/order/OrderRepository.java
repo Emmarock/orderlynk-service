@@ -1,6 +1,7 @@
 package com.myorderlynk.app.order;
 
 import com.myorderlynk.app.order.Order;
+import com.myorderlynk.app.common.enums.FulfillmentStatus;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +42,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     boolean existsByCustomerUserIdAndVendorId(UUID customerUserId, UUID vendorId);
 
     long countByPaymentStatus(PaymentStatus paymentStatus);
+
+    /** Count of orders currently in any of the given fulfillment states (for platform stats). */
+    long countByFulfillmentStatusIn(Collection<FulfillmentStatus> statuses);
 
     /** Total gross revenue across orders in the given payment status (0 when none). */
     @Query("select coalesce(sum(o.totalAmount), 0) from Order o where o.paymentStatus = :status")

@@ -497,7 +497,7 @@ public class OrderService {
     /**
      * Notifies the customer that their order was received, via email when an email is on file,
      * otherwise WhatsApp (the phone is always present). The message always carries a tracking
-     * link, and — only when the customer isn't already an Orderlynk user — a registration link.
+     * link, and — only when the customer isn't already an OrderLynk user — a registration link.
      */
     private void notifyOrderReceived(Order order, Vendor vendor) {
         boolean hasEmail = order.getCustomerEmail() != null && !order.getCustomerEmail().isBlank();
@@ -514,7 +514,7 @@ public class OrderService {
                 .append(" with ").append(vendor.getBusinessName()).append(" has been received.\n\n")
                 .append("Track your order here: ").append(orderLinks.trackUrl(order)).append("\n");
         if (!registered) {
-            body.append("\nNew to Orderlynk? Create an account to track all your orders in one place: ")
+            body.append("\nNew to OrderLynk? Create an account to track all your orders in one place: ")
                     .append(registerLink(order));
         }
 

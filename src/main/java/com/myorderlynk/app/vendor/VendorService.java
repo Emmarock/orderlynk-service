@@ -372,7 +372,7 @@ public class VendorService {
             }
         }
         String link = url.toString();
-        String waText = "Order from " + vendor.getBusinessName() + " on Orderlynk: " + link;
+        String waText = "Order from " + vendor.getBusinessName() + " on OrderLynk: " + link;
         String whatsapp = "https://wa.me/?text=" + enc(waText);
         return new ShareLinkResponse(link, whatsapp);
     }

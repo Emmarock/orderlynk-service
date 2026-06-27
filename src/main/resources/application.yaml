@@ -93,6 +93,15 @@ app:
     processing-rate: 0.029
     processing-fixed: 0.30
     logistics-margin-rate: 0.00
+  platform:
+    # Public home-page headline numbers (GET /api/platform/stats) are shown as max(real, floor),
+    # so the marketplace reads convincingly while it is still young. Real figures take over once
+    # they surpass each floor. Set every floor to 0 to always show the true, unembellished numbers.
+    stats:
+      orders-floor: ${APP_STATS_ORDERS_FLOOR:12400}
+      verified-vendors-floor: ${APP_STATS_VENDORS_FLOOR:450}
+      cities-floor: ${APP_STATS_CITIES_FLOOR:38}
+      fulfillment-rate-floor: ${APP_STATS_FULFILLMENT_FLOOR:99.2}
 email:
   # Email provider: "resend" (default) or "twilio" (Twilio SendGrid). Leave the chosen
   # provider's API key blank to disable email (the app still boots; emails are skipped + logged).

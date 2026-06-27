@@ -38,10 +38,10 @@ import java.util.stream.Collectors;
 /**
  * {@link ShippingProvider} backed by <a href="https://docs.goshippo.com/">Shippo</a>.
  *
- * <p>Maps Orderlynk's provider-neutral models onto the Shippo SDK: a {@link ShipmentRequest}
+ * <p>Maps OrderLynk's provider-neutral models onto the Shippo SDK: a {@link ShipmentRequest}
  * becomes a Shippo shipment whose {@code rates} we expose; buying a label is a Shippo
  * transaction; tracking is the tracking-status API. Weight is sent in grams and dimensions in
- * centimetres (Orderlynk normalises before calling), so we always hand Shippo {@code g}/{@code cm}.
+ * centimetres (OrderLynk normalises before calling), so we always hand Shippo {@code g}/{@code cm}.
  *
  * <p>Degrades gracefully: with no API token the bean still loads, {@link #isConfigured()}
  * returns false, and calls throw {@link ShippingException} instead of crashing the app.

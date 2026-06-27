@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/vendor/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/storefronts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/platform/**").permitAll()
                         // Public services discovery + guest booking; batch & cargo discovery + guest ordering.
                         // Account-scoped sub-routes (…/mine) stay protected by method security (@IsAuthenticated).
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
