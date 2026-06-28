@@ -83,3 +83,6 @@ databaseChangeLog:
   - include:
       file: changes/028-vendor-chat-orders.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/029-rename-admin.xml
+      relativeToChangelogFile: true

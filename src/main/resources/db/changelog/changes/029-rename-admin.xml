@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Brand-consistency rename of the seeded platform admin ("Orderlynk Admin" -> "OrderLynk Admin").
+      Done as a new changeset because the original seed (002-seed-admin) is already applied and its
+      content is immutable. Scoped to the seed admin id, and only while its name is still the seeded
+      default, so a real admin who renamed themselves is left untouched.
+    -->
+    <changeSet id="029-rename-admin" author="orderlynk">
+        <update tableName="users">
+            <column name="full_name" value="OrderLynk Admin"/>
+            <where>id = '00000000-0000-0000-0000-000000000001' AND full_name = 'Orderlynk Admin'</where>
+        </update>
+
+        <rollback>
+            <update tableName="users">
+                <column name="full_name" value="Orderlynk Admin"/>
+                <where>id = '00000000-0000-0000-0000-000000000001' AND full_name = 'OrderLynk Admin'</where>
+            </update>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

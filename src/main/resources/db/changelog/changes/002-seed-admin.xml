@@ -32,7 +32,7 @@
             <column name="email" value="admin@orderlynk.app"/>
             <!-- BCrypt hash of "admin12345" -->
             <column name="password_hash" value="$2y$10$kC9ClId81lj9Se83vr7Ss.s8vNGpXmnk0Rflzd8u.ymo4gyn5ZDHC"/>
-            <column name="full_name" value="OrderLynk Admin"/>
+            <column name="full_name" value="Orderlynk Admin"/>
             <column name="role" value="ADMIN"/>
             <column name="admin" valueBoolean="true"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
