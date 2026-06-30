@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      DB-backed, admin-configurable platform fee policy. A single fee_settings row holds the live
+      policy (service fee, processing rate/buffer/gross-up, logistics markup, tax); fee_settings_logistics
+      holds the flat per-fulfillment base fees. Seeded in code from app.fees.* bootstrap defaults on
+      first boot (FeeSettingsService) and edited via /api/admin/fee-settings. Rate columns use a wider
+      scale than money so fractions like 0.029 / 0.005 are not truncated. Portable: string UUID key,
+      enum-as-VARCHAR map key, no DB-level FKs.
+    -->
+    <changeSet id="030-fee-settings" author="orderlynk">
+        <createTable tableName="fee_settings">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="service_fee_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.03"><constraints nullable="false"/></column>
+            <column name="processing_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.029"><constraints nullable="false"/></column>
+            <column name="processing_fixed" type="DECIMAL(19,2)" defaultValueNumeric="0.30"><constraints nullable="false"/></column>
+            <column name="processing_buffer_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.005"><constraints nullable="false"/></column>
+            <column name="gross_up_processing" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="logistics_margin_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.12"><constraints nullable="false"/></column>
+            <column name="logistics_markup_flat" type="DECIMAL(19,2)" defaultValueNumeric="0.00"><constraints nullable="false"/></column>
+            <column name="tax_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.00"><constraints nullable="false"/></column>
+        </createTable>
+
+        <createTable tableName="fee_settings_logistics">
+            <column name="fee_settings_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="fulfillment_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="fee_settings_logistics" columnNames="fee_settings_id, fulfillment_type"
+                       constraintName="pk_fee_settings_logistics"/>
+    </changeSet>
+</databaseChangeLog>

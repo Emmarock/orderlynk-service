@@ -80,13 +80,15 @@ public class VendorController {
     private final ChatOrderParser chatOrderParser;
     private final CurrentUser currentUser;
     private final PaymentClient paymentClient;
+    private final FeaturedPlacementService featuredPlacementService;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
                             com.myorderlynk.app.booking.BookingService bookingService,
                             PayoutService payoutService, VendorAnalyticsService analyticsService,
                             EarningsService earningsService, SupportService supportService,
                             ChatOrderParser chatOrderParser,
-                            CurrentUser currentUser, PaymentClient paymentClient) {
+                            CurrentUser currentUser, PaymentClient paymentClient,
+                            FeaturedPlacementService featuredPlacementService) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
@@ -98,6 +100,7 @@ public class VendorController {
         this.chatOrderParser = chatOrderParser;
         this.currentUser = currentUser;
         this.paymentClient = paymentClient;
+        this.featuredPlacementService = featuredPlacementService;
     }
 
     // ---- Stripe Connect onboarding (proxies the payment-service) ----
@@ -377,6 +380,58 @@ public class VendorController {
     public PageResponse<PayoutResponse> payouts(@RequestParam(defaultValue = "0") int page,
                                                 @RequestParam(defaultValue = "20") int size) {
         return payoutService.forVendorPaged(vendorId(), PageRequests.of(page, size));
+    }
+
+    /**
+     * Instantly pay out {@code amount} of the vendor's Stripe balance to their bank, for a platform fee
+     * charged to their card on file. Returns the recorded instant payout.
+     */
+    @PostMapping("/payouts/instant")
+    @IsVendor
+    public PayoutResponse instantPayout(@RequestParam java.math.BigDecimal amount,
+                                        @RequestParam(required = false) String currency) {
+        return payoutService.requestInstantPayout(vendorId(), amount, currency);
+    }
+
+    // ---- Card-on-file billing (collects subscription / featured fees) ----
+
+    /** Start saving a card: returns a SetupIntent client secret for Stripe Elements. */
+    @PostMapping("/billing/card")
+    @IsVendor
+    public com.myorderlynk.app.payment.PaymentDtos.CardSetupResult startCardSetup() {
+        AuthPrincipal me = currentUser.require();
+        return paymentClient.startCardSetup(me.vendorId(), me.email());
+    }
+
+    /** Confirm the saved card once the SetupIntent has succeeded client-side. */
+    @PostMapping("/billing/card/confirm")
+    @IsVendor
+    public com.myorderlynk.app.payment.PaymentDtos.BillingStatus confirmCard(
+            @RequestParam String setupIntentId) {
+        return paymentClient.confirmCard(vendorId(), setupIntentId);
+    }
+
+    /** Whether the vendor has a usable card on file for platform-fee collection. */
+    @GetMapping("/billing")
+    @IsVendor
+    public com.myorderlynk.app.payment.PaymentDtos.BillingStatus billingStatus() {
+        return paymentClient.billingStatus(vendorId());
+    }
+
+    // ---- Featured placement (paid marketplace promotion) ----
+
+    /** Purchase a featured-placement slot (price/duration from fee settings); extends the boost window. */
+    @PostMapping("/featured/purchase")
+    @IsVendor
+    public FeaturedPlacementDtos.PlacementResponse purchaseFeatured() {
+        return FeaturedPlacementDtos.toResponse(featuredPlacementService.purchase(vendorId()));
+    }
+
+    @GetMapping("/featured")
+    @IsVendor
+    public List<FeaturedPlacementDtos.PlacementResponse> myFeatured() {
+        return featuredPlacementService.forVendor(vendorId()).stream()
+                .map(FeaturedPlacementDtos::toResponse).toList();
     }
 
     private UUID vendorId() {

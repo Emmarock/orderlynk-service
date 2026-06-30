@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Phase 3: value-added services. Three high-margin levers:
+        (1) Featured placement  — vendors.featured_until + featured_placements ledger.
+        (2) Instant payout fee  — payouts.instant_payout + instant_payout_fee.
+        (3) Cargo handling fee  — shipment_requests.platform_cargo_fee.
+      Plus the platform-fee knobs added to fee_settings (admin-editable). Rate columns use wide scale;
+      money DECIMAL(19,2); portable string UUID keys, enums as VARCHAR, no DB-level FKs.
+    -->
+    <changeSet id="032-phase3-fee-settings" author="orderlynk">
+        <addColumn tableName="fee_settings">
+            <column name="instant_payout_fee_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.01"><constraints nullable="false"/></column>
+            <column name="cargo_handling_fee_rate" type="DECIMAL(12,6)" defaultValueNumeric="0.02"><constraints nullable="false"/></column>
+            <column name="featured_placement_fee" type="DECIMAL(19,2)" defaultValueNumeric="25.00"><constraints nullable="false"/></column>
+            <column name="featured_placement_days" type="INT" defaultValueNumeric="7"><constraints nullable="false"/></column>
+            <column name="featured_placement_currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="032-phase3-featured" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="featured_until" type="DATETIME"/>
+        </addColumn>
+        <createTable tableName="featured_placements">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="days" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount" type="DECIMAL(19,2)"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="starts_at" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="ends_at" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="DUE"><constraints nullable="false"/></column>
+            <column name="paid_at" type="DATETIME"/>
+            <column name="reference" type="VARCHAR(255)"/>
+        </createTable>
+        <createIndex tableName="featured_placements" indexName="idx_featured_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="032-phase3-instant-payout" author="orderlynk">
+        <addColumn tableName="payouts">
+            <column name="instant_payout" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="instant_payout_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="032-phase3-cargo-fee" author="orderlynk">
+        <addColumn tableName="shipment_requests">
+            <column name="platform_cargo_fee" type="DECIMAL(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

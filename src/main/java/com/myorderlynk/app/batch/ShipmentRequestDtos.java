@@ -65,6 +65,7 @@ public final class ShipmentRequestDtos {
             BigDecimal ratePerKg,
             BigDecimal handlingFee,
             BigDecimal deliveryFee,
+            BigDecimal platformCargoFee,
             BigDecimal totalCharge,
             BigDecimal amountPaid,
             BigDecimal balanceDue,

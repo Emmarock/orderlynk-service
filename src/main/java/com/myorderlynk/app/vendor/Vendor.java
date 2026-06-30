@@ -3,6 +3,7 @@ import com.myorderlynk.app.common.Address;
 import com.myorderlynk.app.common.BaseEntity;
 
 import com.myorderlynk.app.common.enums.FulfillmentType;
+import com.myorderlynk.app.common.enums.VendorPlan;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
@@ -88,7 +89,31 @@ public class Vendor extends BaseEntity {
     @Column(nullable = false)
     private int ratingCount = 0;
 
-    /** Platform commission rate applied to this vendor's product subtotal (e.g. 0.07 = 7%). */
+    /**
+     * Subscription tier. Default {@code STARTER}; existing vendors are grandfathered onto STARTER at
+     * their legacy {@link #commissionRate} until an admin assigns them a plan (which then materializes
+     * the catalog's rate). Drives the monthly subscription fee.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private VendorPlan plan = VendorPlan.STARTER;
+
+    /**
+     * Paid featured-placement boost: while this is in the future, the vendor is promoted to the top of
+     * marketplace discovery. Null/past = not featured. Extended by a featured-placement purchase.
+     */
+    private java.time.Instant featuredUntil;
+
+    /** Whether the vendor's featured-placement boost is currently active. */
+    public boolean isFeatured() {
+        return featuredUntil != null && featuredUntil.isAfter(java.time.Instant.now());
+    }
+
+    /**
+     * Platform commission rate applied to this vendor's product subtotal (e.g. 0.07 = 7%). This is
+     * the <em>effective</em> rate used in all fee math; assigning a {@link #plan} overwrites it from
+     * the plan catalog, but an admin may also set a custom rate for a bespoke deal.
+     */
     @Column(nullable = false)
     private BigDecimal commissionRate = new BigDecimal("0.07");
 

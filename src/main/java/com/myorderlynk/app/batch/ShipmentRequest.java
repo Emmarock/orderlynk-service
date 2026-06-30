@@ -75,7 +75,11 @@ public class ShipmentRequest extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal deliveryFee = BigDecimal.ZERO;
 
-    /** (actualWeight × ratePerKg) + handling + delivery; 0 until weighed. */
+    /** Platform cargo handling/sourcing fee, added on top of the base charge; set from fee settings. */
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal platformCargoFee = BigDecimal.ZERO;
+
+    /** baseCharge + platform cargo fee; 0 until weighed. */
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal totalCharge = BigDecimal.ZERO;
 
@@ -119,8 +123,8 @@ public class ShipmentRequest extends BaseEntity {
     @Column(length = 2000)
     private String notes;
 
-    /** Recompute {@link #totalCharge} from the weight in effect (actual if present, else estimated). */
-    public BigDecimal computeCharge() {
+    /** Vendor/batch charge before the platform fee: (weight × ratePerKg) + handling + delivery. */
+    public BigDecimal baseCharge() {
         BigDecimal weight = actualWeight != null ? actualWeight : estimatedWeight;
         if (weight == null) {
             weight = BigDecimal.ZERO;
@@ -128,6 +132,11 @@ public class ShipmentRequest extends BaseEntity {
         return weight.multiply(ratePerKg)
                 .add(handlingFee).add(deliveryFee)
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Recompute {@link #totalCharge}: the base charge plus the platform cargo fee. */
+    public BigDecimal computeCharge() {
+        return baseCharge().add(platformCargoFee).setScale(2, RoundingMode.HALF_UP);
     }
 
     public BigDecimal balanceDue() {

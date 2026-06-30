@@ -4,6 +4,7 @@ import com.myorderlynk.app.booking.ServiceDtos;
 import com.myorderlynk.app.catalog.ProductDtos;
 
 import com.myorderlynk.app.common.enums.FulfillmentType;
+import com.myorderlynk.app.common.enums.VendorPlan;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.validation.FieldMatch;
 import com.myorderlynk.app.validation.StrongPassword;
@@ -119,6 +120,7 @@ public final class VendorDtos {
             boolean active,
             BigDecimal rating,
             int ratingCount,
+            VendorPlan plan,
             BigDecimal commissionRate,
             String payoutMethod,
             String payoutAccountName,

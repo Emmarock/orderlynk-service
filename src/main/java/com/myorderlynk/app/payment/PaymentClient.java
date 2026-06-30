@@ -6,6 +6,14 @@ import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountStatus;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentRequest;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
 import com.myorderlynk.app.payment.PaymentDtos.OnboardingResult;
+import com.myorderlynk.app.payment.PaymentDtos.PlatformChargeRequest;
+import com.myorderlynk.app.payment.PaymentDtos.PlatformChargeResponse;
+import com.myorderlynk.app.payment.PaymentDtos.BillingSetupRequest;
+import com.myorderlynk.app.payment.PaymentDtos.ConfirmCardRequest;
+import com.myorderlynk.app.payment.PaymentDtos.CardSetupResult;
+import com.myorderlynk.app.payment.PaymentDtos.BillingStatus;
+import com.myorderlynk.app.payment.PaymentDtos.InstantPayoutRequest;
+import com.myorderlynk.app.payment.PaymentDtos.InstantPayoutResult;
 import com.myorderlynk.app.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -42,11 +50,7 @@ public class PaymentClient {
      * Returns the response (including the client secret the customer needs to pay).
      */
     public CreatePaymentResponse createPayment(Order order) {
-        Map<String, BigDecimal> allocations = new LinkedHashMap<>();
-        putIfPositive(allocations, "PRODUCT", order.getProductSubtotal());
-        putIfPositive(allocations, "LOGISTICS", order.getLogisticsFee());
-        putIfPositive(allocations, "PLATFORM_FEE", order.getPlatformFee());
-        putIfPositive(allocations, "PROCESSING_FEE", order.getProcessingFee());
+        Map<String, BigDecimal> allocations = orderAllocations(order);
 
         // Stripe only allows an application fee (our PLATFORM_FEE/PROCESSING_FEE allocation)
         // on a destination charge, so the connected account must be wired here. A vendor
@@ -145,11 +149,24 @@ public class PaymentClient {
     public CreatePaymentResponse createModulePayment(String publicRef, String customerId, UUID vendorId,
                                                      String currency, BigDecimal amount, BigDecimal commissionRate,
                                                      String idempotencySuffix) {
-        BigDecimal platformFee = commissionRate == null ? BigDecimal.ZERO
+        return createModulePayment(publicRef, customerId, vendorId, currency, amount, commissionRate,
+                BigDecimal.ZERO, idempotencySuffix);
+    }
+
+    /**
+     * As {@link #createModulePayment(String, String, UUID, String, BigDecimal, BigDecimal, String)}, but
+     * also routes {@code extraPlatformFee} (e.g. a cargo handling fee that is part of the gross) to the
+     * platform instead of the vendor. The vendor (PRODUCT) receives the gross minus commission minus this
+     * extra fee; both the commission and the extra fee land in PLATFORM_FEE (-> PLATFORM_REVENUE).
+     */
+    public CreatePaymentResponse createModulePayment(String publicRef, String customerId, UUID vendorId,
+                                                     String currency, BigDecimal amount, BigDecimal commissionRate,
+                                                     BigDecimal extraPlatformFee, String idempotencySuffix) {
+        BigDecimal commission = commissionRate == null ? BigDecimal.ZERO
                 : amount.multiply(commissionRate).setScale(2, java.math.RoundingMode.HALF_UP);
-        if (platformFee.compareTo(amount) > 0) {
-            platformFee = amount;
-        }
+        // Both commission and the extra platform fee are platform revenue; cap at the gross so PRODUCT
+        // never goes negative (e.g. on a small partial payment).
+        BigDecimal platformFee = commission.add(nz(extraPlatformFee)).min(amount);
         Map<String, BigDecimal> allocations = new LinkedHashMap<>();
         putIfPositive(allocations, "PRODUCT", amount.subtract(platformFee));
         putIfPositive(allocations, "PLATFORM_FEE", platformFee);
@@ -183,6 +200,89 @@ public class PaymentClient {
                 response == null ? null : response.reference(), publicRef,
                 response == null ? null : response.status());
         return response;
+    }
+
+    /**
+     * Collect a platform fee (subscription / featured placement) from a vendor by netting it out of
+     * their balance in the payment-service. Returns the settlement reference on success, or {@code null}
+     * if the charge could not be collected (insufficient vendor balance, or the service is unreachable) —
+     * the caller then leaves the invoice DUE for retry. Idempotent on {@code reference}.
+     *
+     * @param revenueType "SUBSCRIPTION" or "ADVERTISING"
+     */
+    public String chargeVendor(UUID vendorId, BigDecimal amount, String currency,
+                               String revenueType, String reference) {
+        if (amount == null || amount.signum() <= 0) {
+            return null;
+        }
+        try {
+            PlatformChargeResponse res = restClient.post()
+                    .uri("/platform-charges")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                    .header("Idempotency-Key", reference)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new PlatformChargeRequest(vendorId.toString(), amount, currency, revenueType, reference))
+                    .retrieve()
+                    .body(PlatformChargeResponse.class);
+            if (res == null) {
+                return null;
+            }
+            log.info("platform charge {} for vendor {} -> {} ({})", reference, vendorId, res.status(), res.reference());
+            return res.reference();
+        } catch (Exception e) {
+            log.warn("platform charge {} for vendor {} not collected ({})", reference, vendorId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Start card capture for a vendor: ensures a billing customer and returns a SetupIntent client
+     * secret (for Stripe Elements) + the setup-intent id to confirm with once the card is entered.
+     */
+    public CardSetupResult startCardSetup(UUID vendorId, String email) {
+        return restClient.post()
+                .uri("/vendors/{vendorId}/billing/setup-intent", vendorId.toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new BillingSetupRequest(email))
+                .retrieve()
+                .body(CardSetupResult.class);
+    }
+
+    /** Confirm the vendor's saved card after the SetupIntent succeeded client-side. */
+    public BillingStatus confirmCard(UUID vendorId, String setupIntentId) {
+        return restClient.post()
+                .uri("/vendors/{vendorId}/billing/confirm", vendorId.toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ConfirmCardRequest(setupIntentId))
+                .retrieve()
+                .body(BillingStatus.class);
+    }
+
+    /**
+     * Trigger an instant payout of the vendor's connected-account balance and charge the platform fee
+     * to their card on file. Exceptions propagate so the caller can surface the failure to the vendor.
+     */
+    public InstantPayoutResult requestInstantPayout(UUID vendorId, BigDecimal amount, String currency,
+                                                    BigDecimal feeAmount, String reference) {
+        return restClient.post()
+                .uri("/vendors/{vendorId}/instant-payouts", vendorId.toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .header("Idempotency-Key", reference)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new InstantPayoutRequest(currency, amount, feeAmount, reference))
+                .retrieve()
+                .body(InstantPayoutResult.class);
+    }
+
+    /** Whether the vendor has a usable card on file for platform-fee collection. */
+    public BillingStatus billingStatus(UUID vendorId) {
+        return restClient.get()
+                .uri("/vendors/{vendorId}/billing", vendorId.toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                .retrieve()
+                .body(BillingStatus.class);
     }
 
     /**
@@ -231,9 +331,39 @@ public class PaymentClient {
                 : "guest:" + order.getPublicOrderId();
     }
 
+    /**
+     * Build the order's payment allocations so the payment-service routes money to match the
+     * FeeCalculator economics. The connected vendor receives only PRODUCT (= vendorPayable, subtotal
+     * minus commission); everything else is retained by the platform as the destination application
+     * fee. PLATFORM_FEE (-> PLATFORM_REVENUE) carries the customer service fee + vendor commission +
+     * logistics markup; LOGISTICS holds only the carrier's actual cost. The buckets sum to the gross.
+     */
+    static Map<String, BigDecimal> orderAllocations(Order order) {
+        BigDecimal subtotal = nz(order.getProductSubtotal());
+        BigDecimal vendorPayable = nz(order.getVendorPayable());
+        BigDecimal commission = subtotal.subtract(vendorPayable).max(BigDecimal.ZERO);
+        BigDecimal logisticsPayable = nz(order.getLogisticsPayable());
+        BigDecimal logisticsMarkup = nz(order.getLogisticsFee()).subtract(logisticsPayable).max(BigDecimal.ZERO);
+        BigDecimal platformFee = nz(order.getPlatformFee()).add(commission).add(logisticsMarkup);
+
+        Map<String, BigDecimal> allocations = new LinkedHashMap<>();
+        putIfPositive(allocations, "PRODUCT", vendorPayable);
+        putIfPositive(allocations, "LOGISTICS", logisticsPayable);
+        putIfPositive(allocations, "PLATFORM_FEE", platformFee);
+        putIfPositive(allocations, "PROCESSING_FEE", order.getProcessingFee());
+        if (allocations.isEmpty()) {
+            putIfPositive(allocations, "PRODUCT", order.getTotalAmount());
+        }
+        return allocations;
+    }
+
     private static void putIfPositive(Map<String, BigDecimal> map, String key, BigDecimal value) {
         if (value != null && value.signum() > 0) {
             map.put(key, value);
         }
+    }
+
+    private static BigDecimal nz(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

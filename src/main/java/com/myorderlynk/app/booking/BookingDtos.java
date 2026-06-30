@@ -187,7 +187,8 @@ public final class BookingDtos {
             BigDecimal startingPrice,
             String currency,
             List<ServiceCategory> categories,
-            boolean acceptsDeposits) {
+            boolean acceptsDeposits,
+            boolean featured) {
     }
 
     /** Public service storefront: provider profile + active services + recent reviews (PRD §12.2). */

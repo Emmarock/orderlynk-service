@@ -9,6 +9,7 @@ import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.vendor.AnalyticsDtos.VendorAnalytics;
 import com.myorderlynk.app.finance.PayoutDtos.PayoutResponse;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.order.FeeSettingsService;
 import com.myorderlynk.app.order.OrderRepository;
 import com.myorderlynk.app.finance.PayoutRepository;
 import com.myorderlynk.app.identity.UserRepository;
@@ -46,10 +47,13 @@ public class PayoutService {
     private final PayoutMapper mapper;
     private final EmailService emailService;
     private final VendorAnalyticsService analyticsService;
+    private final FeeSettingsService feeSettings;
+    private final com.myorderlynk.app.payment.PaymentClient paymentClient;
 
     public PayoutService(OrderRepository orders, PayoutRepository payouts, VendorRepository vendors,
                          UserRepository users, PayoutMapper mapper, EmailService emailService,
-                         VendorAnalyticsService analyticsService) {
+                         VendorAnalyticsService analyticsService, FeeSettingsService feeSettings,
+                         com.myorderlynk.app.payment.PaymentClient paymentClient) {
         this.orders = orders;
         this.payouts = payouts;
         this.vendors = vendors;
@@ -57,6 +61,50 @@ public class PayoutService {
         this.mapper = mapper;
         this.emailService = emailService;
         this.analyticsService = analyticsService;
+        this.feeSettings = feeSettings;
+        this.paymentClient = paymentClient;
+    }
+
+    /**
+     * Instantly pay out {@code amount} of the vendor's own connected-account balance to their bank, for
+     * a platform fee (from fee settings) charged to their card on file. The actual money movement and
+     * fee collection happen in the payment-service (Stripe instant payout + card charge); here we
+     * compute the fee, drive that flow, and record a reporting payout row for the vendor's history.
+     * The vendor's bank receives the full {@code amount}; the fee is a separate card charge.
+     */
+    @Transactional
+    public PayoutResponse requestInstantPayout(UUID vendorId, BigDecimal amount, String currency) {
+        BigDecimal amt = amount == null ? BigDecimal.ZERO : amount;
+        if (amt.signum() <= 0) {
+            throw ApiException.badRequest("Instant payout amount must be positive");
+        }
+        String cur = (currency == null || currency.isBlank()) ? "CAD" : currency;
+        BigDecimal fee = feeSettings.current().instantPayoutFeeFor(amt);
+        String reference = "INSTPAY-" + vendorId + "-" + UUID.randomUUID().toString().substring(0, 8);
+
+        com.myorderlynk.app.payment.PaymentDtos.InstantPayoutResult result;
+        try {
+            result = paymentClient.requestInstantPayout(vendorId, amt, cur, fee, reference);
+        } catch (Exception e) {
+            log.warn("Instant payout failed for vendor {}: {}", vendorId, e.getMessage());
+            throw ApiException.badRequest("Instant payout could not be completed (a card on file and an "
+                    + "active Stripe account are required)");
+        }
+
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Payout payout = new Payout();
+        payout.setVendorId(vendorId);
+        payout.setPeriodStart(today);
+        payout.setPeriodEnd(today);
+        payout.setGrossSales(amt);
+        payout.setNetPayout(amt); // the vendor's bank receives the full amount; the fee is charged to their card
+        payout.setInstantPayout(true);
+        payout.setInstantPayoutFee(fee);
+        String status = result == null || result.status() == null ? "PROCESSING" : result.status().toUpperCase();
+        payout.setPayoutStatus("INSTANT_" + status);
+        payout.setPaidDate(Instant.now());
+        log.info("Instant payout for vendor {} amount={} {} fee={} status={}", vendorId, amt, cur, fee, status);
+        return mapper.payout(payouts.save(payout));
     }
 
     @Transactional

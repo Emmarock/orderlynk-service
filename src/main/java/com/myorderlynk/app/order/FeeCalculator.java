@@ -18,10 +18,10 @@ import java.math.RoundingMode;
 @Service
 public class FeeCalculator {
 
-    private final FeeProperties props;
+    private final FeeSettingsService settings;
 
-    public FeeCalculator(FeeProperties props) {
-        this.props = props;
+    public FeeCalculator(FeeSettingsService settings) {
+        this.settings = settings;
     }
 
     public FeeBreakdown calculate(BigDecimal productSubtotal,
@@ -41,15 +41,20 @@ public class FeeCalculator {
                                   PaymentMethod paymentMethod,
                                   BigDecimal vendorCommissionRate,
                                   BigDecimal logisticsOverride) {
+        FeeSettings policy = settings.current();
         BigDecimal subtotal = scale(productSubtotal);
-        BigDecimal logisticsFee = scale(logisticsOverride != null ? logisticsOverride
-                : props.logisticsFeeFor(fulfillmentType));
-        BigDecimal platformFee = scale(subtotal.multiply(props.getServiceFeeRate()));
+        // Base logistics is the carrier's actual cost (live rate) or the flat per-fulfillment fee.
+        // The platform markup is added on top so the carrier is paid in full and the markup is margin.
+        BigDecimal baseLogistics = scale(logisticsOverride != null ? logisticsOverride
+                : policy.logisticsFeeFor(fulfillmentType));
+        BigDecimal logisticsMargin = scale(policy.logisticsMarkupFor(baseLogistics));
+        BigDecimal logisticsFee = scale(baseLogistics.add(logisticsMargin));
+        BigDecimal platformFee = scale(subtotal.multiply(policy.getServiceFeeRate()));
 
         BigDecimal preProcessing = subtotal.add(logisticsFee).add(platformFee);
         BigDecimal processingFee = BigDecimal.ZERO;
-        if (props.hasProcessingFee(paymentMethod)) {
-            processingFee = scale(preProcessing.multiply(props.getProcessingRate()).add(props.getProcessingFixed()));
+        if (policy.hasProcessingFee(paymentMethod)) {
+            processingFee = scale(policy.processingFeeFor(preProcessing));
         }
 
         BigDecimal total = scale(subtotal.add(logisticsFee).add(platformFee).add(processingFee));
@@ -57,8 +62,7 @@ public class FeeCalculator {
         BigDecimal commission = scale(subtotal.multiply(vendorCommissionRate));
         BigDecimal vendorPayable = scale(subtotal.subtract(commission));
 
-        BigDecimal logisticsMargin = scale(logisticsFee.multiply(props.getLogisticsMarginRate()));
-        BigDecimal logisticsPayable = scale(logisticsFee.subtract(logisticsMargin));
+        BigDecimal logisticsPayable = baseLogistics;
         BigDecimal platformRevenue = scale(platformFee.add(commission).add(logisticsMargin));
 
         return new FeeBreakdown(subtotal, logisticsFee, platformFee, processingFee, total,

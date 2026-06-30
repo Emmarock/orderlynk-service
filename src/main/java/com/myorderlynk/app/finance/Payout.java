@@ -49,4 +49,12 @@ public class Payout extends BaseEntity {
     private String payoutStatus = "PENDING";
 
     private Instant paidDate;
+
+    /** Whether the vendor opted into an instant (expedited) payout for a fee. */
+    @Column(nullable = false)
+    private boolean instantPayout = false;
+
+    /** Platform fee charged for the instant payout (deducted from {@link #netPayout}); 0 otherwise. */
+    @Column(nullable = false)
+    private BigDecimal instantPayoutFee = BigDecimal.ZERO;
 }

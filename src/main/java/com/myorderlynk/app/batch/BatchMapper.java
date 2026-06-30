@@ -78,7 +78,7 @@ public class BatchMapper {
                 s.getId(), s.getPublicRequestId(), s.getBatchId(), batchName, s.getVendorId(), vendorName,
                 s.getCustomerUserId(), s.getCustomerName(), s.getCustomerPhone(), s.getCustomerEmail(),
                 s.getItemDescription(), s.getPackageCount(), s.getEstimatedWeight(), s.getActualWeight(),
-                s.getRatePerKg(), s.getHandlingFee(), s.getDeliveryFee(), s.getTotalCharge(),
+                s.getRatePerKg(), s.getHandlingFee(), s.getDeliveryFee(), s.getPlatformCargoFee(), s.getTotalCharge(),
                 s.getAmountPaid(), s.balanceDue(), s.getRefundedAmount(), s.getCurrency(), s.getDeclaredValue(),
                 s.isRestrictedItemsConfirmed(), s.getOriginDropOffLocation(), s.getDestinationLocation(),
                 s.getDeliveryPreference(), s.getPaymentStatus(), s.getStatus(), s.getSourceChannel(),

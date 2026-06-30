@@ -65,8 +65,10 @@ public class ServiceDiscoveryService {
                         || (v.getAddress() != null && city.equalsIgnoreCase(v.getAddress().getCity())))
                 .map(this::card)
                 .filter(card -> !acceptsDepositsOnly || card.acceptsDeposits())
-                .sorted(Comparator.comparing(
-                        (ProviderCard c) -> c.rating() == null ? BigDecimal.ZERO : c.rating()).reversed())
+                // Featured (paid) providers rank first, then by rating (both descending).
+                .sorted(Comparator.comparing(ProviderCard::featured)
+                        .thenComparing(c -> c.rating() == null ? BigDecimal.ZERO : c.rating())
+                        .reversed())
                 .toList();
         return PageResponse.of(cards, page, size);
     }
@@ -133,7 +135,7 @@ public class ServiceDiscoveryService {
                 profile == null ? null : profile.getServiceArea(),
                 profile == null ? null : profile.getLocationType(),
                 rating(v.getId()), (int) reviews.countByVendorIdAndVisibleTrue(v.getId()),
-                startingPrice, currency, categories, acceptsDeposits);
+                startingPrice, currency, categories, acceptsDeposits, v.isFeatured());
     }
 
     private BigDecimal rating(UUID vendorId) {

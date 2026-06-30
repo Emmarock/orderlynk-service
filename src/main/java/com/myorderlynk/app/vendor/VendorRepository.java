@@ -1,6 +1,7 @@
 package com.myorderlynk.app.vendor;
 
 import com.myorderlynk.app.vendor.Vendor;
+import com.myorderlynk.app.common.enums.VendorPlan;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,4 +43,7 @@ public interface VendorRepository extends JpaRepository<Vendor, UUID> {
     List<Vendor> findByActiveTrueAndVerificationStatus(VendorStatus status);
 
     List<Vendor> findByActiveTrueAndVerificationStatusAndAddressCityIgnoreCase(VendorStatus status, String city);
+
+    /** Vendors on any of the given subscription tiers — drives monthly subscription billing. */
+    List<Vendor> findByPlanIn(Collection<VendorPlan> plans);
 }

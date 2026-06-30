@@ -10,6 +10,6 @@ public class PayoutMapper {
         return new PayoutDtos.PayoutResponse(
                 p.getId(), p.getVendorId(), p.getPeriodStart(), p.getPeriodEnd(), p.getGrossSales(),
                 p.getPlatformFees(), p.getLogisticsFees(), p.getRefunds(), p.getNetPayout(),
-                p.getPayoutStatus(), p.getPaidDate());
+                p.getPayoutStatus(), p.getPaidDate(), p.isInstantPayout(), p.getInstantPayoutFee());
     }
 }

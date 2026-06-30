@@ -29,6 +29,8 @@ public final class PayoutDtos {
             BigDecimal refunds,
             BigDecimal netPayout,
             String payoutStatus,
-            Instant paidDate) {
+            Instant paidDate,
+            boolean instantPayout,
+            BigDecimal instantPayoutFee) {
     }
 }

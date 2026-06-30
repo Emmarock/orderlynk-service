@@ -36,6 +36,56 @@ public final class PaymentDtos {
     public record ConnectAccountRequest(String email, String country) {
     }
 
+    /** Mirrors payment-service {@code POST /platform-charges} request body. */
+    public record PlatformChargeRequest(
+            String vendorId,
+            BigDecimal amount,
+            String currency,
+            String revenueType,
+            String reference) {
+    }
+
+    /** Subset of payment-service {@code PlatformChargeResponse} the backend consumes. */
+    public record PlatformChargeResponse(
+            String reference,
+            String status,
+            BigDecimal amount,
+            String currency) {
+    }
+
+    /** Request body for payment-service {@code POST /vendors/{id}/billing/setup-intent}. */
+    public record BillingSetupRequest(String email) {
+    }
+
+    /** Request body for payment-service {@code POST /vendors/{id}/billing/confirm}. */
+    public record ConfirmCardRequest(String setupIntentId) {
+    }
+
+    /** Card-capture client secret (for Stripe Elements) + setup-intent id to confirm with. */
+    public record CardSetupResult(String clientSecret, String setupIntentId) {
+    }
+
+    /** Whether the vendor has a usable card on file. */
+    public record BillingStatus(boolean hasPaymentMethod) {
+    }
+
+    /** Request body for payment-service {@code POST /vendors/{id}/instant-payouts}. */
+    public record InstantPayoutRequest(
+            String currency,
+            BigDecimal amount,
+            BigDecimal feeAmount,
+            String reference) {
+    }
+
+    /** Result of an instant payout (provider payout reference + status + amounts). */
+    public record InstantPayoutResult(
+            String payoutReference,
+            String status,
+            BigDecimal amount,
+            BigDecimal fee,
+            String currency) {
+    }
+
     /** Vendor connected-account capability state (payment-service {@code ConnectAccountResponse}). */
     public record ConnectAccountStatus(
             String vendorId,

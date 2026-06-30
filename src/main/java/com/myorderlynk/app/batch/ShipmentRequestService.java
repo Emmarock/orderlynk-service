@@ -12,6 +12,7 @@ import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.common.enums.SourceChannel;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.order.FeeSettingsService;
 import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentDtos.CreatePaymentResponse;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
@@ -45,11 +46,12 @@ public class ShipmentRequestService {
     private final BatchNotificationService notifications;
     private final AuditService audit;
     private final AuthService authService;
+    private final FeeSettingsService feeSettings;
 
     public ShipmentRequestService(ShipmentRequestRepository requests, BatchRepository batches,
                                   VendorRepository vendors, BatchMapper mapper, PaymentClient paymentClient,
                                   PaymentServiceProperties paymentProps, BatchNotificationService notifications,
-                                  AuditService audit, AuthService authService) {
+                                  AuditService audit, AuthService authService, FeeSettingsService feeSettings) {
         this.requests = requests;
         this.batches = batches;
         this.vendors = vendors;
@@ -59,6 +61,12 @@ public class ShipmentRequestService {
         this.notifications = notifications;
         this.audit = audit;
         this.authService = authService;
+        this.feeSettings = feeSettings;
+    }
+
+    /** Set the platform cargo fee from current fee settings, based on the request's base charge. */
+    private void applyPlatformCargoFee(ShipmentRequest s) {
+        s.setPlatformCargoFee(feeSettings.current().cargoHandlingFeeFor(s.baseCharge()));
     }
 
     /** Vendor records a manual payment collected out-of-band; only for admin-enabled (non-card) vendors. */
@@ -131,6 +139,7 @@ public class ShipmentRequestService {
         s.setSourceChannel(req.sourceChannel() == null ? SourceChannel.VENDOR_LINK : req.sourceChannel());
         s.setNotes(req.notes());
         // Preliminary estimate (not payable until actual weight is recorded).
+        applyPlatformCargoFee(s);
         s.setTotalCharge(s.computeCharge());
         s.setStatus(ShipmentRequestStatus.AWAITING_DROP_OFF);
         s.setPublicRequestId(generateId());
@@ -167,6 +176,7 @@ public class ShipmentRequestService {
         if (req.ratePerKg() != null) s.setRatePerKg(req.ratePerKg());
         if (req.handlingFee() != null) s.setHandlingFee(req.handlingFee());
         if (req.deliveryFee() != null) s.setDeliveryFee(req.deliveryFee());
+        applyPlatformCargoFee(s);
         s.setTotalCharge(s.computeCharge());
         s.setPaymentStatus(PaymentStatus.PENDING);
         transition(s, ShipmentRequestStatus.INVOICE_GENERATED, actor,
@@ -255,9 +265,17 @@ public class ShipmentRequestService {
         }
         String customerId = s.getCustomerUserId() != null
                 ? s.getCustomerUserId().toString() : "guest:" + s.getPublicRequestId();
+        // Route the platform cargo handling fee to the platform, proportional to the portion being
+        // collected (so partial payments each carry their share; equals the full fee when paid in full).
+        BigDecimal cargoFeeShare = BigDecimal.ZERO;
+        BigDecimal total = s.getTotalCharge();
+        if (total != null && total.signum() > 0 && s.getPlatformCargoFee() != null) {
+            cargoFeeShare = s.getPlatformCargoFee().multiply(amount)
+                    .divide(total, 2, java.math.RoundingMode.HALF_UP);
+        }
         try {
             return paymentClient.createModulePayment(s.getPublicRequestId(), customerId, s.getVendorId(),
-                    s.getCurrency(), amount, vendor.getCommissionRate(), "cargo");
+                    s.getCurrency(), amount, vendor.getCommissionRate(), cargoFeeShare, "cargo");
         } catch (Exception e) {
             log.warn("payment-service createModulePayment failed for {} ({}); request unaffected",
                     s.getPublicRequestId(), e.getMessage());

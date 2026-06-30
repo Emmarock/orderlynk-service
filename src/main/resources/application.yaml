@@ -92,7 +92,14 @@ app:
     service-fee-rate: 0.03
     processing-rate: 0.029
     processing-fixed: 0.30
-    logistics-margin-rate: 0.00
+    # Extra buffer over processing-rate to cover cross-border + FX conversion costs.
+    processing-buffer-rate: 0.005
+    # Gross up the processing fee so the processor's cut on the grand total is fully recovered.
+    gross-up-processing: true
+    # Platform markup added on top of the base logistics cost (carrier rate or flat fee).
+    logistics-margin-rate: 0.12
+    # Optional flat per-shipment markup, on top of logistics-margin-rate (0 = none).
+    logistics-markup-flat: 0.00
   platform:
     # Public home-page headline numbers (GET /api/platform/stats) are shown as max(real, floor),
     # so the marketplace reads convincingly while it is still young. Real figures take over once
