@@ -81,6 +81,8 @@ public class VendorController {
     private final CurrentUser currentUser;
     private final PaymentClient paymentClient;
     private final FeaturedPlacementService featuredPlacementService;
+    private final SubscriptionPlanService subscriptionPlanService;
+    private final SubscriptionBillingService subscriptionBillingService;
 
     public VendorController(VendorService vendorService, ProductService productService, OrderService orderService,
                             com.myorderlynk.app.booking.BookingService bookingService,
@@ -88,7 +90,9 @@ public class VendorController {
                             EarningsService earningsService, SupportService supportService,
                             ChatOrderParser chatOrderParser,
                             CurrentUser currentUser, PaymentClient paymentClient,
-                            FeaturedPlacementService featuredPlacementService) {
+                            FeaturedPlacementService featuredPlacementService,
+                            SubscriptionPlanService subscriptionPlanService,
+                            SubscriptionBillingService subscriptionBillingService) {
         this.vendorService = vendorService;
         this.productService = productService;
         this.orderService = orderService;
@@ -99,6 +103,8 @@ public class VendorController {
         this.supportService = supportService;
         this.chatOrderParser = chatOrderParser;
         this.currentUser = currentUser;
+        this.subscriptionPlanService = subscriptionPlanService;
+        this.subscriptionBillingService = subscriptionBillingService;
         this.paymentClient = paymentClient;
         this.featuredPlacementService = featuredPlacementService;
     }
@@ -393,6 +399,30 @@ public class VendorController {
         return payoutService.requestInstantPayout(vendorId(), amount, currency);
     }
 
+    // ---- Subscription plan (self-serve tier change) ----
+
+    /** Available subscription tiers and their pricing, for the vendor's plan picker. */
+    @GetMapping("/plans")
+    @IsVendor
+    public java.util.List<SubscriptionDtos.PlanResponse> plans() {
+        return subscriptionPlanService.all().stream().map(SubscriptionDtos::toResponse).toList();
+    }
+
+    /**
+     * Self-serve tier change. A paid tier (monthly fee &gt; 0) requires a card on file, since the
+     * subscription is billed to it. Assigning the plan materializes its commission rate onto the vendor.
+     */
+    @PostMapping("/plan")
+    @IsVendor
+    public VendorResponse changePlan(@RequestParam com.myorderlynk.app.common.enums.VendorPlan plan) {
+        UUID vid = vendorId();
+        boolean paid = subscriptionPlanService.byPlan(plan).getMonthlyFee().signum() > 0;
+        if (paid && !paymentClient.billingStatus(vid).hasPaymentMethod()) {
+            throw ApiException.badRequest("Add a card on file before choosing a paid plan");
+        }
+        return subscriptionBillingService.assignPlan(vid, plan);
+    }
+
     // ---- Card-on-file billing (collects subscription / featured fees) ----
 
     /** Start saving a card: returns a SetupIntent client secret for Stripe Elements. */
@@ -419,6 +449,13 @@ public class VendorController {
     }
 
     // ---- Featured placement (paid marketplace promotion) ----
+
+    /** Current featured-placement price + duration, so the vendor sees the cost before buying. */
+    @GetMapping("/featured/pricing")
+    @IsVendor
+    public FeaturedPlacementDtos.PricingResponse featuredPricing() {
+        return featuredPlacementService.pricing();
+    }
 
     /** Purchase a featured-placement slot (price/duration from fee settings); extends the boost window. */
     @PostMapping("/featured/purchase")

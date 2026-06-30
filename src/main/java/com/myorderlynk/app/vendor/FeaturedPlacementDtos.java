@@ -10,6 +10,10 @@ public final class FeaturedPlacementDtos {
     private FeaturedPlacementDtos() {
     }
 
+    /** Current featured-placement price + duration, for the vendor's purchase prompt. */
+    public record PricingResponse(BigDecimal fee, int days, String currency) {
+    }
+
     public record PlacementResponse(
             UUID id,
             UUID vendorId,

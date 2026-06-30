@@ -97,6 +97,14 @@ public class FeaturedPlacementService {
         return placements.findByVendorIdOrderByStartsAtDesc(vendorId);
     }
 
+    /** Current price of one featured-placement slot, so the vendor sees the cost before buying. */
+    @Transactional(readOnly = true)
+    public FeaturedPlacementDtos.PricingResponse pricing() {
+        FeeSettings s = feeSettings.current();
+        return new FeaturedPlacementDtos.PricingResponse(
+                s.getFeaturedPlacementFee(), s.getFeaturedPlacementDays(), s.getFeaturedPlacementCurrency());
+    }
+
     private FeaturedPlacement require(UUID placementId) {
         return placements.findById(placementId)
                 .orElseThrow(() -> ApiException.notFound("Featured placement not found"));
