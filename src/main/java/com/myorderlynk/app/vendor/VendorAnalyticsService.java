@@ -76,8 +76,8 @@ public class VendorAnalyticsService {
                 .filter(o -> o.getFulfillmentStatus() == null || !TERMINAL_FULFILLMENT.contains(o.getFulfillmentStatus()))
                 .count();
         List<com.myorderlynk.app.booking.Booking> bs = loadBookings(vendorId, from, to);
-        BigDecimal gross = os.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add)
-                .add(bs.stream().map(com.myorderlynk.app.booking.Booking::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal gross = os.stream().map(o -> nz(o.getTotalAmount())).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(bs.stream().map(b -> nz(b.getTotalAmount())).reduce(BigDecimal.ZERO, BigDecimal::add));
 
         List<CustomerSummary> customers = aggregateCustomers(activities(os, bs));
         List<CustomerSummary> topCustomers = customers.stream()
