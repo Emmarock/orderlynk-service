@@ -227,10 +227,18 @@ vendor (an admin can still set a bespoke rate for a custom deal).
 Three high-margin levers, all priced by admin-editable knobs on `fee_settings` (§8).
 
 **Featured placement / promoted listings.** `Vendor.featuredUntil` marks a paid boost window;
-`ServiceDiscoveryService.marketplace()` ranks featured providers first, then by rating
-(`ProviderCard.featured` badges them). A purchase (`FeaturedPlacementService.purchase`) is priced from
+`Vendor.isFeatured()` is a pure time check (no flag to flip, no cron — the boost lapses automatically
+once the clock passes `featuredUntil`). A purchase (`FeaturedPlacementService.purchase`) is priced from
 `featuredPlacementFee`/`featuredPlacementDays` and **stacks** on any remaining window so paid time is
-never lost; each purchase is a `featured_placements` ledger row (`DUE` → `markPaid`/`waive`).
+never lost; each purchase is a `featured_placements` ledger row (`DUE` → `markPaid`/`waive`). Note the
+boost is not gated on collection — `purchase` sets `featuredUntil` regardless of whether the card charge
+succeeds, so a still-`DUE` placement already ranks the vendor.
+- **Scope — both marketplaces** (per PRD §21, "Paid placement for vendors/products"): featured vendors
+  rank first, then by rating, in *both* the services marketplace (`ServiceDiscoveryService.marketplace()`,
+  `ProviderCard.featured`) and the product-storefront marketplace (`VendorService.marketplace()` via
+  `MARKETPLACE_ORDER`, `VendorResponse.featured`). Both surfaces badge featured cards ("★ Featured").
+  (The product side originally sorted by rating only — `isFeatured()` was wired into it later so the boost
+  is not services-only.)
 - Vendor: `POST /api/vendor/featured/purchase`, `GET /api/vendor/featured`.
 - Admin: `/api/admin/promotions/featured` (`AdminPromotionController`) — list, per-vendor, mark-paid, waive.
 
@@ -369,7 +377,7 @@ card on file (Inc 3–4). No held vendor balances; no money-transmitter exposure
 | Subscription schema migration | `backend/src/main/resources/db/changelog/changes/031-vendor-plans.xml` |
 | Subscription tests | `backend/src/test/java/com/myorderlynk/app/vendor/SubscriptionBillingServiceTest.java` |
 | **Featured placement (ledger + purchase)** | `backend/src/main/java/com/myorderlynk/app/vendor/FeaturedPlacement.java` + `FeaturedPlacementService.java` |
-| **Featured ranking boost** | `backend/src/main/java/com/myorderlynk/app/booking/ServiceDiscoveryService.java` (`marketplace`) |
+| **Featured ranking boost** | services: `backend/.../booking/ServiceDiscoveryService.java` (`marketplace`); products: `backend/.../vendor/VendorService.java` (`MARKETPLACE_ORDER`) + frontend badge `frontend/src/features/marketplace/pages/Landing.tsx` |
 | **Admin promotions API** (`/api/admin/promotions`) | `backend/src/main/java/com/myorderlynk/app/vendor/AdminPromotionController.java` |
 | **Instant payout fee** | `backend/src/main/java/com/myorderlynk/app/finance/PayoutService.java` (`requestInstantPayout`) |
 | **Cargo handling fee** | `backend/src/main/java/com/myorderlynk/app/batch/ShipmentRequest.java` (`baseCharge`/`computeCharge`) + `ShipmentRequestService.java` |

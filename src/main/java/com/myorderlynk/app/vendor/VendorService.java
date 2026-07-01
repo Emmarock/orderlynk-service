@@ -349,7 +349,7 @@ public class VendorService {
             list = list.stream().filter(v -> vendorIdsInCategory.contains(v.getId())).toList();
         }
 
-        List<VendorResponse> all = list.stream().sorted(BY_RATING_DESC).map(vendorMapper::publicVendor).toList();
+        List<VendorResponse> all = list.stream().sorted(MARKETPLACE_ORDER).map(vendorMapper::publicVendor).toList();
         return PageResponse.of(all, page, size);
     }
 
@@ -359,6 +359,15 @@ public class VendorService {
                     Comparator.reverseOrder())
             .thenComparing(Vendor::getRatingCount, Comparator.reverseOrder())
             .thenComparing(Vendor::getBusinessName, String.CASE_INSENSITIVE_ORDER);
+
+    /**
+     * Marketplace ordering: paid featured (promoted) vendors rank first, then by rating — mirrors the
+     * services marketplace ({@code ServiceDiscoveryService}). Featured placement is scoped to
+     * vendors/products per the PRD, so the boost applies to the product storefront listing too.
+     */
+    private static final Comparator<Vendor> MARKETPLACE_ORDER = Comparator
+            .comparing(Vendor::isFeatured).reversed()
+            .thenComparing(BY_RATING_DESC);
 
     /** Build a trackable share link (PRD §15): base + slug + ?source=&campaign=. */
     @Transactional(readOnly = true)

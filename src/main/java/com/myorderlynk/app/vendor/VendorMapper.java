@@ -27,7 +27,7 @@ public class VendorMapper {
                 v.getPayoutInstitutionNumber(), v.getPayoutTransitNumber(), v.getPayoutIban(),
                 v.getPayoutBic(), v.getPayoutBankCode(),
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
-                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled());
+                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured());
     }
 
     /**
@@ -45,6 +45,6 @@ public class VendorMapper {
                 null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
-                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled());
+                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured());
     }
 }

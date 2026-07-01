@@ -139,7 +139,8 @@ public final class VendorDtos {
             boolean notifyByWhatsapp,
             boolean lowStockAlerts,
             boolean alternativePaymentsEnabled,
-            boolean chatOrderEnabled) {
+            boolean chatOrderEnabled,
+            boolean featured) {
     }
 
     /** Submitted by a customer to rate a vendor (1–5 stars). */
