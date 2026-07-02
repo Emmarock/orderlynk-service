@@ -4,6 +4,7 @@ import com.myorderlynk.app.booking.ServiceDtos;
 import com.myorderlynk.app.catalog.ProductDtos;
 
 import com.myorderlynk.app.common.enums.FulfillmentType;
+import com.myorderlynk.app.common.enums.VatCollector;
 import com.myorderlynk.app.common.enums.VendorPlan;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.validation.FieldMatch;
@@ -43,6 +44,8 @@ public final class VendorDtos {
             String country,
             String whatsappNumber,
             String instagramHandle,
+            /** Who collects VAT for this vendor; null defaults to VENDOR. */
+            VatCollector vatCollector,
             Set<FulfillmentType> fulfillmentTypes) {
     }
 
@@ -61,6 +64,8 @@ public final class VendorDtos {
             @Pattern(regexp = "^@?[A-Za-z0-9._]+$", message = "Invalid TikTok handle") String tiktokHandle,
             @Pattern(regexp = "^(https://)?(www\\.)?facebook\\.com/.+$", message = "Invalid Facebook URL") String facebookPage,
             String logoUrl,
+            /** Who collects VAT for this vendor; null defaults to VENDOR. */
+            VatCollector vatCollector,
             Set<FulfillmentType> fulfillmentTypes) {
     }
 
@@ -95,7 +100,9 @@ public final class VendorDtos {
             String payoutBankCode,
             Boolean notifyByEmail,
             Boolean notifyByWhatsapp,
-            Boolean lowStockAlerts) {
+            Boolean lowStockAlerts,
+            /** Who collects VAT for this vendor (VENDOR or PLATFORM). */
+            VatCollector vatCollector) {
     }
 
     public record VendorResponse(
@@ -122,6 +129,7 @@ public final class VendorDtos {
             int ratingCount,
             VendorPlan plan,
             BigDecimal commissionRate,
+            VatCollector vatCollector,
             String payoutMethod,
             String payoutAccountName,
             String payoutAccountNumber,

@@ -31,6 +31,7 @@ import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
+import com.myorderlynk.app.finance.VatLedgerService;
 import com.myorderlynk.app.security.JwtService;
 import com.myorderlynk.app.notification.EmailService;
 import com.myorderlynk.app.notification.WhatsAppService;
@@ -72,6 +73,7 @@ public class OrderService {
     private final ShippingService shippingService;
     private final PaymentClient paymentClient;
     private final PaymentServiceProperties paymentServiceProperties;
+    private final VatLedgerService vatLedger;
     private final String publicBaseUrl;
 
     public OrderService(OrderRepository orders, ProductRepository products, VendorRepository vendors,
@@ -80,6 +82,7 @@ public class OrderService {
                         EmailService emailService, AuthService authService, WhatsAppService whatsAppService,
                         OrderLinks orderLinks, JwtService jwtService, ShippingService shippingService,
                         PaymentClient paymentClient, PaymentServiceProperties paymentServiceProperties,
+                        VatLedgerService vatLedger,
                         @Value("${app.public-base-url:http://localhost:5173}") String publicBaseUrl) {
         this.orders = orders;
         this.products = products;
@@ -98,6 +101,7 @@ public class OrderService {
         this.shippingService = shippingService;
         this.paymentClient = paymentClient;
         this.paymentServiceProperties = paymentServiceProperties;
+        this.vatLedger = vatLedger;
         this.publicBaseUrl = publicBaseUrl;
     }
 
@@ -155,15 +159,16 @@ public class OrderService {
     @Transactional(readOnly = true)
     public QuoteResponse quote(QuoteRequest req) {
         Vendor vendor = approvedVendor(req.vendorId());
-        BigDecimal subtotal = subtotalOf(req.items(), vendor.getId());
+        Taxable taxable = taxableOf(req.items(), vendor.getId());
         Address destination = new Address(req.customerHouseNumber(), req.customerStreet(),
                 req.customerCity(), req.customerState(), req.customerPostcode(), req.customerCountry());
         ShippingRate rate = liveShippingRate(vendor, req.items(), req.fulfillmentType(), destination,
                 req.customerName(), req.customerPhone(), req.customerEmail(), req.shippingServiceToken());
         BigDecimal logisticsOverride = rate == null ? null : rate.amount();
         FeeCalculator.FeeBreakdown fb = feeCalculator.calculate(
-                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
-        return new QuoteResponse(fb.productSubtotal(), fb.logisticsFee(), fb.platformFee(),
+                taxable.subtotal(), taxable.vat(), vendor.getVatCollector(),
+                req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
+        return new QuoteResponse(fb.productSubtotal(), fb.vatAmount(), fb.logisticsFee(), fb.platformFee(),
                 fb.processingFee(), fb.totalAmount(), "CAD",
                 rate != null,
                 rate == null ? null : rate.carrier(),
@@ -203,6 +208,7 @@ public class OrderService {
         order.setFulfillmentStatus(FulfillmentStatus.ORDER_RECEIVED);
 
         BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal vatAmount = BigDecimal.ZERO;
         List<String> lowStockHits = new ArrayList<>();
         for (CartLine line : req.items()) {
             Product product = products.findById(line.productId())
@@ -228,6 +234,7 @@ public class OrderService {
             item.setLineTotal(lineTotal);
             order.addItem(item);
             subtotal = subtotal.add(lineTotal);
+            vatAmount = vatAmount.add(product.vatFor(line.quantity()));
 
             product.setQuantityAvailable(product.getQuantityAvailable() - line.quantity());
             products.save(product);
@@ -242,8 +249,12 @@ public class OrderService {
                 req.shippingServiceToken());
         BigDecimal logisticsOverride = shippingRate == null ? null : shippingRate.amount();
         FeeCalculator.FeeBreakdown fb = feeCalculator.calculate(
-                subtotal, req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
+                subtotal, vatAmount, vendor.getVatCollector(),
+                req.fulfillmentType(), req.paymentMethod(), vendor.getCommissionRate(), logisticsOverride);
         order.setProductSubtotal(fb.productSubtotal());
+        order.setVatAmount(fb.vatAmount());
+        // Snapshot who collects the VAT (only when there is VAT), so the order is self-describing.
+        order.setVatCollector(fb.vatAmount().signum() > 0 ? vendor.getVatCollector() : null);
         order.setLogisticsFee(fb.logisticsFee());
         order.setPlatformFee(fb.platformFee());
         order.setProcessingFee(fb.processingFee());
@@ -256,6 +267,9 @@ public class OrderService {
         orders.save(order);
         log.info("Order placed: {} vendor={} total={} {}", order.getPublicOrderId(), vendor.getId(),
                 order.getTotalAmount(), order.getCurrency());
+
+        // Record the VAT transaction in the ledger (no-op when the order carries no VAT).
+        vatLedger.recordForOrder(order);
 
         // Initiate the payment with the standalone payment-service. Best-effort and
         // flag-gated: a payment-service outage must not block order placement — the
@@ -498,8 +512,12 @@ public class OrderService {
         return vendor;
     }
 
-    private BigDecimal subtotalOf(List<CartLine> lines, UUID vendorId) {
+    /** Product subtotal and VAT for a set of cart lines, validating each belongs to the vendor. */
+    private record Taxable(BigDecimal subtotal, BigDecimal vat) {}
+
+    private Taxable taxableOf(List<CartLine> lines, UUID vendorId) {
         BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal vat = BigDecimal.ZERO;
         for (CartLine line : lines) {
             Product product = products.findById(line.productId())
                     .orElseThrow(() -> ApiException.badRequest("Product " + line.productId() + " not found"));
@@ -507,8 +525,9 @@ public class OrderService {
                 throw ApiException.badRequest("Product '" + product.getName() + "' is not available from this vendor");
             }
             subtotal = subtotal.add(product.effectivePrice().multiply(BigDecimal.valueOf(line.quantity())));
+            vat = vat.add(product.vatFor(line.quantity()));
         }
-        return subtotal;
+        return new Taxable(subtotal, vat);
     }
 
     private Order vendorOwnedOrder(UUID vendorId, UUID orderId) {

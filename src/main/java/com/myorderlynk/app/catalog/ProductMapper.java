@@ -10,7 +10,7 @@ public class ProductMapper {
         boolean lowStock = p.getLowStockThreshold() > 0 && p.getQuantityAvailable() <= p.getLowStockThreshold();
         return new ProductDtos.ProductResponse(
                 p.getId(), p.getVendorId(), p.getName(), p.getDescription(), p.getCategory(),
-                p.getPrice(), p.getDiscountPercent(), p.effectivePrice(), p.getCurrency(),
+                p.getPrice(), p.getDiscountPercent(), p.effectivePrice(), p.getVatRatePercent(), p.getCurrency(),
                 p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
                 p.getProductImageUrl(), new java.util.ArrayList<>(p.getImageUrls()), p.getVideoUrl(),
                 new java.util.ArrayList<>(p.getColors()), new java.util.ArrayList<>(p.getSizes()),

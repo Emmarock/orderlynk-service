@@ -98,3 +98,6 @@ databaseChangeLog:
   - include:
       file: changes/033-product-variants.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/034-vat.xml
+      relativeToChangelogFile: true

@@ -154,6 +154,7 @@ public class ProductService {
         if (req.category() != null) p.setCategory(req.category());
         p.setPrice(req.price());
         if (req.discountPercent() != null) p.setDiscountPercent(req.discountPercent());
+        if (req.vatRatePercent() != null) p.setVatRatePercent(req.vatRatePercent());
         if (req.currency() != null && !req.currency().isBlank()) p.setCurrency(req.currency());
         p.setQuantityAvailable(req.quantityAvailable());
         if (req.lowStockThreshold() != null) p.setLowStockThreshold(req.lowStockThreshold());

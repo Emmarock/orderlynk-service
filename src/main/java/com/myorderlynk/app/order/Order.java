@@ -6,6 +6,7 @@ import com.myorderlynk.app.common.enums.FulfillmentStatus;
 import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.common.enums.SourceChannel;
+import com.myorderlynk.app.common.enums.VatCollector;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.CascadeType;
@@ -77,6 +78,15 @@ public class Order extends BaseEntity {
 
     @Column(nullable = false)
     private BigDecimal logisticsFee = BigDecimal.ZERO;
+
+    /** VAT charged to the customer across all items (0 when no item is taxable). */
+    @Column(nullable = false)
+    private BigDecimal vatAmount = BigDecimal.ZERO;
+
+    /** Snapshot of who collects this order's VAT (the vendor's choice at order time); null when no VAT. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private VatCollector vatCollector;
 
     @Column(nullable = false)
     private BigDecimal platformFee = BigDecimal.ZERO;

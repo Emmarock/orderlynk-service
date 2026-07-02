@@ -5,6 +5,7 @@ import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.PaymentMethod;
 import com.myorderlynk.app.common.enums.PaymentStatus;
 import com.myorderlynk.app.common.enums.SourceChannel;
+import com.myorderlynk.app.common.enums.VatCollector;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -88,6 +89,7 @@ public final class OrderDtos {
 
     public record QuoteResponse(
             BigDecimal productSubtotal,
+            BigDecimal vatAmount,
             BigDecimal logisticsFee,
             BigDecimal platformFee,
             BigDecimal processingFee,
@@ -171,6 +173,8 @@ public final class OrderDtos {
             String vendorName,
             List<OrderItemResponse> items,
             BigDecimal productSubtotal,
+            BigDecimal vatAmount,
+            VatCollector vatCollector,
             BigDecimal logisticsFee,
             BigDecimal platformFee,
             BigDecimal processingFee,

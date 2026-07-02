@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- VAT: a vendor chooses (at registration) whether it or the platform collects VAT on behalf of
+         the government. Default VENDOR. VAT is configurable per product; charged VAT is snapshotted
+         onto the order and recorded in a dedicated ledger. -->
+
+    <changeSet id="034-vendor-vat-collector" author="babajide">
+        <addColumn tableName="vendors">
+            <column name="vat_collector" type="VARCHAR(16)" defaultValue="VENDOR">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="034-product-vat-rate" author="babajide">
+        <addColumn tableName="products">
+            <column name="vat_rate_percent" type="decimal(5,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="034-order-vat" author="babajide">
+        <addColumn tableName="orders">
+            <column name="vat_amount" type="decimal(19,2)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vat_collector" type="VARCHAR(16)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="034-create-vat-ledger" author="babajide">
+        <createTable tableName="vat_ledger_entries">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="order_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="public_order_id" type="VARCHAR(64)"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="collector" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="taxable_amount" type="decimal(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="amount" type="decimal(19,2)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(8)" defaultValue="CAD"><constraints nullable="false"/></column>
+            <column name="remitted" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="remitted_at" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="vat_ledger_entries" indexName="idx_vat_ledger_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+        <createIndex tableName="vat_ledger_entries" indexName="idx_vat_ledger_collector">
+            <column name="collector"/>
+        </createIndex>
+        <createIndex tableName="vat_ledger_entries" indexName="idx_vat_ledger_order">
+            <column name="order_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

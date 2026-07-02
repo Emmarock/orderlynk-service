@@ -3,6 +3,7 @@ import com.myorderlynk.app.common.Address;
 import com.myorderlynk.app.common.BaseEntity;
 
 import com.myorderlynk.app.common.enums.FulfillmentType;
+import com.myorderlynk.app.common.enums.VatCollector;
 import com.myorderlynk.app.common.enums.VendorPlan;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import jakarta.persistence.AttributeOverride;
@@ -116,6 +117,15 @@ public class Vendor extends BaseEntity {
      */
     @Column(nullable = false)
     private BigDecimal commissionRate = new BigDecimal("0.07");
+
+    /**
+     * Who collects VAT on behalf of the government for this vendor's sales. Chosen at registration;
+     * defaults to {@link VatCollector#VENDOR} (the vendor receives the VAT in its payout and remits
+     * it). {@link VatCollector#PLATFORM} means the platform holds and remits it. Editable in settings.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private VatCollector vatCollector = VatCollector.VENDOR;
 
     // ---- Payout / settlement details (Settings → Payment/payout information) ----
 

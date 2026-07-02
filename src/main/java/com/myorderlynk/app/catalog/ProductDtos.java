@@ -4,6 +4,7 @@ import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.shipping.DimensionUnit;
 import com.myorderlynk.app.shipping.WeightUnit;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -27,6 +28,7 @@ public final class ProductDtos {
             ProductCategory category,
             @NotNull @DecimalMin("0.0") BigDecimal price,
             @Min(0) @Max(100) Integer discountPercent,
+            @DecimalMin("0.0") @DecimalMax("100.0") BigDecimal vatRatePercent,
             String currency,
             @PositiveOrZero int quantityAvailable,
             @PositiveOrZero Integer lowStockThreshold,
@@ -68,6 +70,7 @@ public final class ProductDtos {
             BigDecimal price,
             int discountPercent,
             BigDecimal discountedPrice,
+            BigDecimal vatRatePercent,
             String currency,
             int quantityAvailable,
             int lowStockThreshold,

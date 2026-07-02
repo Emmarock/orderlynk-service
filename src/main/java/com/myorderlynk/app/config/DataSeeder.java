@@ -137,6 +137,7 @@ public class DataSeeder implements CommandLineRunner {
                 "48.00", 25, FulfillmentType.DOMESTIC_SHIPPING);
         ankara.setColors(List.of("Red", "Royal Blue", "Emerald", "Black"));
         ankara.setSizes(List.of("S", "M", "L", "XL"));
+        ankara.setVatRatePercent(new BigDecimal("5.00")); // demo VAT — collected by the vendor (default)
         products.save(ankara);
 
         // ----- Vendor 3: Lagos Pantry (Calgary), pending approval -----

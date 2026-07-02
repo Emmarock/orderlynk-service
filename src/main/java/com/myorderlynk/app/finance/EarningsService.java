@@ -62,9 +62,15 @@ public class EarningsService {
 
         List<OrderEarning> lines = new ArrayList<>(os.size() + bs.size());
         for (Order o : os) {
-            BigDecimal orderCommission = zeroIfNull(o.getProductSubtotal()).subtract(zeroIfNull(o.getVendorPayable()));
+            // VAT the vendor collects is a pass-through liability (remitted to government), not
+            // earnings — exclude it so commission and net reflect what the vendor actually earns.
+            // (vendorPayable already includes this VAT, since it is paid out to the vendor.)
+            BigDecimal vendorVat = o.getVatCollector() == com.myorderlynk.app.common.enums.VatCollector.VENDOR
+                    ? zeroIfNull(o.getVatAmount()) : BigDecimal.ZERO;
+            BigDecimal orderCommission = zeroIfNull(o.getProductSubtotal())
+                    .subtract(zeroIfNull(o.getVendorPayable()).subtract(vendorVat));
             BigDecimal refund = zeroIfNull(o.getRefundedAmount());
-            BigDecimal net = zeroIfNull(o.getVendorPayable()).subtract(refund);
+            BigDecimal net = zeroIfNull(o.getVendorPayable()).subtract(vendorVat).subtract(refund);
             lines.add(new OrderEarning(o.getPublicOrderId(), o.getCreatedAt(), o.getPaymentStatus(),
                     scale(o.getProductSubtotal()), scale(orderCommission), scale(refund), scale(net)));
 

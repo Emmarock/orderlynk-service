@@ -89,6 +89,7 @@ public class VendorService {
         vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
+        if (req.vatCollector() != null) vendor.setVatCollector(req.vatCollector());
         if (req.fulfillmentTypes() != null) {
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
         }
@@ -123,6 +124,7 @@ public class VendorService {
         vendor.setTiktokHandle(req.tiktokHandle());
         vendor.setFacebookPage(req.facebookPage());
         vendor.setLogoUrl(req.logoUrl());
+        if (req.vatCollector() != null) vendor.setVatCollector(req.vatCollector());
         if (req.fulfillmentTypes() != null) {
             vendor.getFulfillmentTypes().addAll(req.fulfillmentTypes());
         }
@@ -186,6 +188,8 @@ public class VendorService {
         if (req.payoutIban() != null) vendor.setPayoutIban(normalize(req.payoutIban()));
         if (req.payoutBic() != null) vendor.setPayoutBic(normalize(req.payoutBic()));
         if (req.payoutBankCode() != null) vendor.setPayoutBankCode(emptyToNull(req.payoutBankCode()));
+        // VAT collector choice
+        if (req.vatCollector() != null) vendor.setVatCollector(req.vatCollector());
         // Notification preferences
         if (req.notifyByEmail() != null) vendor.setNotifyByEmail(req.notifyByEmail());
         if (req.notifyByWhatsapp() != null) vendor.setNotifyByWhatsapp(req.notifyByWhatsapp());

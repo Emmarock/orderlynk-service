@@ -55,6 +55,14 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private String currency = "CAD";
 
+    /**
+     * VAT rate for this product as a percentage (0–100) of its {@link #effectivePrice()}; 0 = no VAT.
+     * Set per product by the vendor. Whether the collected VAT is remitted by the vendor or the
+     * platform is governed by the vendor's {@code vatCollector} choice.
+     */
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal vatRatePercent = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private int quantityAvailable = 0;
 
@@ -145,5 +153,15 @@ public class Product extends BaseEntity {
         }
         BigDecimal multiplier = BigDecimal.valueOf(100 - discountPercent).divide(BigDecimal.valueOf(100));
         return price.multiply(multiplier).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** VAT charged on {@code quantity} units at this product's rate, on the discounted price (2dp). */
+    public BigDecimal vatFor(int quantity) {
+        if (vatRatePercent == null || vatRatePercent.signum() <= 0 || quantity <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal lineTotal = effectivePrice().multiply(BigDecimal.valueOf(quantity));
+        return lineTotal.multiply(vatRatePercent)
+                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
     }
 }
