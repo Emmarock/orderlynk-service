@@ -380,7 +380,8 @@ public class ShippingService {
     private static List<CartLine> cartLines(List<OrderItem> items) {
         List<CartLine> lines = new ArrayList<>();
         for (OrderItem i : items) {
-            lines.add(new CartLine(i.getProductId(), i.getQuantity()));
+            // Variant selection doesn't affect parcel weight/dimensions, so it's irrelevant to rating.
+            lines.add(new CartLine(i.getProductId(), i.getQuantity(), null, null));
         }
         return lines;
     }

@@ -22,7 +22,8 @@ public class OrderMapper {
 
     public OrderDtos.OrderItemResponse orderItem(OrderItem i) {
         return new OrderDtos.OrderItemResponse(
-                i.getProductId(), i.getProductNameSnapshot(), i.getQuantity(), i.getUnitPrice(), i.getLineTotal());
+                i.getProductId(), i.getProductNameSnapshot(), i.getSelectedColor(), i.getSelectedSize(),
+                i.getQuantity(), i.getUnitPrice(), i.getLineTotal());
     }
 
     /** Order view without payment instructions or track token — for vendor/admin consoles. */

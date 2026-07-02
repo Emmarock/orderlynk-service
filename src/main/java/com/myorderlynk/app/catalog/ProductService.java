@@ -158,6 +158,8 @@ public class ProductService {
         p.setQuantityAvailable(req.quantityAvailable());
         if (req.lowStockThreshold() != null) p.setLowStockThreshold(req.lowStockThreshold());
         applyMedia(p, req);
+        p.setColors(normalizeOptions(req.colors()));
+        p.setSizes(normalizeOptions(req.sizes()));
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
         p.setWeight(req.weight());
@@ -196,6 +198,29 @@ public class ProductService {
         p.setProductImageUrl(images.get(0));
         String video = req.videoUrl();
         p.setVideoUrl(video != null && !video.isBlank() ? video.trim() : null);
+    }
+
+    /**
+     * Clean a list of variant option labels (colours or sizes): trim, drop blanks, cap each label's
+     * length, and de-duplicate case-insensitively while preserving the vendor's ordering and the
+     * first-seen casing. Null/absent input yields an empty list (product has no such option).
+     */
+    private static java.util.List<String> normalizeOptions(java.util.List<String> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        java.util.List<String> cleaned = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String value : raw) {
+            if (value == null) continue;
+            String trimmed = value.trim();
+            if (trimmed.isEmpty()) continue;
+            if (trimmed.length() > 64) trimmed = trimmed.substring(0, 64).trim();
+            if (seen.add(trimmed.toLowerCase())) {
+                cleaned.add(trimmed);
+            }
+        }
+        return cleaned;
     }
 
     /**

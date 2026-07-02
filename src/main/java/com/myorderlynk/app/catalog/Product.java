@@ -77,6 +77,29 @@ public class Product extends BaseEntity {
     @Column(length = 1024)
     private String videoUrl;
 
+    /**
+     * Selectable colour options (e.g. for clothing). Empty means the product has no colour choice.
+     * When non-empty, the customer must pick one of these at order time; the pick is snapshotted
+     * onto the {@code OrderItem}. Ordered for stable display.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "product_colors", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "color", length = 64)
+    @BatchSize(size = 50)
+    private List<String> colors = new ArrayList<>();
+
+    /**
+     * Selectable size options (e.g. S/M/L or numeric sizes). Empty means the product has no size
+     * choice. When non-empty, the customer must pick one of these at order time.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "product_sizes", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "size", length = 64)
+    @BatchSize(size = 50)
+    private List<String> sizes = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FulfillmentType fulfillmentType = FulfillmentType.LOCAL_PICKUP;

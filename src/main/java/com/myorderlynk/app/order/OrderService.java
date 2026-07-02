@@ -213,12 +213,16 @@ public class OrderService {
             if (product.getQuantityAvailable() < line.quantity()) {
                 throw ApiException.badRequest("Insufficient stock for '" + product.getName() + "'");
             }
+            String selectedColor = resolveOption("colour", product.getName(), product.getColors(), line.selectedColor());
+            String selectedSize = resolveOption("size", product.getName(), product.getSizes(), line.selectedSize());
             BigDecimal unitPrice = product.effectivePrice();
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(line.quantity()));
             OrderItem item = new OrderItem();
             item.setProductId(product.getId());
             item.setVendorId(vendor.getId());
             item.setProductNameSnapshot(product.getName());
+            item.setSelectedColor(selectedColor);
+            item.setSelectedSize(selectedSize);
             item.setQuantity(line.quantity());
             item.setUnitPrice(unitPrice);
             item.setLineTotal(lineTotal);
@@ -463,6 +467,27 @@ public class OrderService {
         }
         return shippingService.priceForCheckout(vendor, items, destination, name, phone, email, serviceToken)
                 .orElse(null);
+    }
+
+    /**
+     * Validate a customer's chosen variant option against what the product actually offers, and
+     * return the canonical value to snapshot on the order item. When the product defines options,
+     * the choice is required and must match one (case-insensitively). When it defines none, any
+     * stray selection is ignored (returns null) so the item carries no variant.
+     */
+    private static String resolveOption(String label, String productName, List<String> options, String selected) {
+        if (options == null || options.isEmpty()) {
+            return null;
+        }
+        String chosen = selected == null ? "" : selected.trim();
+        if (chosen.isEmpty()) {
+            throw ApiException.badRequest("Please choose a " + label + " for '" + productName + "'");
+        }
+        return options.stream()
+                .filter(o -> o.equalsIgnoreCase(chosen))
+                .findFirst()
+                .orElseThrow(() -> ApiException.badRequest(
+                        "'" + chosen + "' is not an available " + label + " for '" + productName + "'"));
     }
 
     private Vendor approvedVendor(UUID vendorId) {

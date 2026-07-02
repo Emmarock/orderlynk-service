@@ -35,6 +35,14 @@ public class OrderItem extends BaseEntity {
     @Column(nullable = false)
     private String productNameSnapshot;
 
+    /** Snapshot of the colour the customer selected, or null if the product has no colour option. */
+    @Column(length = 64)
+    private String selectedColor;
+
+    /** Snapshot of the size the customer selected, or null if the product has no size option. */
+    @Column(length = 64)
+    private String selectedSize;
+
     @Column(nullable = false)
     private int quantity;
 

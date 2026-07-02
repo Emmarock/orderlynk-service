@@ -95,3 +95,6 @@ databaseChangeLog:
   - include:
       file: changes/032-phase3-value-added.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/033-product-variants.xml
+      relativeToChangelogFile: true

@@ -24,7 +24,11 @@ public final class OrderDtos {
 
     public record CartLine(
             @NotNull UUID productId,
-            @Positive int quantity) {
+            @Positive int quantity,
+            /** Chosen colour; required when the product defines colour options, else ignored. */
+            String selectedColor,
+            /** Chosen size; required when the product defines size options, else ignored. */
+            String selectedSize) {
     }
 
     /** Public checkout payload (PRD §8 customer journey, §14 Customer Order). */
@@ -123,6 +127,8 @@ public final class OrderDtos {
     public record OrderItemResponse(
             UUID productId,
             String productName,
+            String selectedColor,
+            String selectedSize,
             int quantity,
             BigDecimal unitPrice,
             BigDecimal lineTotal) {

@@ -132,6 +132,13 @@ public class DataSeeder implements CommandLineRunner {
         product(beauty.getId(), "Hibiscus Hair Oil", ProductCategory.BEAUTY,
                 "24.50", 20, FulfillmentType.IMPORT_BATCH);
 
+        // A clothing item to demo variant selection (colour + size) end-to-end.
+        Product ankara = product(beauty.getId(), "Ankara Print Dress", ProductCategory.FASHION,
+                "48.00", 25, FulfillmentType.DOMESTIC_SHIPPING);
+        ankara.setColors(List.of("Red", "Royal Blue", "Emerald", "Black"));
+        ankara.setSizes(List.of("S", "M", "L", "XL"));
+        products.save(ankara);
+
         // ----- Vendor 3: Lagos Pantry (Calgary), pending approval -----
         User pending = createUser("pending@orderlynk.app", "vendor12345", "Bola Hassan", UserRole.VENDOR, false, null);
         Vendor lagos = new Vendor();
@@ -151,7 +158,7 @@ public class DataSeeder implements CommandLineRunner {
         // ----- A demo order against Mama T Foods -----
         CheckoutRequest demo = new CheckoutRequest(
                 mamaTFoods.getId(),
-                List.of(new CartLine(jollof.getId(), 2)),
+                List.of(new CartLine(jollof.getId(), 2, null, null)),
                 "Ada Customer", "+12045550000", "customer@orderlynk.app",
                 "12", "Portage Avenue", "Winnipeg", "MB", "R3C 0B1", "Canada",
                 FulfillmentType.LOCAL_PICKUP, PaymentMethod.INTERAC_ETRANSFER,
