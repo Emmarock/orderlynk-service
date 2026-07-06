@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Team members / staff: a service provider (e.g. a barbershop) has multiple workers who
+         render the same services. Customers can book a specific worker, each with their own
+         calendar. Availability rules and blocked slots gain an optional staff_id (NULL = shop-wide,
+         backward-compatible); bookings capture the assigned worker. -->
+
+    <changeSet id="035-create-service-staff" author="babajide">
+        <createTable tableName="service_staff">
+            <column name="id" type="VARCHAR(36)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="vendor_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"/>
+            <column name="bio" type="VARCHAR(2000)"/>
+            <column name="photo_url" type="VARCHAR(1024)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="accepts_bookings" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="display_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="service_staff" indexName="idx_staff_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Which services a worker offers. No rows for a worker = offers all of the shop's services. -->
+    <changeSet id="035-create-service-staff-offerings" author="babajide">
+        <createTable tableName="service_staff_offerings">
+            <column name="staff_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="service_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="service_staff_offerings" indexName="idx_staff_offering_staff">
+            <column name="staff_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="035-availability-rule-staff" author="babajide">
+        <addColumn tableName="availability_rules">
+            <column name="staff_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <createIndex tableName="availability_rules" indexName="idx_availrule_staff">
+            <column name="staff_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="035-blocked-slot-staff" author="babajide">
+        <addColumn tableName="blocked_slots">
+            <column name="staff_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <createIndex tableName="blocked_slots" indexName="idx_blocked_staff">
+            <column name="staff_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="035-booking-staff" author="babajide">
+        <addColumn tableName="bookings">
+            <column name="staff_id" type="VARCHAR(36)"/>
+            <column name="staff_name_snapshot" type="VARCHAR(255)"/>
+        </addColumn>
+        <createIndex tableName="bookings" indexName="idx_booking_staff">
+            <column name="staff_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

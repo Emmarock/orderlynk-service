@@ -54,14 +54,21 @@ public class BookingMapper {
                 s.getTaxRate(), s.isActive(), variantResponses, addOnResponses);
     }
 
+    public ServiceDtos.StaffResponse staff(StaffMember s) {
+        return new ServiceDtos.StaffResponse(
+                s.getId(), s.getVendorId(), s.getName(), s.getTitle(), s.getBio(), s.getPhotoUrl(),
+                s.isActive(), s.isAcceptsBookings(), s.getDisplayOrder(),
+                List.copyOf(s.getServiceIds()));
+    }
+
     public AvailabilityRuleResponse rule(AvailabilityRule r) {
-        return new AvailabilityRuleResponse(r.getId(), r.getVendorId(), r.getDayOfWeek(),
+        return new AvailabilityRuleResponse(r.getId(), r.getVendorId(), r.getStaffId(), r.getDayOfWeek(),
                 r.getStartTime(), r.getEndTime(), r.getCapacity(), r.getBufferMinutes(),
                 r.getLeadTimeHours(), r.isActive());
     }
 
     public BlockedSlotResponse blocked(BlockedSlot b) {
-        return new BlockedSlotResponse(b.getId(), b.getVendorId(), b.getStartDatetime(),
+        return new BlockedSlotResponse(b.getId(), b.getVendorId(), b.getStaffId(), b.getStartDatetime(),
                 b.getEndDatetime(), b.getReason());
     }
 
@@ -95,7 +102,8 @@ public class BookingMapper {
                 b.getId(), b.getPublicBookingId(), b.getCustomerUserId(), b.getCustomerName(),
                 b.getCustomerPhone(), b.getCustomerEmail(), b.getVendorId(), vendorName,
                 b.getServiceId(), b.getServiceNameSnapshot(),
-                b.getServiceVariantId(), b.getVariantNameSnapshot(), addOns,
+                b.getServiceVariantId(), b.getVariantNameSnapshot(),
+                b.getStaffId(), b.getStaffNameSnapshot(), addOns,
                 b.getAppointmentStart(), b.getAppointmentEnd(), b.getStatus(), b.getApprovalMode(),
                 b.getLocationType(), a.getHouseNumber(), a.getStreet(), a.getCity(), a.getState(),
                 a.getPostcode(), a.getCountry(),

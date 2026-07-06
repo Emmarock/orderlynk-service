@@ -10,6 +10,8 @@ import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
+import com.myorderlynk.app.booking.ServiceDtos.StaffRequest;
+import com.myorderlynk.app.booking.ServiceDtos.StaffResponse;
 import com.myorderlynk.app.common.PageRequests;
 import com.myorderlynk.app.common.PageResponse;
 import com.myorderlynk.app.exception.ApiException;
@@ -22,7 +24,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -40,19 +44,21 @@ public class ServiceCatalogService {
     private final ServiceVariantRepository variants;
     private final AvailabilityRuleRepository rules;
     private final BlockedSlotRepository blocked;
+    private final StaffMemberRepository staff;
     private final BookingMapper mapper;
     private final S3StorageService storage;
 
     public ServiceCatalogService(ServiceProviderProfileRepository profiles, ServiceOfferingRepository services,
                                  ServiceAddOnRepository addOns, ServiceVariantRepository variants,
-                                 AvailabilityRuleRepository rules,
-                                 BlockedSlotRepository blocked, BookingMapper mapper, S3StorageService storage) {
+                                 AvailabilityRuleRepository rules, BlockedSlotRepository blocked,
+                                 StaffMemberRepository staff, BookingMapper mapper, S3StorageService storage) {
         this.profiles = profiles;
         this.services = services;
         this.addOns = addOns;
         this.variants = variants;
         this.rules = rules;
         this.blocked = blocked;
+        this.staff = staff;
         this.mapper = mapper;
         this.storage = storage;
     }
@@ -306,9 +312,13 @@ public class ServiceCatalogService {
 
     // ---- Availability rules ----
 
+    /** Working hours for the shop (staffId null) or one worker (staffId set). */
     @Transactional(readOnly = true)
-    public List<AvailabilityRuleResponse> listRules(UUID vendorId) {
-        return rules.findByVendorId(vendorId).stream().map(mapper::rule).toList();
+    public List<AvailabilityRuleResponse> listRules(UUID vendorId, UUID staffId) {
+        List<AvailabilityRule> found = staffId == null
+                ? rules.findByVendorIdAndStaffIdIsNull(vendorId)
+                : rules.findByVendorIdAndStaffId(vendorId, staffId);
+        return found.stream().map(mapper::rule).toList();
     }
 
     @Transactional
@@ -316,8 +326,10 @@ public class ServiceCatalogService {
         if (!req.endTime().isAfter(req.startTime())) {
             throw ApiException.badRequest("End time must be after start time");
         }
+        requireOwnedStaff(vendorId, req.staffId());
         AvailabilityRule r = new AvailabilityRule();
         r.setVendorId(vendorId);
+        r.setStaffId(req.staffId());
         applyRule(r, req);
         return mapper.rule(rules.save(r));
     }
@@ -327,7 +339,9 @@ public class ServiceCatalogService {
         if (!req.endTime().isAfter(req.startTime())) {
             throw ApiException.badRequest("End time must be after start time");
         }
+        requireOwnedStaff(vendorId, req.staffId());
         AvailabilityRule r = ownedRule(vendorId, ruleId);
+        r.setStaffId(req.staffId());
         applyRule(r, req);
         return mapper.rule(rules.save(r));
     }
@@ -358,9 +372,13 @@ public class ServiceCatalogService {
 
     // ---- Blocked slots ----
 
+    /** Blocked periods for the shop (staffId null) or one worker (staffId set). */
     @Transactional(readOnly = true)
-    public List<BlockedSlotResponse> listBlocked(UUID vendorId) {
-        return blocked.findByVendorId(vendorId).stream().map(mapper::blocked).toList();
+    public List<BlockedSlotResponse> listBlocked(UUID vendorId, UUID staffId) {
+        List<BlockedSlot> found = staffId == null
+                ? blocked.findByVendorIdAndStaffIdIsNull(vendorId)
+                : blocked.findByVendorIdAndStaffId(vendorId, staffId);
+        return found.stream().map(mapper::blocked).toList();
     }
 
     @Transactional
@@ -368,8 +386,10 @@ public class ServiceCatalogService {
         if (!req.endDatetime().isAfter(req.startDatetime())) {
             throw ApiException.badRequest("Block end must be after start");
         }
+        requireOwnedStaff(vendorId, req.staffId());
         BlockedSlot b = new BlockedSlot();
         b.setVendorId(vendorId);
+        b.setStaffId(req.staffId());
         b.setStartDatetime(req.startDatetime());
         b.setEndDatetime(req.endDatetime());
         b.setReason(req.reason());
@@ -384,5 +404,103 @@ public class ServiceCatalogService {
             throw ApiException.forbidden("This blocked period belongs to another vendor");
         }
         blocked.delete(b);
+    }
+
+    // ---- Team members (staff) ----
+
+    @Transactional(readOnly = true)
+    public List<StaffResponse> listStaff(UUID vendorId) {
+        return staff.findByVendorIdOrderByDisplayOrderAscCreatedAtAsc(vendorId).stream()
+                .map(mapper::staff).toList();
+    }
+
+    @Transactional
+    public StaffResponse createStaff(UUID vendorId, StaffRequest req) {
+        profileEntity(vendorId); // ensure the Services module / profile exists
+        StaffMember s = new StaffMember();
+        s.setVendorId(vendorId);
+        applyStaff(vendorId, s, req);
+        StaffMember saved = staff.save(s);
+        log.info("Team member created: {} '{}' for vendor {}", saved.getId(), saved.getName(), vendorId);
+        return mapper.staff(saved);
+    }
+
+    @Transactional
+    public StaffResponse updateStaff(UUID vendorId, UUID staffId, StaffRequest req) {
+        StaffMember s = ownedStaff(vendorId, staffId);
+        applyStaff(vendorId, s, req);
+        return mapper.staff(staff.save(s));
+    }
+
+    @Transactional
+    public StaffResponse toggleStaff(UUID vendorId, UUID staffId, boolean active) {
+        StaffMember s = ownedStaff(vendorId, staffId);
+        s.setActive(active);
+        return mapper.staff(staff.save(s));
+    }
+
+    @Transactional
+    public void deleteStaff(UUID vendorId, UUID staffId) {
+        StaffMember s = ownedStaff(vendorId, staffId);
+        // Remove the worker's personal calendar; their past bookings keep the name snapshot.
+        rules.deleteByStaffId(staffId);
+        blocked.deleteByStaffId(staffId);
+        staff.delete(s);
+        log.info("Team member deleted: {} for vendor {}", staffId, vendorId);
+    }
+
+    /** Store a team member's photo in S3 and return its public URL (mirrors service image upload). */
+    public String uploadStaffImage(UUID vendorId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("No image file was provided");
+        }
+        String contentType = file.getContentType();
+        String ext = ImageUploads.extensionOrThrow(contentType);
+        String key = "staff/" + vendorId + "/" + UUID.randomUUID() + "." + ext;
+        try {
+            String url = storage.uploadPublic(file.getBytes(), contentType, key);
+            log.info("Team member photo uploaded for vendor {} -> {}", vendorId, url);
+            return url;
+        } catch (IOException e) {
+            log.error("Failed to read uploaded team member photo for vendor {}", vendorId, e);
+            throw ApiException.badRequest("Could not read the uploaded image");
+        }
+    }
+
+    private void applyStaff(UUID vendorId, StaffMember s, StaffRequest req) {
+        s.setName(req.name());
+        s.setTitle(req.title());
+        s.setBio(req.bio());
+        s.setPhotoUrl(req.photoUrl());
+        if (req.active() != null) s.setActive(req.active());
+        if (req.acceptsBookings() != null) s.setAcceptsBookings(req.acceptsBookings());
+        if (req.displayOrder() != null) s.setDisplayOrder(req.displayOrder());
+        // Keep only services that belong to this vendor; empty = offers all services.
+        Set<UUID> offerings = new HashSet<>();
+        if (req.serviceIds() != null) {
+            for (UUID serviceId : req.serviceIds()) {
+                services.findById(serviceId)
+                        .filter(svc -> svc.getVendorId().equals(vendorId))
+                        .ifPresent(svc -> offerings.add(serviceId));
+            }
+        }
+        s.getServiceIds().clear();
+        s.getServiceIds().addAll(offerings);
+    }
+
+    private StaffMember ownedStaff(UUID vendorId, UUID staffId) {
+        StaffMember s = staff.findById(staffId)
+                .orElseThrow(() -> ApiException.notFound("Team member not found"));
+        if (!s.getVendorId().equals(vendorId)) {
+            throw ApiException.forbidden("This team member belongs to another vendor");
+        }
+        return s;
+    }
+
+    /** When a rule/block targets a worker, ensure that worker belongs to this vendor. */
+    private void requireOwnedStaff(UUID vendorId, UUID staffId) {
+        if (staffId != null) {
+            ownedStaff(vendorId, staffId);
+        }
     }
 }

@@ -31,6 +31,12 @@ public class AvailabilityRule extends BaseEntity {
     @Column(nullable = false)
     private UUID vendorId;
 
+    /**
+     * The team member these hours belong to, or {@code null} for shop-wide hours. Shop-wide rules
+     * apply when no worker has personal hours; a worker's own rules override the shop's for them.
+     */
+    private UUID staffId;
+
     /** MONDAY … SUNDAY. Persisted as the enum name (e.g. "MONDAY"), not its ordinal. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)

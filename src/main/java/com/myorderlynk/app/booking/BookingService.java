@@ -53,6 +53,7 @@ public class BookingService {
     private final ServiceAddOnRepository addOns;
     private final ServiceVariantRepository variants;
     private final ServiceProviderProfileRepository profiles;
+    private final StaffMemberRepository staff;
     private final BookingPaymentRepository payments;
     private final BookingReviewRepository reviews;
     private final VendorRepository vendors;
@@ -66,7 +67,7 @@ public class BookingService {
 
     public BookingService(BookingRepository bookings, ServiceOfferingRepository services,
                           ServiceAddOnRepository addOns, ServiceVariantRepository variants,
-                          ServiceProviderProfileRepository profiles,
+                          ServiceProviderProfileRepository profiles, StaffMemberRepository staff,
                           BookingPaymentRepository payments, BookingReviewRepository reviews,
                           VendorRepository vendors, AvailabilityService availability,
                           BookingNotificationService notifications, AuditService audit, BookingMapper mapper,
@@ -76,6 +77,7 @@ public class BookingService {
         this.addOns = addOns;
         this.variants = variants;
         this.profiles = profiles;
+        this.staff = staff;
         this.payments = payments;
         this.reviews = reviews;
         this.vendors = vendors;
@@ -100,6 +102,16 @@ public class BookingService {
                 .orElseThrow(() -> ApiException.notFound("Service not found"));
         if (!service.getVendorId().equals(vendor.getId()) || !service.isActive()) {
             throw ApiException.badRequest("That service is not available from this provider");
+        }
+
+        // Resolve the chosen team member, if any. An explicit staffId must belong to this vendor, be
+        // bookable and offer this service; "any available" (null) is auto-assigned below, once the
+        // exact appointment window is known, to the first free worker.
+        List<StaffMember> bookableStaff = availability.bookableStaffFor(vendor.getId(), service.getId());
+        StaffMember chosenStaff = null;
+        if (req.staffId() != null) {
+            chosenStaff = bookableStaff.stream().filter(s -> s.getId().equals(req.staffId())).findFirst()
+                    .orElseThrow(() -> ApiException.badRequest("That team member isn't available for this service"));
         }
 
         UUID buyerId = customerUserId != null ? customerUserId
@@ -185,9 +197,20 @@ public class BookingService {
 
         Instant start = req.appointmentStart();
         Instant end = start.plus(Duration.ofMinutes(durationMinutes));
-        availability.assertBookable(profile, vendor.getId(), start, end);
+        // "Any available": pick the first worker free for the whole window when the shop has a team.
+        if (chosenStaff == null && !bookableStaff.isEmpty()) {
+            chosenStaff = availability.firstAvailableStaff(profile, vendor.getId(), bookableStaff, start, end)
+                    .orElseThrow(() -> ApiException.badRequest(
+                            "No team member is available at that time — please pick another slot"));
+        }
+        UUID assignedStaffId = chosenStaff == null ? null : chosenStaff.getId();
+        availability.assertBookable(profile, vendor.getId(), assignedStaffId, start, end);
         booking.setAppointmentStart(start);
         booking.setAppointmentEnd(end);
+        if (chosenStaff != null) {
+            booking.setStaffId(chosenStaff.getId());
+            booking.setStaffNameSnapshot(chosenStaff.getName());
+        }
 
         BigDecimal tax = price.multiply(service.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = price.add(travelFee).add(tax);
@@ -307,7 +330,7 @@ public class BookingService {
                 .orElseThrow(() -> ApiException.badRequest("Availability is not configured"));
         long minutes = Duration.between(b.getAppointmentStart(), b.getAppointmentEnd()).toMinutes();
         Instant newEnd = newStart.plus(Duration.ofMinutes(minutes));
-        availability.assertBookable(profile, vendorId, newStart, newEnd);
+        availability.assertBookable(profile, vendorId, b.getStaffId(), newStart, newEnd);
         b.setAppointmentStart(newStart);
         b.setAppointmentEnd(newEnd);
         b.setLastReminderAt(null);

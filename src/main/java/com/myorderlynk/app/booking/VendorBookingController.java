@@ -17,6 +17,8 @@ import com.myorderlynk.app.booking.ServiceDtos.ImageUploadResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileRequest;
 import com.myorderlynk.app.booking.ServiceDtos.ProfileResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceRequest;
+import com.myorderlynk.app.booking.ServiceDtos.StaffRequest;
+import com.myorderlynk.app.booking.ServiceDtos.StaffResponse;
 import com.myorderlynk.app.booking.ServiceDtos.VariantRequest;
 import com.myorderlynk.app.booking.ServiceDtos.VariantResponse;
 import com.myorderlynk.app.booking.ServiceDtos.ServiceResponse;
@@ -158,8 +160,8 @@ public class VendorBookingController {
     // ---- Availability ----
 
     @GetMapping("/availability")
-    public List<AvailabilityRuleResponse> rules() {
-        return catalog.listRules(vendorId());
+    public List<AvailabilityRuleResponse> rules(@RequestParam(required = false) UUID staffId) {
+        return catalog.listRules(vendorId(), staffId);
     }
 
     @PostMapping("/availability")
@@ -180,8 +182,8 @@ public class VendorBookingController {
     // ---- Blocked slots ----
 
     @GetMapping("/blocked-slots")
-    public List<BlockedSlotResponse> blocked() {
-        return catalog.listBlocked(vendorId());
+    public List<BlockedSlotResponse> blocked(@RequestParam(required = false) UUID staffId) {
+        return catalog.listBlocked(vendorId(), staffId);
     }
 
     @PostMapping("/blocked-slots")
@@ -192,6 +194,39 @@ public class VendorBookingController {
     @DeleteMapping("/blocked-slots/{id}")
     public void deleteBlocked(@PathVariable UUID id) {
         catalog.deleteBlocked(vendorId(), id);
+    }
+
+    // ---- Team members (staff) ----
+
+    @GetMapping("/staff")
+    public List<StaffResponse> staff() {
+        return catalog.listStaff(vendorId());
+    }
+
+    @PostMapping("/staff")
+    public StaffResponse createStaff(@Valid @RequestBody StaffRequest req) {
+        return catalog.createStaff(vendorId(), req);
+    }
+
+    @PutMapping("/staff/{id}")
+    public StaffResponse updateStaff(@PathVariable UUID id, @Valid @RequestBody StaffRequest req) {
+        return catalog.updateStaff(vendorId(), id, req);
+    }
+
+    @PatchMapping("/staff/{id}/active")
+    public StaffResponse toggleStaff(@PathVariable UUID id, @RequestParam boolean active) {
+        return catalog.toggleStaff(vendorId(), id, active);
+    }
+
+    @DeleteMapping("/staff/{id}")
+    public void deleteStaff(@PathVariable UUID id) {
+        catalog.deleteStaff(vendorId(), id);
+    }
+
+    /** Upload a team member's photo; returns the public URL to store as photoUrl. */
+    @PostMapping(value = "/staff/image", consumes = "multipart/form-data")
+    public ImageUploadResponse uploadStaffImage(@RequestPart("file") MultipartFile file) {
+        return new ImageUploadResponse(catalog.uploadStaffImage(vendorId(), file));
     }
 
     // ---- Booking dashboard ----

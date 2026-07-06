@@ -35,6 +35,9 @@ public final class BookingDtos {
             @NotNull UUID serviceId,
             // Chosen sub-service / variant — required when the service defines active variants.
             UUID serviceVariantId,
+            // Chosen team member — optional. Null means "any available"; the backend auto-assigns
+            // a free worker when the provider has bookable staff, else books at the shop level.
+            UUID staffId,
             @NotBlank String customerName,
             @NotBlank String customerPhone,
             @Email String customerEmail,
@@ -75,6 +78,8 @@ public final class BookingDtos {
             String serviceName,
             UUID serviceVariantId,
             String variantName,
+            UUID staffId,
+            String staffName,
             List<BookingAddOnResponse> addOns,
             Instant appointmentStart,
             Instant appointmentEnd,
@@ -206,6 +211,7 @@ public final class BookingDtos {
             BigDecimal rating,
             int ratingCount,
             List<ServiceDtos.ServiceResponse> services,
+            List<ServiceDtos.StaffResponse> staff,
             List<ReviewResponse> reviews) {
     }
 }

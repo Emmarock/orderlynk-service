@@ -73,6 +73,12 @@ public class Booking extends BaseEntity {
 
     private String variantNameSnapshot;
 
+    /** The team member assigned to this appointment, or {@code null} when booked at the shop level. */
+    private UUID staffId;
+
+    /** Worker name captured at booking time (survives later team edits / removal). */
+    private String staffNameSnapshot;
+
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     private List<BookingAddOn> addOns = new ArrayList<>();

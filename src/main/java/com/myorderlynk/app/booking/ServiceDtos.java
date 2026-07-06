@@ -147,9 +147,38 @@ public final class ServiceDtos {
             boolean active) {
     }
 
+    // ---- Team members (staff) ----
+
+    public record StaffRequest(
+            @NotBlank String name,
+            String title,
+            String bio,
+            String photoUrl,
+            Boolean active,
+            Boolean acceptsBookings,
+            Integer displayOrder,
+            /** Services this worker offers; empty/omitted = all of the shop's services. */
+            List<UUID> serviceIds) {
+    }
+
+    public record StaffResponse(
+            UUID id,
+            UUID vendorId,
+            String name,
+            String title,
+            String bio,
+            String photoUrl,
+            boolean active,
+            boolean acceptsBookings,
+            int displayOrder,
+            List<UUID> serviceIds) {
+    }
+
     // ---- Availability rules ----
 
     public record AvailabilityRuleRequest(
+            /** Optional worker these hours belong to; null = shop-wide hours. */
+            UUID staffId,
             @NotNull DayOfWeek dayOfWeek,
             @NotNull LocalTime startTime,
             @NotNull LocalTime endTime,
@@ -162,6 +191,7 @@ public final class ServiceDtos {
     public record AvailabilityRuleResponse(
             UUID id,
             UUID vendorId,
+            UUID staffId,
             DayOfWeek dayOfWeek,
             LocalTime startTime,
             LocalTime endTime,
@@ -174,6 +204,8 @@ public final class ServiceDtos {
     // ---- Blocked slots ----
 
     public record BlockedSlotRequest(
+            /** Optional worker this block belongs to; null = shop-wide block. */
+            UUID staffId,
             @NotNull Instant startDatetime,
             @NotNull Instant endDatetime,
             String reason) {
@@ -182,6 +214,7 @@ public final class ServiceDtos {
     public record BlockedSlotResponse(
             UUID id,
             UUID vendorId,
+            UUID staffId,
             Instant startDatetime,
             Instant endDatetime,
             String reason) {

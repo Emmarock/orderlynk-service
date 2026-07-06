@@ -54,6 +54,14 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
                                   @Param("from") Instant from, @Param("to") Instant to,
                                   @Param("statuses") Collection<BookingStatus> statuses);
 
+    /** Active bookings for one worker overlapping a window — used for per-worker capacity checks. */
+    @Query("select b from Booking b where b.vendorId = :vendorId and b.staffId = :staffId "
+            + "and b.status in :statuses "
+            + "and b.appointmentStart < :to and b.appointmentEnd > :from")
+    List<Booking> findOverlappingByStaff(@Param("vendorId") UUID vendorId, @Param("staffId") UUID staffId,
+                                         @Param("from") Instant from, @Param("to") Instant to,
+                                         @Param("statuses") Collection<BookingStatus> statuses);
+
     /** Bookings starting within a window in the given statuses — used by the reminder scheduler. */
     @Query("select b from Booking b where b.status in :statuses "
             + "and b.appointmentStart >= :from and b.appointmentStart < :to")

@@ -32,18 +32,20 @@ public class ServiceDiscoveryService {
     private final ServiceAddOnRepository addOns;
     private final ServiceVariantRepository variants;
     private final ServiceProviderProfileRepository profiles;
+    private final StaffMemberRepository staff;
     private final BookingReviewRepository reviews;
     private final BookingMapper mapper;
 
     public ServiceDiscoveryService(VendorRepository vendors, ServiceOfferingRepository services,
                                    ServiceAddOnRepository addOns, ServiceVariantRepository variants,
-                                   ServiceProviderProfileRepository profiles,
+                                   ServiceProviderProfileRepository profiles, StaffMemberRepository staff,
                                    BookingReviewRepository reviews, BookingMapper mapper) {
         this.vendors = vendors;
         this.services = services;
         this.addOns = addOns;
         this.variants = variants;
         this.profiles = profiles;
+        this.staff = staff;
         this.reviews = reviews;
         this.mapper = mapper;
     }
@@ -90,6 +92,10 @@ public class ServiceDiscoveryService {
                 .toList();
         List<ReviewResponse> recentReviews = reviews.findByVendorIdAndVisibleTrueOrderByCreatedAtDesc(v.getId())
                 .stream().limit(20).map(mapper::review).toList();
+        // Bookable team members so customers can pick their preferred worker.
+        List<ServiceDtos.StaffResponse> team = staff
+                .findByVendorIdAndActiveTrueAndAcceptsBookingsTrueOrderByDisplayOrderAscCreatedAtAsc(v.getId())
+                .stream().map(mapper::staff).toList();
 
         return new ServiceStorefrontResponse(
                 v.getId(), v.getBusinessName(), v.getStoreSlug(), v.getDescription(),
@@ -98,7 +104,7 @@ public class ServiceDiscoveryService {
                 v.getWhatsappNumber(), v.getInstagramHandle(),
                 mapper.profile(profile),
                 rating(v.getId()), (int) reviews.countByVendorIdAndVisibleTrue(v.getId()),
-                activeServices, recentReviews);
+                activeServices, team, recentReviews);
     }
 
     /**

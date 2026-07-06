@@ -24,6 +24,9 @@ public class BlockedSlot extends BaseEntity {
     @Column(nullable = false)
     private UUID vendorId;
 
+    /** The team member this block belongs to, or {@code null} for a shop-wide block (applies to all). */
+    private UUID staffId;
+
     @Column(nullable = false)
     private Instant startDatetime;
 

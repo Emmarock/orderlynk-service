@@ -51,8 +51,9 @@ public class BookingController {
     @GetMapping("/availability")
     public DayAvailabilityResponse availability(
             @RequestParam UUID serviceId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return availability.availableSlots(serviceId, date);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) UUID staffId) {
+        return availability.availableSlots(serviceId, date, staffId);
     }
 
     @PostMapping
