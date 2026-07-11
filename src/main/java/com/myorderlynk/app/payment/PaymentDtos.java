@@ -104,4 +104,12 @@ public final class PaymentDtos {
     /** Onboarding link + account snapshot (payment-service {@code OnboardingLinkResponse}). */
     public record OnboardingResult(String url, String expiresAt, ConnectAccountStatus account) {
     }
+
+    /** Subset of the payment-service {@code GET /payments/reference/{ref}} response we need to refund. */
+    public record PaymentLookup(java.util.UUID id, String reference, BigDecimal grossAmount, BigDecimal refundedAmount) {
+    }
+
+    /** Mirrors payment-service {@code POST /payments/{id}/refund} request body (null amount = full). */
+    public record RefundRequest(BigDecimal amount, String reason) {
+    }
 }

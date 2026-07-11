@@ -51,12 +51,14 @@ public class VendorService {
     private final JwtService jwtService;
     private final AuthService authService;
     private final S3StorageService storage;
+    private final com.myorderlynk.app.notification.WhatsAppService whatsAppService;
     private final com.myorderlynk.app.booking.ServiceDiscoveryService serviceDiscovery;
     private final com.myorderlynk.app.batch.BatchDiscoveryService batchDiscovery;
     private final String publicBaseUrl;
 
     public VendorService(VendorRepository vendors, UserRepository users, ProductRepository products,
                          VendorMapper vendorMapper, ProductMapper productMapper, JwtService jwtService, AuthService authService, S3StorageService storage,
+                         com.myorderlynk.app.notification.WhatsAppService whatsAppService,
                          com.myorderlynk.app.booking.ServiceDiscoveryService serviceDiscovery,
                          com.myorderlynk.app.batch.BatchDiscoveryService batchDiscovery,
                          @Value("${app.public-base-url:https://orderlynk.app}") String publicBaseUrl) {
@@ -68,9 +70,65 @@ public class VendorService {
         this.jwtService = jwtService;
         this.authService = authService;
         this.storage = storage;
+        this.whatsAppService = whatsAppService;
         this.serviceDiscovery = serviceDiscovery;
         this.batchDiscovery = batchDiscovery;
         this.publicBaseUrl = publicBaseUrl;
+    }
+
+    /** WhatsApp verification code lifetime and how many wrong guesses invalidate it. */
+    private static final java.time.Duration WHATSAPP_CODE_TTL = java.time.Duration.ofMinutes(10);
+    private static final int WHATSAPP_MAX_ATTEMPTS = 5;
+
+    /**
+     * Generate a fresh one-time code and WhatsApp it to the vendor's number so they can prove ownership.
+     * Also used by the "resend" button. Requires a WhatsApp number to be on file.
+     */
+    @Transactional
+    public void sendWhatsappVerification(UUID vendorId) {
+        Vendor vendor = require(vendorId);
+        if (blank(vendor.getWhatsappNumber())) {
+            throw ApiException.badRequest("Add your WhatsApp number in Settings before verifying it.");
+        }
+        if (vendor.isWhatsappVerified()) {
+            return; // already verified — nothing to do
+        }
+        String code = CodeGenerator.verificationCode();
+        vendor.setWhatsappVerifyCode(code);
+        vendor.setWhatsappVerifyExpiresAt(java.time.Instant.now().plus(WHATSAPP_CODE_TTL));
+        vendor.setWhatsappVerifyAttempts(0);
+        vendors.save(vendor);
+        whatsAppService.sendVerificationCode(vendor.getWhatsappNumber(), code);
+        log.info("Sent WhatsApp verification code to vendor {}", vendorId);
+    }
+
+    /** Confirm the vendor's WhatsApp number by checking the code they were messaged. */
+    @Transactional
+    public VendorResponse verifyWhatsapp(UUID vendorId, String code) {
+        Vendor vendor = require(vendorId);
+        if (vendor.isWhatsappVerified()) {
+            return vendorMapper.vendor(vendor);
+        }
+        if (blank(vendor.getWhatsappVerifyCode()) || vendor.getWhatsappVerifyExpiresAt() == null
+                || vendor.getWhatsappVerifyExpiresAt().isBefore(java.time.Instant.now())) {
+            throw ApiException.badRequest("Your code has expired. Send a new one and try again.");
+        }
+        if (vendor.getWhatsappVerifyAttempts() >= WHATSAPP_MAX_ATTEMPTS) {
+            throw ApiException.badRequest("Too many incorrect attempts. Send a new code and try again.");
+        }
+        String entered = code == null ? "" : code.trim();
+        if (!vendor.getWhatsappVerifyCode().equals(entered)) {
+            vendor.setWhatsappVerifyAttempts(vendor.getWhatsappVerifyAttempts() + 1);
+            vendors.save(vendor);
+            throw ApiException.badRequest("That code is incorrect. Please check and try again.");
+        }
+        vendor.setWhatsappVerified(true);
+        vendor.setWhatsappVerifyCode(null);
+        vendor.setWhatsappVerifyExpiresAt(null);
+        vendor.setWhatsappVerifyAttempts(0);
+        vendors.save(vendor);
+        log.info("Vendor {} verified their WhatsApp number", vendorId);
+        return vendorMapper.vendor(vendor);
     }
 
     /**
@@ -160,7 +218,14 @@ public class VendorService {
         if (req.state() != null) addr.setState(req.state());
         if (req.postcode() != null) addr.setPostcode(req.postcode());
         if (req.country() != null) addr.setCountry(req.country());
-        if (req.whatsappNumber() != null) vendor.setWhatsappNumber(req.whatsappNumber());
+        if (req.whatsappNumber() != null && !req.whatsappNumber().equals(vendor.getWhatsappNumber())) {
+            // Changing the number invalidates any prior verification — they must re-verify the new one.
+            vendor.setWhatsappNumber(req.whatsappNumber());
+            vendor.setWhatsappVerified(false);
+            vendor.setWhatsappVerifyCode(null);
+            vendor.setWhatsappVerifyExpiresAt(null);
+            vendor.setWhatsappVerifyAttempts(0);
+        }
         if (req.instagramHandle() != null) vendor.setInstagramHandle(req.instagramHandle());
         if (req.tiktokHandle() != null) vendor.setTiktokHandle(req.tiktokHandle());
         if (req.facebookPage() != null) vendor.setFacebookPage(req.facebookPage());

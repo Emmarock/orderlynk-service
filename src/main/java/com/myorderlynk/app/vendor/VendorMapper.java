@@ -1,15 +1,29 @@
 package com.myorderlynk.app.vendor;
 
 import com.myorderlynk.app.common.Address;
+import com.myorderlynk.app.identity.User;
+import com.myorderlynk.app.identity.UserRepository;
 import org.springframework.stereotype.Component;
 
 /** Maps {@link Vendor} entities to API response records. */
 @Component
 public class VendorMapper {
 
+    private final UserRepository users;
+
+    public VendorMapper(UserRepository users) {
+        this.users = users;
+    }
+
     /** Hibernate maps an all-null @Embedded address to null on read; treat that as an empty address. */
     private static Address orEmpty(Address a) {
         return a == null ? new Address() : a;
+    }
+
+    /** Whether the vendor's owner account has a verified email (false when there's no owner). */
+    private boolean ownerEmailVerified(Vendor v) {
+        return v.getOwnerUserId() != null
+                && users.findById(v.getOwnerUserId()).map(User::isEmailVerified).orElse(false);
     }
 
     /** Full vendor view, including private payout details — for the vendor's own console and admins. */
@@ -27,7 +41,8 @@ public class VendorMapper {
                 v.getPayoutInstitutionNumber(), v.getPayoutTransitNumber(), v.getPayoutIban(),
                 v.getPayoutBic(), v.getPayoutBankCode(),
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
-                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured());
+                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured(),
+                ownerEmailVerified(v), v.isWhatsappVerified());
     }
 
     /**
@@ -45,6 +60,7 @@ public class VendorMapper {
                 null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 v.isNotifyByEmail(), v.isNotifyByWhatsapp(), v.isLowStockAlerts(),
-                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured());
+                v.isAlternativePaymentsEnabled(), v.isChatOrderEnabled(), v.isFeatured(),
+                null, v.isWhatsappVerified());
     }
 }

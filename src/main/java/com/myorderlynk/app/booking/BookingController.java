@@ -2,8 +2,10 @@ package com.myorderlynk.app.booking;
 
 import com.myorderlynk.app.booking.BookingDtos.BookingRequest;
 import com.myorderlynk.app.booking.BookingDtos.BookingResponse;
+import com.myorderlynk.app.booking.BookingDtos.CancelRequest;
 import com.myorderlynk.app.booking.BookingDtos.PayRequest;
 import com.myorderlynk.app.booking.BookingDtos.PaymentInitResponse;
+import com.myorderlynk.app.booking.BookingDtos.RescheduleRequest;
 import com.myorderlynk.app.booking.BookingDtos.ReviewRequest;
 import com.myorderlynk.app.booking.BookingDtos.ReviewResponse;
 import com.myorderlynk.app.booking.ServiceDtos.DayAvailabilityResponse;
@@ -82,6 +84,32 @@ public class BookingController {
     public PageResponse<BookingResponse> myBookings(@RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "20") int size) {
         return bookingService.customerBookings(currentUser.require().userId(), page, size);
+    }
+
+    /**
+     * Customer cancels their own upcoming booking (up to 12h before the appointment). Authenticated by
+     * login, or by a matching contact for a guest booking (passed as {@code ?contact=}).
+     */
+    @PostMapping("/{publicBookingId}/cancel")
+    public BookingResponse cancel(@PathVariable String publicBookingId,
+                                  @RequestParam(required = false) String contact,
+                                  @Valid @RequestBody(required = false) CancelRequest req) {
+        AuthPrincipal principal = currentUser.resolve();
+        UUID customerUserId = principal == null ? null : principal.userId();
+        return bookingService.customerCancel(publicBookingId, customerUserId, contact, req == null ? null : req.reason());
+    }
+
+    /**
+     * Customer reschedules their own upcoming booking to a new slot (up to 12h before the appointment).
+     * Authenticated by login, or by a matching contact for a guest booking.
+     */
+    @PostMapping("/{publicBookingId}/reschedule")
+    public BookingResponse reschedule(@PathVariable String publicBookingId,
+                                      @RequestParam(required = false) String contact,
+                                      @Valid @RequestBody RescheduleRequest req) {
+        AuthPrincipal principal = currentUser.resolve();
+        UUID customerUserId = principal == null ? null : principal.userId();
+        return bookingService.customerReschedule(publicBookingId, customerUserId, contact, req.appointmentStart());
     }
 
     /** Submit a review after completion. Authenticated by login, or by contact for guests. */

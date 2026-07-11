@@ -86,11 +86,22 @@ public class AdminService {
     @Transactional
     public VendorResponse approveVendor(UUID vendorId) {
         Vendor vendor = require(vendorId);
-        // A vendor must verify their email before they can be approved and go live.
-        boolean ownerVerified = vendor.getOwnerUserId() != null
+        // A vendor must verify BOTH their email address and their WhatsApp number before they can be
+        // approved and go live. Surface exactly what's still outstanding so approval never fails silently.
+        boolean emailVerified = vendor.getOwnerUserId() != null
                 && users.findById(vendor.getOwnerUserId()).map(User::isEmailVerified).orElse(false);
-        if (!ownerVerified) {
-            throw ApiException.badRequest("This vendor must verify their email address before you can approve them.");
+        boolean whatsappVerified = vendor.isWhatsappVerified();
+        if (!emailVerified || !whatsappVerified) {
+            String missing;
+            if (!emailVerified && !whatsappVerified) {
+                missing = "email address and WhatsApp number";
+            } else if (!emailVerified) {
+                missing = "email address";
+            } else {
+                missing = "WhatsApp number";
+            }
+            throw ApiException.badRequest(
+                    "This vendor must verify their " + missing + " before you can approve them.");
         }
         VendorStatus from = vendor.getVerificationStatus();
         vendor.setVerificationStatus(VendorStatus.APPROVED);

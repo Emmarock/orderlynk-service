@@ -51,6 +51,11 @@ public final class CodeGenerator {
         return String.valueOf(1000 + RANDOM.nextInt(9000));
     }
 
+    /** 6-digit numeric one-time code, e.g. 048213 (used for WhatsApp number verification). */
+    public static String verificationCode() {
+        return String.format("%06d", RANDOM.nextInt(1_000_000));
+    }
+
     /** URL-safe store slug derived from a business name, with a uniqueness suffix when needed. */
     public static String slugify(String input) {
         String base = input == null ? "" : input.toLowerCase()

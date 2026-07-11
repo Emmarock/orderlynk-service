@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Vendor WhatsApp-number verification. A vendor must verify their WhatsApp number (via a one-time
+      code we message them) as well as their email before an admin can approve them. The code + expiry
+      + attempt counter live on the vendor row; whatsapp_verified is the durable result.
+
+      Grandfathering: vendors already APPROVED are marked verified so this gate never retroactively
+      blocks live stores (mirrors how migration 020 grandfathered existing users' email verification).
+    -->
+    <changeSet id="036-vendor-whatsapp-verification" author="orderlynk">
+        <addColumn tableName="vendors">
+            <column name="whatsapp_verified" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="whatsapp_verify_code" type="VARCHAR(12)"/>
+            <column name="whatsapp_verify_expires_at" type="DATETIME"/>
+            <column name="whatsapp_verify_attempts" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="036-grandfather-approved-vendors" author="orderlynk">
+        <update tableName="vendors">
+            <column name="whatsapp_verified" valueBoolean="true"/>
+            <where>verification_status = 'APPROVED'</where>
+        </update>
+    </changeSet>
+</databaseChangeLog>

@@ -180,6 +180,23 @@ public class VendorController {
         return vendorService.shareLink(vendorId(), source, campaign);
     }
 
+    // ---- WhatsApp number verification (required, alongside email, before admin approval) ----
+
+    /** Message a fresh one-time code to the vendor's WhatsApp number (also the "resend" action). */
+    @PostMapping("/whatsapp/send-code")
+    @IsVendor
+    public org.springframework.http.ResponseEntity<Void> sendWhatsappCode() {
+        vendorService.sendWhatsappVerification(vendorId());
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    /** Verify the vendor's WhatsApp number using the code they were messaged. */
+    @PostMapping("/whatsapp/verify")
+    @IsVendor
+    public VendorResponse verifyWhatsapp(@Valid @RequestBody VendorDtos.WhatsappVerifyRequest req) {
+        return vendorService.verifyWhatsapp(vendorId(), req.code());
+    }
+
     // ---- Products ----
 
     @GetMapping("/products")
