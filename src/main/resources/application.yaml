@@ -5,9 +5,11 @@ spring:
   # The target database must already exist (Postgres has no create-if-missing);
   # locally: `createdb orderlynk`.
   datasource:
-    # DB_URL wins if set; otherwise it's composed from DB_HOST/DB_PORT/DB_NAME so a
-    # managed provider (e.g. Render Postgres) can wire the parts as plain env vars.
-    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orderlynk}}
+    # URL is always composed from parts, so a managed provider (e.g. Render Postgres)
+    # can wire DB_HOST/DB_PORT/DB_NAME/DB_USERNAME/DB_PASSWORD as plain env vars — no
+    # JDBC-URL string to hand-craft, and no empty/legacy DB_URL to accidentally override it.
+    # DB_PARAMS appends query params when needed, e.g. "?sslmode=require".
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orderlynk}${DB_PARAMS:}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
