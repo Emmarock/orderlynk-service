@@ -1,13 +1,22 @@
 # Render.com Blueprint for the Orderlynk backend (Spring Boot API, Docker).
 # Lives at the root of the backend repo, so paths are relative to it.
 #
-# Render has no managed MySQL, so provision MySQL 8 or a TiDB cluster (TiDB Cloud)
-# elsewhere and supply the connection details via the DB_* vars. The JDBC driver
-# is the MySQL connector for both MySQL and TiDB.
+# Provisions a managed Render PostgreSQL database (below) and auto-wires its
+# connection into the service as DB_HOST/DB_PORT/DB_NAME/DB_USERNAME/DB_PASSWORD.
+# The app composes the JDBC URL from those parts; Liquibase creates the schema on
+# first boot. To point at an external DB instead, set DB_URL (it overrides the parts).
 #
 # The frontend is a separate repo deployed as its own static site (see
 # frontend/render.yaml). After the first deploy, fill the `sync: false` vars with
 # the real service URLs.
+
+databases:
+  - name: orderlynk-db
+    databaseName: orderlynk
+    user: orderlynk
+    plan: free          # free Postgres is deleted after ~30 days — use a paid plan for real prod
+    postgresMajorVersion: "16"
+    ipAllowList: []     # internal-only: reachable solely by same-region Render services
 
 services:
   - type: web
@@ -22,12 +31,27 @@ services:
         value: prod
       - key: APP_JWT_SECRET
         generateValue: true
-      - key: DB_URL
-        sync: false   # jdbc:mysql://HOST:4000/orderlynk?useSSL=true&serverTimezone=UTC  (TiDB Cloud uses port 4000)
+      # ---- Database: auto-wired from the managed Postgres above ----
+      - key: DB_HOST
+        fromDatabase:
+          name: orderlynk-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: orderlynk-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: orderlynk-db
+          property: database
       - key: DB_USERNAME
-        sync: false
+        fromDatabase:
+          name: orderlynk-db
+          property: user
       - key: DB_PASSWORD
-        sync: false
+        fromDatabase:
+          name: orderlynk-db
+          property: password
       - key: APP_CORS_ORIGINS
         sync: false   # frontend static-site URL, e.g. https://orderlynk-frontend.onrender.com
       - key: APP_PUBLIC_BASE_URL

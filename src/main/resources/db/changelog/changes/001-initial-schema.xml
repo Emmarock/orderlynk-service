@@ -7,11 +7,11 @@
 
     <!--
       Initial OrderLynk schema. Dialect-portable so it applies identically on
-      MySQL, TiDB (MySQL-compatible) and H2 (tests). Design choices for TiDB:
+      PostgreSQL (prod) and H2 in PostgreSQL mode (tests). Design choices:
         * String UUID primary keys (no AUTO_INCREMENT hotspots).
         * Enums persisted as VARCHAR.
         * No database-level foreign-key constraints — relationships are by id
-          column + index, which keeps the schema portable across TiDB versions.
+          column + index, which keeps the schema portable across engines.
       The precondition lets this baseline adopt a database that already has the
       tables (e.g. one previously created by Hibernate) by marking it as run.
     -->

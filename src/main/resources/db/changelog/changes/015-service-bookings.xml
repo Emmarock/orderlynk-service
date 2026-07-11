@@ -6,7 +6,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!--
-      Service Provider Booking module (service-provider.MD MVP). Portable across MySQL, TiDB and
+      Service Provider Booking module (service-provider.MD MVP). Portable across PostgreSQL and
       H2 (tests): string UUID keys, enums as VARCHAR, money as DECIMAL, no DB-level foreign keys
       (relationships are by id column + index, matching the rest of the schema).
     -->
