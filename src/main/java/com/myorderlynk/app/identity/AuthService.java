@@ -107,12 +107,16 @@ public class AuthService {
     @Transactional
     public void verifyEmail(String token) {
         UserToken record = userTokens.findByTokenAndType(token, TYPE_VERIFY)
-                .filter(UserToken::isUsable)
                 .orElseThrow(() -> ApiException.badRequest("This verification link is invalid or has expired"));
+        if (record.getExpiresAt().isBefore(Instant.now())) {
+            throw ApiException.badRequest("This verification link is invalid or has expired");
+        }
         User user = users.findById(record.getUserId())
                 .orElseThrow(() -> ApiException.notFound("User not found"));
-        record.setUsedAt(Instant.now());
-        userTokens.save(record);
+        if (record.getUsedAt() == null) {
+            record.setUsedAt(Instant.now());
+            userTokens.save(record);
+        }
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
             users.save(user);
@@ -214,11 +218,11 @@ public class AuthService {
         log.info("Password reset completed for user {}", user.getId());
     }
 
-    /** Scheduled cleanup of consumed/expired verification + reset tokens (default: daily at 03:30 UTC). */
+    /** Scheduled cleanup of expired verification/reset/invite tokens (default: daily at 03:30 UTC). */
     @Scheduled(cron = "${app.tokens.cleanup-cron:0 30 3 * * *}")
     @Transactional
     public void purgeExpiredTokens() {
-        int removed = userTokens.deleteUsedOrExpired(Instant.now());
+        int removed = userTokens.deleteExpired(Instant.now());
         if (removed > 0) {
             log.info("Purged {} used/expired user tokens", removed);
         }
