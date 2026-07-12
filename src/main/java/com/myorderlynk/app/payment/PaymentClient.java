@@ -236,6 +236,42 @@ public class PaymentClient {
     }
 
     /**
+     * Issue a (partial) refund against a settled payment, identified by the payment-service reference we
+     * stored when the charge succeeded. Looks the payment up by reference, then refunds {@code amount}.
+     * Best-effort: returns false (and logs) if the payment can't be found or the service is unreachable —
+     * the caller then leaves it for a manual refund. The refund settles asynchronously and is recorded
+     * back via the {@code PAYMENT_REFUNDED} webhook, so nothing is applied locally here.
+     */
+    public boolean refundByReference(String reference, BigDecimal amount, String reason) {
+        if (reference == null || reference.isBlank() || amount == null || amount.signum() <= 0) {
+            return false;
+        }
+        try {
+            PaymentDtos.PaymentLookup payment = restClient.get()
+                    .uri("/payments/reference/{ref}", reference)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                    .retrieve()
+                    .body(PaymentDtos.PaymentLookup.class);
+            if (payment == null || payment.id() == null) {
+                log.warn("Refund skipped — no payment found for reference {}", reference);
+                return false;
+            }
+            restClient.post()
+                    .uri("/payments/{id}/refund", payment.id())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.issueServiceToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new PaymentDtos.RefundRequest(amount, reason))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Requested refund of {} against payment {} (ref {})", amount, payment.id(), reference);
+            return true;
+        } catch (Exception e) {
+            log.warn("Refund of {} against reference {} failed: {}", amount, reference, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Start card capture for a vendor: ensures a billing customer and returns a SetupIntent client
      * secret (for Stripe Elements) + the setup-intent id to confirm with once the card is entered.
      */

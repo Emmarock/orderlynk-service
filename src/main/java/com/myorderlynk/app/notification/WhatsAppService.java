@@ -48,6 +48,19 @@ public class WhatsAppService {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
+    /**
+     * Send a one-time verification code to a vendor's WhatsApp number (no order attached). Template
+     * key {@code whatsapp-verify}; falls back to the plain body when no Content template is configured.
+     */
+    public void sendVerificationCode(String phone, String code) {
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+        String body = "Your OrderLynk verification code is " + code
+                + ". Enter it in your vendor dashboard to verify your WhatsApp number. It expires in 10 minutes.";
+        events.publishEvent(new WhatsAppRequestedEvent(phone, "whatsapp-verify", List.of(code), body, null));
+    }
+
     public void orderCreated(Order order, Vendor vendor) {
         String track = trackUrl(order);
         String trackToken = trackToken(order);

@@ -324,22 +324,8 @@ public class BookingService {
     @Transactional
     public BookingResponse reschedule(UUID vendorId, UUID bookingId, Instant newStart, String actor) {
         Booking b = owned(vendorId, bookingId);
-        requireStatus(b, BookingStatus.REQUESTED, BookingStatus.APPROVED, BookingStatus.DEPOSIT_PENDING,
-                BookingStatus.CONFIRMED, BookingStatus.REMINDER_SENT);
-        ServiceProviderProfile profile = profiles.findByVendorId(vendorId)
-                .orElseThrow(() -> ApiException.badRequest("Availability is not configured"));
-        long minutes = Duration.between(b.getAppointmentStart(), b.getAppointmentEnd()).toMinutes();
-        Instant newEnd = newStart.plus(Duration.ofMinutes(minutes));
-        availability.assertBookable(profile, vendorId, b.getStaffId(), newStart, newEnd);
-        b.setAppointmentStart(newStart);
-        b.setAppointmentEnd(newEnd);
-        b.setLastReminderAt(null);
-        if (b.getStatus() == BookingStatus.REMINDER_SENT) {
-            b.setStatus(BookingStatus.CONFIRMED);
-        }
-        bookings.save(b);
-        audit.logChange(b.getId(), AUDIT_TYPE, b.getStatus().name(), b.getStatus().name(), actor,
-                "Rescheduled to " + newStart);
+        requireStatus(b, RESCHEDULABLE_STATUSES);
+        applyReschedule(b, newStart, actor);
         notifications.notifyCustomer(b, "BOOKING_RESCHEDULED",
                 "Your booking " + b.getPublicBookingId() + " has been moved to a new time.");
         return response(b);
@@ -347,20 +333,214 @@ public class BookingService {
 
     @Transactional
     public BookingResponse cancel(UUID vendorId, UUID bookingId, String reason, String actor) {
-        Booking b = vendorId == null ? bookings.findById(bookingId)
-                .orElseThrow(() -> ApiException.notFound("Booking not found")) : owned(vendorId, bookingId);
-        if (isTerminal(b.getStatus())) {
-            throw ApiException.badRequest("This booking can no longer be cancelled");
-        }
-        b.setStatusReason(reason);
-        b.setHoldExpiresAt(null);
-        transition(b, BookingStatus.CANCELLED, actor, reason);
+        Booking b = vendorId == null ? byId(bookingId) : owned(vendorId, bookingId);
+        applyCancel(b, reason, actor);
         notifications.notifyCustomer(b, "BOOKING_CANCELLED",
                 "Your booking " + b.getPublicBookingId() + " has been cancelled"
                         + (reason == null || reason.isBlank() ? "." : ": " + reason));
         notifications.notifyProvider(b, "BOOKING_CANCELLED",
                 "Booking " + b.getPublicBookingId() + " was cancelled.");
         return response(b);
+    }
+
+    // ===================== Customer self-service (cancel / reschedule) =====================
+
+    /**
+     * Statuses in which a booking is still ahead of the service and may be rescheduled or cancelled.
+     * (In-progress, completed, and all terminal states are excluded.)
+     */
+    private static final BookingStatus[] RESCHEDULABLE_STATUSES = {
+            BookingStatus.REQUESTED, BookingStatus.APPROVED, BookingStatus.DEPOSIT_PENDING,
+            BookingStatus.CONFIRMED, BookingStatus.REMINDER_SENT
+    };
+
+    /** How close to the appointment a customer may still self-serve a change. */
+    private static final Duration CUSTOMER_CHANGE_CUTOFF = Duration.ofHours(12);
+
+    /**
+     * Customer cancels their own booking, any time before the appointment. Refund policy (auto-issued
+     * to the original card via Stripe): cancelling at least {@link #CUSTOMER_CHANGE_CUTOFF} before the
+     * appointment refunds everything paid; a later ("within 12h") cancellation forfeits 50% of the
+     * deposit and refunds the rest. Auth: signed-in customer, or a matching contact for a guest booking.
+     */
+    @Transactional
+    public BookingResponse customerCancel(String publicBookingId, UUID customerUserId, String contact, String reason) {
+        Booking b = customerBooking(publicBookingId, customerUserId, contact);
+        requireCustomerCancellable(b);
+        boolean late = Instant.now().isAfter(b.getAppointmentStart().minus(CUSTOMER_CHANGE_CUTOFF));
+        BigDecimal refund = plannedRefund(b, late);
+
+        String note = reason == null || reason.isBlank() ? "Cancelled by customer" : reason;
+        applyCancel(b, note, actorFor(customerUserId));
+        if (refund.signum() > 0) {
+            issueRefund(b, refund, "Booking " + b.getPublicBookingId() + " cancelled by customer"
+                    + (late ? " (late cancellation)" : ""));
+        }
+
+        String refundMsg = refund.signum() > 0
+                ? " A refund of " + money(refund, b) + " is being processed to your original payment method."
+                : (b.getAmountPaid().signum() > 0
+                    ? " As this was a late cancellation, your deposit is non-refundable." : "");
+        notifications.notifyProvider(b, "BOOKING_CANCELLED",
+                "Booking " + b.getPublicBookingId() + " was cancelled by the customer"
+                        + (late ? " (late)" : "") + (reason == null || reason.isBlank() ? "." : ": " + reason));
+        notifications.notifyCustomer(b, "BOOKING_CANCELLED",
+                "Your booking " + b.getPublicBookingId() + " has been cancelled." + refundMsg);
+        return response(b);
+    }
+
+    /**
+     * The amount to auto-refund on cancellation: the full paid amount when cancelling early, or the paid
+     * amount less 50% of the deposit (the forfeit) when cancelling late. Never negative.
+     */
+    private BigDecimal plannedRefund(Booking b, boolean late) {
+        BigDecimal paidNet = b.getAmountPaid() == null ? BigDecimal.ZERO : b.getAmountPaid();
+        if (paidNet.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (!late) {
+            return paidNet.setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal deposit = b.getDepositAmount() == null ? BigDecimal.ZERO : b.getDepositAmount();
+        BigDecimal forfeit = deposit.min(paidNet)
+                .multiply(new BigDecimal("0.50")).setScale(2, RoundingMode.HALF_UP);
+        return paidNet.subtract(forfeit).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Best-effort auto-refund of {@code amount} across the booking's settled Stripe payments (oldest
+     * first). The refund settles asynchronously and is recorded via the {@code PAYMENT_REFUNDED} webhook,
+     * so nothing is applied locally here. Non-Stripe (manual) payments are left for the provider to refund.
+     */
+    private void issueRefund(Booking b, BigDecimal amount, String reason) {
+        BigDecimal remaining = amount;
+        for (BookingPayment p : payments.findByBookingIdOrderByCreatedAtAsc(b.getId())) {
+            if (remaining.signum() <= 0) {
+                break;
+            }
+            if (p.getMethod() != PaymentMethod.STRIPE || p.getPaymentType() == BookingPaymentType.REFUND
+                    || p.getTransactionReference() == null || p.getTransactionReference().isBlank()) {
+                continue;
+            }
+            BigDecimal slice = remaining.min(p.getAmount());
+            if (slice.signum() <= 0) {
+                continue;
+            }
+            if (paymentClient.refundByReference(p.getTransactionReference(), slice, reason)) {
+                remaining = remaining.subtract(slice);
+            }
+        }
+        if (remaining.signum() > 0) {
+            log.warn("Booking {} auto-refund incomplete: {} {} not refunded (no matching Stripe payment)",
+                    b.getPublicBookingId(), remaining, b.getCurrency());
+        }
+    }
+
+    /**
+     * Customer moves their own upcoming booking to a new slot. Same cutoff and auth as
+     * {@link #customerCancel}; the new time is validated against the provider's live availability.
+     */
+    @Transactional
+    public BookingResponse customerReschedule(String publicBookingId, UUID customerUserId, String contact, Instant newStart) {
+        Booking b = customerBooking(publicBookingId, customerUserId, contact);
+        requireCustomerChangeable(b);
+        applyReschedule(b, newStart, actorFor(customerUserId));
+        notifications.notifyProvider(b, "BOOKING_RESCHEDULED",
+                "Booking " + b.getPublicBookingId() + " was rescheduled by the customer to a new time.");
+        notifications.notifyCustomer(b, "BOOKING_RESCHEDULED",
+                "Your booking " + b.getPublicBookingId() + " has been moved. See you at the new time!");
+        return response(b);
+    }
+
+    /** Mechanical reschedule: validate the new slot, move the appointment, reset reminder state. */
+    private void applyReschedule(Booking b, Instant newStart, String actor) {
+        ServiceProviderProfile profile = profiles.findByVendorId(b.getVendorId())
+                .orElseThrow(() -> ApiException.badRequest("Availability is not configured"));
+        long minutes = Duration.between(b.getAppointmentStart(), b.getAppointmentEnd()).toMinutes();
+        Instant newEnd = newStart.plus(Duration.ofMinutes(minutes));
+        availability.assertBookable(profile, b.getVendorId(), b.getStaffId(), newStart, newEnd);
+        BookingStatus from = b.getStatus();
+        b.setAppointmentStart(newStart);
+        b.setAppointmentEnd(newEnd);
+        b.setLastReminderAt(null);
+        if (b.getStatus() == BookingStatus.REMINDER_SENT) {
+            b.setStatus(BookingStatus.CONFIRMED);
+        }
+        bookings.save(b);
+        audit.logChange(b.getId(), AUDIT_TYPE, from.name(), b.getStatus().name(), actor, "Rescheduled to " + newStart);
+        log.info("Booking {} rescheduled to {} (by {})", b.getPublicBookingId(), newStart, actor);
+    }
+
+    /** Mechanical cancel: guard terminal states, clear the hold, transition to CANCELLED. */
+    private void applyCancel(Booking b, String reason, String actor) {
+        if (isTerminal(b.getStatus())) {
+            throw ApiException.badRequest("This booking can no longer be cancelled");
+        }
+        b.setStatusReason(reason);
+        b.setHoldExpiresAt(null);
+        transition(b, BookingStatus.CANCELLED, actor, reason);
+    }
+
+    /** Load a booking and assert the caller owns it (signed-in customer or matching guest contact). */
+    private Booking customerBooking(String publicBookingId, UUID customerUserId, String contact) {
+        Booking b = bookings.findByPublicBookingId(publicBookingId.trim())
+                .orElseThrow(() -> ApiException.notFound("Booking not found"));
+        if (!ownsBooking(b, customerUserId, contact)) {
+            throw ApiException.forbidden("You can only change your own booking");
+        }
+        return b;
+    }
+
+    private boolean isChangeableStatus(BookingStatus status) {
+        for (BookingStatus s : RESCHEDULABLE_STATUSES) {
+            if (status == s) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Enforce that a customer reschedule is still allowed: pre-service status + 12h cutoff. */
+    private void requireCustomerChangeable(Booking b) {
+        if (!isChangeableStatus(b.getStatus())) {
+            throw ApiException.badRequest(
+                    "This booking can no longer be changed online. Please contact the provider directly.");
+        }
+        if (b.getAppointmentStart() == null) {
+            throw ApiException.badRequest("This booking has no scheduled time to change");
+        }
+        Instant cutoff = b.getAppointmentStart().minus(CUSTOMER_CHANGE_CUTOFF);
+        if (!Instant.now().isBefore(cutoff)) {
+            throw ApiException.badRequest(
+                    "Rescheduling must be done at least 12 hours before your appointment. Please contact the provider directly.");
+        }
+    }
+
+    /**
+     * Enforce that a customer cancellation is allowed. Unlike rescheduling there is no 12h cutoff —
+     * cancelling is permitted any time before the appointment starts (a late cancellation just forfeits
+     * 50% of the deposit, applied in {@link #plannedRefund}).
+     */
+    private void requireCustomerCancellable(Booking b) {
+        if (!isChangeableStatus(b.getStatus())) {
+            throw ApiException.badRequest(
+                    "This booking can no longer be cancelled online. Please contact the provider directly.");
+        }
+        if (b.getAppointmentStart() == null) {
+            throw ApiException.badRequest("This booking has no scheduled time.");
+        }
+        if (!Instant.now().isBefore(b.getAppointmentStart())) {
+            throw ApiException.badRequest(
+                    "Your appointment time has passed — please contact the provider directly.");
+        }
+    }
+
+    private String actorFor(UUID customerUserId) {
+        return customerUserId != null ? "user:" + customerUserId : "customer";
+    }
+
+    private Booking byId(UUID bookingId) {
+        return bookings.findById(bookingId).orElseThrow(() -> ApiException.notFound("Booking not found"));
     }
 
     @Transactional
@@ -398,8 +578,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse close(UUID vendorId, UUID bookingId, String actor) {
-        Booking b = vendorId == null ? bookings.findById(bookingId)
-                .orElseThrow(() -> ApiException.notFound("Booking not found")) : owned(vendorId, bookingId);
+        Booking b = vendorId == null ? byId(bookingId) : owned(vendorId, bookingId);
         requireStatus(b, BookingStatus.COMPLETED, BookingStatus.BALANCE_PENDING);
         transition(b, BookingStatus.CLOSED, actor, "Closed");
         return response(b);

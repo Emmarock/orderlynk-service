@@ -58,6 +58,25 @@ public class Vendor extends BaseEntity {
 
     private String whatsappNumber;
 
+    /**
+     * Whether the vendor has proven ownership of {@link #whatsappNumber} by entering the one-time code
+     * we message them. Required (alongside the owner's email verification) before an admin can approve.
+     * Reset to false whenever the WhatsApp number changes.
+     */
+    @Column(nullable = false)
+    private boolean whatsappVerified = false;
+
+    /** The current one-time WhatsApp verification code (null once verified/expired). */
+    @Column(length = 12)
+    private String whatsappVerifyCode;
+
+    /** When the current {@link #whatsappVerifyCode} stops being valid. */
+    private java.time.Instant whatsappVerifyExpiresAt;
+
+    /** Failed attempts against the current code; a small cap prevents brute-forcing it. */
+    @Column(nullable = false)
+    private int whatsappVerifyAttempts = 0;
+
     private String instagramHandle;
     private String tiktokHandle;
     private String facebookPage;

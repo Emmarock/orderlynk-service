@@ -148,7 +148,16 @@ public final class VendorDtos {
             boolean lowStockAlerts,
             boolean alternativePaymentsEnabled,
             boolean chatOrderEnabled,
-            boolean featured) {
+            boolean featured,
+            /** Whether the owner account's email is verified (null in public views where it's irrelevant). */
+            Boolean emailVerified,
+            /** Whether the vendor has verified their WhatsApp number. */
+            boolean whatsappVerified) {
+    }
+
+    /** The one-time code a vendor enters to verify their WhatsApp number. */
+    public record WhatsappVerifyRequest(
+            @NotBlank @Pattern(regexp = "\\d{6}", message = "Enter the 6-digit code") String code) {
     }
 
     /** Submitted by a customer to rate a vendor (1–5 stars). */

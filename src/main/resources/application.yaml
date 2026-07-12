@@ -154,6 +154,8 @@ whatsapp:
       vendor-new-order: ${TWILIO_TPL_VENDOR_NEW_ORDER:}
       vendor-order-status: ${TWILIO_TPL_VENDOR_ORDER_STATUS:}
       vendor-payment: ${TWILIO_TPL_VENDOR_PAYMENT:}
+      # Vendor WhatsApp-number verification code. Single variable {{1}} = the 6-digit code.
+      whatsapp-verify: ${TWILIO_TPL_WHATSAPP_VERIFY:}
   meta:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
