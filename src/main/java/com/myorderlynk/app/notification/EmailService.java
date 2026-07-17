@@ -115,6 +115,21 @@ public class EmailService {
 
     // ---- Vendor ----
 
+    /**
+     * Alerts the vendor (their owner account's email) that a customer just placed a new order,
+     * with a link to manage it in the dashboard. Skipped when no vendor email is on file.
+     */
+    public void sendVendorNewOrder(String toEmail, Order order, String vendorName) {
+        publish(toEmail, "New order " + order.getPublicOrderId() + " received", "vendor-new-order",
+                Map.of(
+                        "vendorName", orDefault(vendorName, "there"),
+                        "orderId", order.getPublicOrderId(),
+                        "customerName", orDefault(order.getCustomerName(), "A customer"),
+                        "customerContact", orDefault(order.getCustomerPhone(), orDefault(order.getCustomerEmail(), "—")),
+                        "total", money(order.getTotalAmount(), order.getCurrency()),
+                        "dashboardUrl", baseUrl + "/vendor/manage/orders"));
+    }
+
     public void sendVendorApproved(String toEmail, String vendorName) {
         publish(toEmail, "Your MyOrderLynk store is approved 🎉", "vendor-approved",
                 Map.of("vendorName", vendorName, "dashboardUrl", baseUrl + "/vendor"));
