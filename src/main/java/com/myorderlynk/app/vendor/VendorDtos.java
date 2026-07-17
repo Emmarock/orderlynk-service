@@ -152,7 +152,9 @@ public final class VendorDtos {
             /** Whether the owner account's email is verified (null in public views where it's irrelevant). */
             Boolean emailVerified,
             /** Whether the vendor has verified their WhatsApp number. */
-            boolean whatsappVerified) {
+            boolean whatsappVerified,
+            /** Whether the business address is a complete pickup address (has every field a carrier needs to ship). */
+            boolean addressShippable) {
     }
 
     /** The one-time code a vendor enters to verify their WhatsApp number. */

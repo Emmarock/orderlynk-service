@@ -99,7 +99,7 @@ public class ShippingService {
         }
         ShippingAddress destination = toShippingAddress(toAddress(req.destination()),
                 req.customerName(), req.customerPhone(), req.customerEmail());
-        List<ShippingRate> rates = fetchRates(vendor, req.items(), destination, "cart");
+        List<ShippingRate> rates = fetchRates(vendor, req.items(), destination, "cart", false);
         List<RateOption> options = rates.stream()
                 .sorted(Comparator.comparing(r -> r.amount() == null ? BigDecimal.ZERO : r.amount()))
                 .map(ShippingService::toOption)
@@ -123,10 +123,11 @@ public class ShippingService {
         }
         try {
             ShippingAddress dest = toShippingAddress(destination, customerName, customerPhone, customerEmail);
-            List<ShippingRate> rates = fetchRates(vendor, items, dest, "checkout");
+            List<ShippingRate> rates = fetchRates(vendor, items, dest, "checkout", false);
             return pickRate(rates, serviceToken);
-        } catch (ShippingException e) {
-            log.warn("Live shipping rating failed at checkout for vendor {} ({}); falling back to flat fee",
+        } catch (ShippingException | ApiException e) {
+            // Carrier error or an incomplete address (assertRatable) — never block the order; keep the flat fee.
+            log.warn("Live shipping rating unavailable at checkout for vendor {} ({}); falling back to flat fee",
                     vendor.getId(), e.getMessage());
             return Optional.empty();
         }
@@ -158,7 +159,7 @@ public class ShippingService {
         ShippingAddress dest = toShippingAddress(order.getDeliveryAddress(),
                 order.getCustomerName(), order.getCustomerPhone(), order.getCustomerEmail());
         List<ShippingRate> rates = fetchRates(vendor, cartLines(order.getItems()), dest,
-                "order:" + order.getPublicOrderId());
+                "order:" + order.getPublicOrderId(), true);
         List<RateOption> options = rates.stream()
                 .sorted(Comparator.comparing(r -> r.amount() == null ? BigDecimal.ZERO : r.amount()))
                 .map(ShippingService::toOption)
@@ -200,7 +201,18 @@ public class ShippingService {
             return toResponse(shipment); // already bought; idempotent unless a new rate is forced
         }
 
-        ShippingLabel label = registry.require().purchaseLabel(rate);
+        ShippingLabel label;
+        try {
+            label = registry.require().purchaseLabel(rate);
+        } catch (ShippingException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+            if (msg.contains("complete address")) {
+                // Rate was generated from an incomplete address; re-rating after a fix yields a buyable rate.
+                throw ApiException.badRequest("This order's delivery address is incomplete, so the carrier won't "
+                        + "sell a shipping label. Ask the customer to correct their address, then re-fetch rates.");
+            }
+            throw e;
+        }
         shipment.setRateId(rate);
         shipment.setTransactionId(label.transactionId());
         shipment.setStatus(label.status() == ShipmentStatus.UNKNOWN ? ShipmentStatus.PURCHASED : label.status());
@@ -269,11 +281,48 @@ public class ShippingService {
 
     // ---- internal: rate fetching + parcel building ----
 
+    /**
+     * @param checkPickup validate the vendor's pickup address too — only on vendor-facing paths, so the
+     *                    vendor-worded "your pickup address is incomplete" message never surfaces to a shopper.
+     */
     private List<ShippingRate> fetchRates(Vendor vendor, List<CartLine> items, ShippingAddress destination,
-                                          String metadata) {
+                                          String metadata, boolean checkPickup) {
+        ShippingAddress origin = fromVendor(vendor);
+        requireDeliveryAddress(destination);
+        if (checkPickup) {
+            requirePickupAddress(origin);
+        }
         ShipmentRequest request = new ShipmentRequest(
-                fromVendor(vendor), destination, List.of(buildParcel(items)), metadata);
+                origin, destination, List.of(buildParcel(items)), metadata);
         return registry.require().getRates(request);
+    }
+
+    /**
+     * Guards against generating a rate the carrier will later refuse to sell a label against
+     * ("a rate may only be purchased if it was generated with complete address information").
+     * Throws a 400 naming the missing fields so the message is actionable — checkout catches this
+     * and falls back to the flat logistics fee, so a placed order is never blocked.
+     */
+    private void requireDeliveryAddress(ShippingAddress destination) {
+        List<String> missing = asAddress(destination).missingShippingFields();
+        if (!missing.isEmpty()) {
+            throw ApiException.badRequest("The delivery address is incomplete (missing "
+                    + String.join(", ", missing) + "). Ask the customer to update it before buying a label.");
+        }
+    }
+
+    /** Vendor-facing counterpart to {@link #requireDeliveryAddress}; only surfaced on vendor paths. */
+    private void requirePickupAddress(ShippingAddress origin) {
+        List<String> missing = asAddress(origin).missingShippingFields();
+        if (!missing.isEmpty()) {
+            throw ApiException.badRequest("Your pickup address is incomplete (missing "
+                    + String.join(", ", missing) + "). Update it in your store settings before buying a label.");
+        }
+    }
+
+    /** Adapt a provider address back to a {@link Address} so completeness rules live in one place. */
+    private static Address asAddress(ShippingAddress a) {
+        return new Address(null, a.street1(), a.city(), a.state(), a.zip(), a.country());
     }
 
     private static Optional<ShippingRate> pickRate(List<ShippingRate> rates, String serviceToken) {
