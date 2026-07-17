@@ -1,5 +1,6 @@
 package com.myorderlynk.app.payment;
 
+import com.myorderlynk.app.common.enums.VatCollector;
 import com.myorderlynk.app.order.Order;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +61,7 @@ class PaymentClientAllocationTest {
         o.setLogisticsFee(BigDecimal.ZERO);
         o.setLogisticsPayable(BigDecimal.ZERO);
         o.setProcessingFee(BigDecimal.ZERO);
+        o.setPlatformRevenue(new BigDecimal("1.50")); // service fee only (no commission/markup)
         o.setTotalAmount(new BigDecimal("51.50"));
 
         Map<String, BigDecimal> a = PaymentClient.orderAllocations(o);
@@ -69,5 +71,73 @@ class PaymentClientAllocationTest {
         assertThat(a.get("PLATFORM_FEE")).isEqualByComparingTo("1.50");
         assertThat(a.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
                 .isEqualByComparingTo(o.getTotalAmount());
+    }
+
+    @Test
+    void vendorCollectedVatStaysInProductAndBucketsSumToGross() {
+        // $100 subtotal, 7% commission, 5% VAT the vendor collects -> vendorPayable 93 + 5 = 98.
+        // The reverse-derived-commission bug used to short the buckets by the VAT (5.00).
+        Order o = new Order();
+        o.setProductSubtotal(new BigDecimal("100.00"));
+        o.setVatAmount(new BigDecimal("5.00"));
+        o.setVatCollector(VatCollector.VENDOR);
+        o.setVendorPayable(new BigDecimal("98.00"));
+        o.setPlatformFee(new BigDecimal("3.00"));
+        o.setLogisticsFee(BigDecimal.ZERO);
+        o.setLogisticsPayable(BigDecimal.ZERO);
+        o.setProcessingFee(BigDecimal.ZERO);
+        o.setPlatformRevenue(new BigDecimal("10.00")); // 3 service + 7 commission
+        o.setTotalAmount(new BigDecimal("108.00"));    // 100 + 5 VAT + 3 platform fee
+
+        Map<String, BigDecimal> a = PaymentClient.orderAllocations(o);
+
+        assertThat(a.get("PRODUCT")).isEqualByComparingTo("98.00");
+        assertThat(a.get("PLATFORM_FEE")).isEqualByComparingTo("10.00");
+        assertThat(a).doesNotContainKey("TAX"); // vendor-collected VAT rides inside PRODUCT
+        assertThat(a.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+                .isEqualByComparingTo(o.getTotalAmount());
+    }
+
+    @Test
+    void platformCollectedVatBecomesTaxBucketAndBucketsSumToGross() {
+        Order o = new Order();
+        o.setProductSubtotal(new BigDecimal("100.00"));
+        o.setVatAmount(new BigDecimal("5.00"));
+        o.setVatCollector(VatCollector.PLATFORM);
+        o.setVendorPayable(new BigDecimal("93.00")); // no VAT — platform holds it
+        o.setPlatformFee(new BigDecimal("3.00"));
+        o.setLogisticsFee(BigDecimal.ZERO);
+        o.setLogisticsPayable(BigDecimal.ZERO);
+        o.setProcessingFee(BigDecimal.ZERO);
+        o.setPlatformRevenue(new BigDecimal("10.00")); // 3 service + 7 commission
+        o.setTotalAmount(new BigDecimal("108.00"));
+
+        Map<String, BigDecimal> a = PaymentClient.orderAllocations(o);
+
+        assertThat(a.get("PRODUCT")).isEqualByComparingTo("93.00");
+        assertThat(a.get("PLATFORM_FEE")).isEqualByComparingTo("10.00");
+        assertThat(a.get("TAX")).isEqualByComparingTo("5.00");
+        assertThat(a.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+                .isEqualByComparingTo(o.getTotalAmount());
+    }
+
+    @Test
+    void absorbsSubCentRoundingResidualIntoProduct() {
+        // The reported OB-260717-2622 shape: buckets total 17.86 but gross is 17.87.
+        Order o = new Order();
+        o.setProductSubtotal(new BigDecimal("15.00"));
+        o.setVendorPayable(new BigDecimal("15.00"));
+        o.setPlatformFee(new BigDecimal("1.50"));
+        o.setLogisticsFee(BigDecimal.ZERO);
+        o.setLogisticsPayable(BigDecimal.ZERO);
+        o.setProcessingFee(new BigDecimal("1.36"));
+        o.setPlatformRevenue(new BigDecimal("1.50"));
+        o.setTotalAmount(new BigDecimal("17.87")); // buckets sum to 17.86 -> 1c residual absorbed
+
+        Map<String, BigDecimal> a = PaymentClient.orderAllocations(o);
+
+        BigDecimal sum = a.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(sum).isEqualByComparingTo(o.getTotalAmount());
+        assertThat(a.get("PRODUCT")).isEqualByComparingTo("15.01"); // residual sunk into PRODUCT
     }
 }
