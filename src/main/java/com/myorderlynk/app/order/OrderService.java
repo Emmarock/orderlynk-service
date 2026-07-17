@@ -28,6 +28,7 @@ import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.order.PaymentRecordRepository;
 import com.myorderlynk.app.catalog.ProductRepository;
 import com.myorderlynk.app.identity.AuthService;
+import com.myorderlynk.app.identity.User;
 import com.myorderlynk.app.identity.UserRepository;
 import com.myorderlynk.app.vendor.VendorRepository;
 import com.myorderlynk.app.exception.ApiException;
@@ -304,6 +305,7 @@ public class OrderService {
         notifyOrderReceived(order, vendor);
         emailService.sendOrderCreated(order, vendor.getBusinessName());
         whatsAppService.orderCreated(order, vendor);
+        notifyVendorNewOrder(order, vendor);
         notifications.notifyOrder(order, "DASHBOARD", "NEW_ORDER_ALERT", vendor.getBusinessName(),
                 "New order " + order.getPublicOrderId() + " for " + order.getTotalAmount() + " " + order.getCurrency() + ".");
         if (!lowStockHits.isEmpty()) {
@@ -536,6 +538,22 @@ public class OrderService {
             throw ApiException.forbidden("This order belongs to another vendor");
         }
         return order;
+    }
+
+    /**
+     * Emails the vendor (their owner account's address) about a newly placed order, respecting the
+     * store's {@code notifyByEmail} preference. The WhatsApp alert is sent separately by
+     * {@link WhatsAppService#orderCreated}; this covers the email channel. No-op when email alerts
+     * are off or no vendor email is on file.
+     */
+    private void notifyVendorNewOrder(Order order, Vendor vendor) {
+        if (!vendor.isNotifyByEmail() || vendor.getOwnerUserId() == null) {
+            return;
+        }
+        users.findById(vendor.getOwnerUserId())
+                .map(User::getEmail)
+                .filter(email -> email != null && !email.isBlank())
+                .ifPresent(email -> emailService.sendVendorNewOrder(email, order, vendor.getBusinessName()));
     }
 
     /**
