@@ -1,5 +1,6 @@
 package com.myorderlynk.app.payment;
 
+import com.myorderlynk.app.common.enums.VatCollector;
 import com.myorderlynk.app.order.Order;
 import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountRequest;
 import com.myorderlynk.app.payment.PaymentDtos.ConnectAccountStatus;
@@ -35,6 +36,9 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class PaymentClient {
+
+    /** One cent — the granularity of an allocation rounding adjustment. */
+    private static final BigDecimal ONE_CENT = new BigDecimal("0.01");
 
     private final RestClient restClient;
     private final JwtService jwtService;
@@ -112,6 +116,7 @@ public class PaymentClient {
         if (allocations.isEmpty()) {
             putIfPositive(allocations, "PRODUCT", amount);
         }
+        reconcileToGross(allocations, nz(amount));
 
         ConnectAccountStatus connect = connectStatus(vendorId);
         String vendorAccountId = connect.canReceiveFunds() ? connect.accountId() : null;
@@ -173,6 +178,7 @@ public class PaymentClient {
         if (allocations.isEmpty()) {
             putIfPositive(allocations, "PRODUCT", amount);
         }
+        reconcileToGross(allocations, nz(amount));
 
         ConnectAccountStatus connect = connectStatus(vendorId);
         String vendorAccountId = connect.canReceiveFunds() ? connect.accountId() : null;
@@ -369,28 +375,61 @@ public class PaymentClient {
 
     /**
      * Build the order's payment allocations so the payment-service routes money to match the
-     * FeeCalculator economics. The connected vendor receives only PRODUCT (= vendorPayable, subtotal
-     * minus commission); everything else is retained by the platform as the destination application
-     * fee. PLATFORM_FEE (-> PLATFORM_REVENUE) carries the customer service fee + vendor commission +
-     * logistics markup; LOGISTICS holds only the carrier's actual cost. The buckets sum to the gross.
+     * FeeCalculator economics, summing <em>exactly</em> to the gross ({@code totalAmount}).
+     *
+     * <p>The connected vendor receives PRODUCT (= {@code vendorPayable}: subtotal net of commission,
+     * plus VAT when the vendor is the collector). PLATFORM_FEE (-> PLATFORM_REVENUE) carries the full
+     * platform revenue — customer service fee + vendor commission + logistics markup — taken straight
+     * from the recorded {@code platformRevenue} rather than reverse-derived from
+     * {@code subtotal - vendorPayable}; the old derivation was corrupted whenever VAT was folded into
+     * the vendor payout, silently dropping the VAT from the breakdown. LOGISTICS holds only the
+     * carrier's actual cost. Platform-collected VAT is a pass-through liability routed to TAX (never
+     * vendor money, never platform revenue); vendor-collected VAT is already inside PRODUCT.
      */
     static Map<String, BigDecimal> orderAllocations(Order order) {
-        BigDecimal subtotal = nz(order.getProductSubtotal());
-        BigDecimal vendorPayable = nz(order.getVendorPayable());
-        BigDecimal commission = subtotal.subtract(vendorPayable).max(BigDecimal.ZERO);
-        BigDecimal logisticsPayable = nz(order.getLogisticsPayable());
-        BigDecimal logisticsMarkup = nz(order.getLogisticsFee()).subtract(logisticsPayable).max(BigDecimal.ZERO);
-        BigDecimal platformFee = nz(order.getPlatformFee()).add(commission).add(logisticsMarkup);
-
         Map<String, BigDecimal> allocations = new LinkedHashMap<>();
-        putIfPositive(allocations, "PRODUCT", vendorPayable);
-        putIfPositive(allocations, "LOGISTICS", logisticsPayable);
-        putIfPositive(allocations, "PLATFORM_FEE", platformFee);
+        putIfPositive(allocations, "PRODUCT", order.getVendorPayable());
+        putIfPositive(allocations, "LOGISTICS", order.getLogisticsPayable());
+        putIfPositive(allocations, "PLATFORM_FEE", order.getPlatformRevenue());
         putIfPositive(allocations, "PROCESSING_FEE", order.getProcessingFee());
+        if (order.getVatCollector() == VatCollector.PLATFORM) {
+            putIfPositive(allocations, "TAX", order.getVatAmount());
+        }
         if (allocations.isEmpty()) {
             putIfPositive(allocations, "PRODUCT", order.getTotalAmount());
         }
+        reconcileToGross(allocations, nz(order.getTotalAmount()));
         return allocations;
+    }
+
+    /**
+     * Guarantee the allocation buckets sum exactly to {@code gross} (the amount the customer is
+     * charged) before the payment-service — which rejects any mismatch — sees them. The buckets are
+     * built from independently 2dp-rounded fee fields, so a sub-cent rounding residual is possible;
+     * it is absorbed into PRODUCT (the same rounding-sink convention the payment-service uses for
+     * refunds). A residual larger than benign rounding noise signals a real fee-calculation
+     * inconsistency: it is logged loudly, but the buckets are still balanced so an already-placed
+     * order can be paid rather than rejected.
+     */
+    private static void reconcileToGross(Map<String, BigDecimal> allocations, BigDecimal gross) {
+        BigDecimal sum = allocations.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal diff = gross.subtract(sum);
+        if (diff.signum() == 0) {
+            return;
+        }
+        BigDecimal tolerance = ONE_CENT.multiply(BigDecimal.valueOf(Math.max(allocations.size(), 1)));
+        if (diff.abs().compareTo(tolerance) > 0) {
+            log.warn("Allocation buckets ({}) differ from gross ({}) by {} — beyond rounding noise; "
+                    + "check FeeCalculator. Balancing into PRODUCT so the payment can proceed.",
+                    sum, gross, diff);
+        }
+        BigDecimal product = nz(allocations.get("PRODUCT")).add(diff);
+        if (product.signum() < 0) {
+            log.warn("Allocation reconciliation would make PRODUCT negative ({}) for gross {}; "
+                    + "leaving buckets unadjusted", product, gross);
+            return;
+        }
+        allocations.put("PRODUCT", product);
     }
 
     private static void putIfPositive(Map<String, BigDecimal> map, String key, BigDecimal value) {
