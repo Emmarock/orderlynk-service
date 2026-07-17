@@ -144,7 +144,8 @@ public class VendorService {
         Vendor vendor = new Vendor();
         vendor.setBusinessName(req.businessName());
         vendor.setDescription(req.description());
-        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
+        vendor.setAddress(requireShippableAddress(
+                new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country())));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
         if (req.vatCollector() != null) vendor.setVatCollector(req.vatCollector());
@@ -176,7 +177,8 @@ public class VendorService {
         Vendor vendor = new Vendor();
         vendor.setBusinessName(req.businessName());
         vendor.setDescription(req.description());
-        vendor.setAddress(new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country()));
+        vendor.setAddress(requireShippableAddress(
+                new Address(req.houseNumber(), req.street(), req.city(), req.state(), req.postcode(), req.country())));
         vendor.setWhatsappNumber(req.whatsappNumber());
         vendor.setInstagramHandle(req.instagramHandle());
         vendor.setTiktokHandle(req.tiktokHandle());
@@ -212,12 +214,20 @@ public class VendorService {
         if (req.businessName() != null && !req.businessName().isBlank()) vendor.setBusinessName(req.businessName());
         if (req.description() != null) vendor.setDescription(req.description());
         Address addr = vendor.getAddress();
+        boolean addressEdited = req.houseNumber() != null || req.street() != null || req.city() != null
+                || req.state() != null || req.postcode() != null || req.country() != null;
         if (req.houseNumber() != null) addr.setHouseNumber(req.houseNumber());
         if (req.street() != null) addr.setStreet(req.street());
         if (req.city() != null) addr.setCity(req.city());
         if (req.state() != null) addr.setState(req.state());
         if (req.postcode() != null) addr.setPostcode(req.postcode());
         if (req.country() != null) addr.setCountry(req.country());
+        // Only enforce shippability when the address section is being submitted, so saving unrelated
+        // sections never trips it — and legacy vendors with an incomplete address keep editing freely
+        // until they touch the address, at which point the merged result must be complete.
+        if (addressEdited) {
+            requireShippableAddress(addr);
+        }
         if (req.whatsappNumber() != null && !req.whatsappNumber().equals(vendor.getWhatsappNumber())) {
             // Changing the number invalidates any prior verification — they must re-verify the new one.
             vendor.setWhatsappNumber(req.whatsappNumber());
@@ -272,6 +282,20 @@ public class VendorService {
      * e-transfer (CAD) only needs an email; every other arrangement needs account holder + bank
      * plus the currency-specific routing fields.
      */
+    /**
+     * A vendor's business address doubles as the pickup address carriers rate and collect shipments
+     * from, so onboarding must capture a complete one. Returns the address unchanged when ship-ready;
+     * otherwise rejects the signup with a 400 naming the missing fields.
+     */
+    private static Address requireShippableAddress(Address address) {
+        List<String> missing = address.missingShippingFields();
+        if (!missing.isEmpty()) {
+            throw ApiException.badRequest("Your business address is incomplete (missing "
+                    + String.join(", ", missing) + "). A complete pickup address is required to ship orders.");
+        }
+        return address;
+    }
+
     private static void validatePayoutDetails(VendorUpdateRequest req) {
         String currency = req.payoutCurrency().trim().toUpperCase();
         if (!PAYOUT_CURRENCIES.contains(currency)) {
