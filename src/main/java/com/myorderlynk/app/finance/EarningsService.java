@@ -56,6 +56,7 @@ public class EarningsService {
         BigDecimal commission = BigDecimal.ZERO;
         BigDecimal processing = BigDecimal.ZERO;
         BigDecimal refunds = BigDecimal.ZERO;
+        BigDecimal vatInPayout = BigDecimal.ZERO;
 
         List<Booking> bs = bookings.findByVendorIdAndCreatedAtBetweenOrderByCreatedAtDesc(vendorId, start, end);
         long paidCount = 0;
@@ -80,6 +81,9 @@ public class EarningsService {
                 commission = commission.add(orderCommission);
                 processing = processing.add(zeroIfNull(o.getProcessingFee()));
                 refunds = refunds.add(refund);
+                // VAT the vendor collects rides inside vendorPayable, so it is transferred to the
+                // vendor along with net earnings — surface it as an on-top addition, not earnings.
+                vatInPayout = vatInPayout.add(vendorVat);
             }
         }
 
@@ -112,7 +116,7 @@ public class EarningsService {
 
         return new EarningsSummary(
                 scale(grossSales), scale(commission), scale(processing), scale(refunds),
-                taxRate, tax, netPayout, os.size() + bs.size(), paidCount, "CAD", lines);
+                taxRate, tax, netPayout, scale(vatInPayout), os.size() + bs.size(), paidCount, "CAD", lines);
     }
 
     private static BigDecimal zeroIfNull(BigDecimal v) {

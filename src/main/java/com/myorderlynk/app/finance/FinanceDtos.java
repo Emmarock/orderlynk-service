@@ -25,6 +25,10 @@ public final class FinanceDtos {
             BigDecimal taxRate,
             BigDecimal tax,
             BigDecimal netPayout,
+            /** Vendor-collected VAT on paid orders — paid out to the vendor on top of {@link #netPayout}
+             *  (a pass-through liability, not earnings). {@code netPayout + vatInPayout} is what the
+             *  vendor actually receives. Zero when the platform collects the VAT. */
+            BigDecimal vatInPayout,
             long totalOrders,
             long paidOrders,
             String currency,
