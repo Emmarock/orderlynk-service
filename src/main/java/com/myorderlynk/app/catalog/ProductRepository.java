@@ -21,6 +21,21 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("select distinct p.vendorId from Product p where p.active = true and p.category = :category")
     List<UUID> findVendorIdsByActiveCategory(ProductCategory category);
 
+    /** Ids of vendors that currently have at least one active product carrying the given tag. */
+    @Query("select distinct p.vendorId from Product p join p.tags t where p.active = true and t = :tag")
+    List<UUID> findVendorIdsByActiveTag(String tag);
+
+    /** Distinct tags used across active products with their usage count, most-used first. */
+    @Query("select t as tag, count(p) as uses from Product p join p.tags t "
+            + "where p.active = true group by t order by count(p) desc, t asc")
+    List<TagCount> findPopularTags(Pageable pageable);
+
+    /** Projection for {@link #findPopularTags}. */
+    interface TagCount {
+        String getTag();
+        long getUses();
+    }
+
     /** A vendor's products at or below their (enabled) low-stock threshold, lowest stock first. */
     @Query("select p from Product p where p.vendorId = :vendorId and p.lowStockThreshold > 0 "
             + "and p.quantityAvailable <= p.lowStockThreshold order by p.quantityAvailable asc")
