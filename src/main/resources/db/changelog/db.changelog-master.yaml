@@ -107,3 +107,6 @@ databaseChangeLog:
   - include:
       file: changes/036-vendor-whatsapp-verification.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/037-product-tags.xml
+      relativeToChangelogFile: true

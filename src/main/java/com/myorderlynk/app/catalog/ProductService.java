@@ -161,6 +161,7 @@ public class ProductService {
         applyMedia(p, req);
         p.setColors(normalizeOptions(req.colors()));
         p.setSizes(normalizeOptions(req.sizes()));
+        p.setTags(normalizeTags(req.tags()));
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
         p.setWeight(req.weight());
@@ -219,6 +220,29 @@ public class ProductService {
             if (trimmed.length() > 64) trimmed = trimmed.substring(0, 64).trim();
             if (seen.add(trimmed.toLowerCase())) {
                 cleaned.add(trimmed);
+            }
+        }
+        return cleaned;
+    }
+
+    /**
+     * Clean a list of discovery tags: trim, lower-case (tags are keywords, matched case-insensitively),
+     * drop blanks, collapse internal whitespace, cap each tag's length, and de-duplicate while preserving
+     * the vendor's ordering. Null/absent input yields an empty list (product is untagged).
+     */
+    private static java.util.List<String> normalizeTags(java.util.List<String> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        java.util.List<String> cleaned = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String value : raw) {
+            if (value == null) continue;
+            String tag = value.trim().replaceAll("\\s+", " ").toLowerCase();
+            if (tag.isEmpty()) continue;
+            if (tag.length() > 40) tag = tag.substring(0, 40).trim();
+            if (seen.add(tag)) {
+                cleaned.add(tag);
             }
         }
         return cleaned;

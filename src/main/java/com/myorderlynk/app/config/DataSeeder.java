@@ -103,13 +103,20 @@ public class DataSeeder implements CommandLineRunner {
         Product jollof = product(mamaTFoods.getId(), "Jollof Rice Spice Mix", ProductCategory.GROCERIES,
                 "12.99", 40, FulfillmentType.LOCAL_PICKUP);
         jollof.setDiscountPercent(15);
+        jollof.setTags(List.of("nigerian", "spice", "halal", "vegan"));
         products.save(jollof);
-        product(mamaTFoods.getId(), "Egusi (Ground Melon Seed) 1kg", ProductCategory.GROCERIES,
+        Product egusi = product(mamaTFoods.getId(), "Egusi (Ground Melon Seed) 1kg", ProductCategory.GROCERIES,
                 "18.50", 25, FulfillmentType.LOCAL_PICKUP);
-        product(mamaTFoods.getId(), "Palm Oil 2L", ProductCategory.GROCERIES,
+        egusi.setTags(List.of("nigerian", "soup", "vegan"));
+        products.save(egusi);
+        Product palmOil = product(mamaTFoods.getId(), "Palm Oil 2L", ProductCategory.GROCERIES,
                 "22.00", 30, FulfillmentType.DOMESTIC_SHIPPING);
-        product(mamaTFoods.getId(), "Frozen Suya Pack", ProductCategory.GROCERIES,
+        palmOil.setTags(List.of("cooking-oil", "vegan"));
+        products.save(palmOil);
+        Product suya = product(mamaTFoods.getId(), "Frozen Suya Pack", ProductCategory.GROCERIES,
                 "29.99", 15, FulfillmentType.LOCAL_DELIVERY);
+        suya.setTags(List.of("nigerian", "halal", "spicy", "frozen"));
+        products.save(suya);
 
         // ----- Vendor 2: Naija Beauty Hub (Toronto), approved + active -----
         User beautyOwner = createUser("beauty@orderlynk.app", "vendor12345", "Chioma Okafor", UserRole.VENDOR, false, null);
@@ -125,18 +132,25 @@ public class DataSeeder implements CommandLineRunner {
         // Bookable services (braiding) with priced sub-services + open availability, so the booking flow is demoable.
         seedBraidingServices(beauty.getId());
 
-        product(beauty.getId(), "Raw Shea Butter 500g", ProductCategory.BEAUTY,
+        Product shea = product(beauty.getId(), "Raw Shea Butter 500g", ProductCategory.BEAUTY,
                 "15.00", 50, FulfillmentType.DOMESTIC_SHIPPING);
-        product(beauty.getId(), "African Black Soap", ProductCategory.BEAUTY,
+        shea.setTags(List.of("natural", "organic", "vegan", "skincare"));
+        products.save(shea);
+        Product blackSoap = product(beauty.getId(), "African Black Soap", ProductCategory.BEAUTY,
                 "9.99", 60, FulfillmentType.LOCAL_PICKUP);
-        product(beauty.getId(), "Hibiscus Hair Oil", ProductCategory.BEAUTY,
+        blackSoap.setTags(List.of("natural", "handmade", "skincare"));
+        products.save(blackSoap);
+        Product hairOil = product(beauty.getId(), "Hibiscus Hair Oil", ProductCategory.BEAUTY,
                 "24.50", 20, FulfillmentType.IMPORT_BATCH);
+        hairOil.setTags(List.of("natural", "haircare", "organic"));
+        products.save(hairOil);
 
         // A clothing item to demo variant selection (colour + size) end-to-end.
         Product ankara = product(beauty.getId(), "Ankara Print Dress", ProductCategory.FASHION,
                 "48.00", 25, FulfillmentType.DOMESTIC_SHIPPING);
         ankara.setColors(List.of("Red", "Royal Blue", "Emerald", "Black"));
         ankara.setSizes(List.of("S", "M", "L", "XL"));
+        ankara.setTags(List.of("ankara", "handmade", "african-print", "dress"));
         ankara.setVatRatePercent(new BigDecimal("5.00")); // demo VAT — collected by the vendor (default)
         products.save(ankara);
 

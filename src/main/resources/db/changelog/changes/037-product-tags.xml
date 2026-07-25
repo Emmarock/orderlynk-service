@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Free-text discovery tags on products (e.g. "vegan", "handmade"). Ordered value list on the
+         product, stored normalized (lower-cased); shoppers filter the marketplace and storefronts by tag. -->
+    <changeSet id="037-create-product-tags" author="babajide">
+        <createTable tableName="product_tags">
+            <column name="product_id" type="VARCHAR(36)"><constraints nullable="false"/></column>
+            <column name="position" type="INT"><constraints nullable="false"/></column>
+            <column name="tag" type="VARCHAR(40)"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="product_tags" indexName="idx_product_tags_product">
+            <column name="product_id"/>
+        </createIndex>
+        <!-- Marketplace tag filter joins on the tag value across all active products. -->
+        <createIndex tableName="product_tags" indexName="idx_product_tags_tag">
+            <column name="tag"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -427,12 +427,13 @@ public class VendorService {
     }
 
     /**
-     * Marketplace listing of approved, active vendors, optionally filtered by city
-     * and/or product category. Always sorted so the highest-rated vendors lead —
-     * which, combined with the category filter, surfaces top-rated vendors per category.
+     * Marketplace listing of approved, active vendors, optionally filtered by city, product
+     * category and/or a discovery tag. Always sorted so the highest-rated vendors lead — which,
+     * combined with the filters, surfaces top-rated vendors per category/tag. The tag filter
+     * matches vendors that have at least one active product carrying that tag.
      */
     @Transactional(readOnly = true)
-    public PageResponse<VendorResponse> marketplace(String city, ProductCategory category, int page, int size) {
+    public PageResponse<VendorResponse> marketplace(String city, ProductCategory category, String tag, int page, int size) {
         List<Vendor> list = (city == null || city.isBlank())
                 ? vendors.findByActiveTrueAndVerificationStatus(VendorStatus.APPROVED)
                 : vendors.findByActiveTrueAndVerificationStatusAndAddressCityIgnoreCase(VendorStatus.APPROVED, city);
@@ -442,8 +443,21 @@ public class VendorService {
             list = list.stream().filter(v -> vendorIdsInCategory.contains(v.getId())).toList();
         }
 
+        if (tag != null && !tag.isBlank()) {
+            Set<UUID> vendorIdsWithTag = Set.copyOf(products.findVendorIdsByActiveTag(tag.trim().toLowerCase()));
+            list = list.stream().filter(v -> vendorIdsWithTag.contains(v.getId())).toList();
+        }
+
         List<VendorResponse> all = list.stream().sorted(MARKETPLACE_ORDER).map(vendorMapper::publicVendor).toList();
         return PageResponse.of(all, page, size);
+    }
+
+    /** The most-used product discovery tags across active products (capped), for the marketplace filter. */
+    @Transactional(readOnly = true)
+    public List<String> popularTags(int limit) {
+        int capped = Math.max(1, Math.min(limit, 50));
+        return products.findPopularTags(org.springframework.data.domain.PageRequest.of(0, capped))
+                .stream().map(ProductRepository.TagCount::getTag).toList();
     }
 
     /** Highest average rating first (unrated last), tie-broken by number of ratings, then name. */

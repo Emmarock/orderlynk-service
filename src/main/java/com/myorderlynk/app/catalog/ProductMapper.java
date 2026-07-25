@@ -14,6 +14,7 @@ public class ProductMapper {
                 p.getQuantityAvailable(), p.getLowStockThreshold(), lowStock,
                 p.getProductImageUrl(), new java.util.ArrayList<>(p.getImageUrls()), p.getVideoUrl(),
                 new java.util.ArrayList<>(p.getColors()), new java.util.ArrayList<>(p.getSizes()),
+                new java.util.ArrayList<>(p.getTags()),
                 p.getFulfillmentType(), p.getOriginCountry(),
                 p.getWeight(), p.getWeightUnit(), p.getLength(), p.getWidth(), p.getHeight(), p.getDimensionUnit(),
                 p.isAvailableNow(), p.getBatchId(), p.isActive());

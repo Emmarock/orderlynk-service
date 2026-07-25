@@ -108,6 +108,18 @@ public class Product extends BaseEntity {
     @BatchSize(size = 50)
     private List<String> sizes = new ArrayList<>();
 
+    /**
+     * Free-text discovery tags (e.g. "vegan", "handmade", "gluten-free"). Used by shoppers to
+     * filter the marketplace and a vendor's storefront. Stored normalized (trimmed, lower-cased,
+     * de-duplicated) so matching is exact and case-insensitive. Empty means the product is untagged.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "product_tags", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "tag", length = 40)
+    @BatchSize(size = 50)
+    private List<String> tags = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FulfillmentType fulfillmentType = FulfillmentType.LOCAL_PICKUP;

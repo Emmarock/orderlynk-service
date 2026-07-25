@@ -34,13 +34,20 @@ public class StorefrontController {
         this.currentUser = currentUser;
     }
 
-    /** Marketplace: approved, active vendors, optionally filtered by city and/or product category. */
+    /** Marketplace: approved, active vendors, optionally filtered by city, product category and/or tag. */
     @GetMapping
     public PageResponse<VendorResponse> marketplace(@RequestParam(required = false) String city,
                                                     @RequestParam(required = false) ProductCategory category,
+                                                    @RequestParam(required = false) String tag,
                                                     @RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "20") int size) {
-        return vendorService.marketplace(city, category, page, size);
+        return vendorService.marketplace(city, category, tag, page, size);
+    }
+
+    /** The most-used product discovery tags across the marketplace, for the tag filter. */
+    @GetMapping("/tags")
+    public java.util.List<String> popularTags(@RequestParam(defaultValue = "24") int limit) {
+        return vendorService.popularTags(limit);
     }
 
     @GetMapping("/{slug}")
