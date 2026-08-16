@@ -3,6 +3,7 @@ package com.myorderlynk.app.vendor;
 import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.vendor.VendorDtos.RatingRequest;
 import com.myorderlynk.app.vendor.VendorDtos.RatingSummary;
+import com.myorderlynk.app.vendor.VendorDtos.StorefrontProductResponse;
 import com.myorderlynk.app.vendor.VendorDtos.StorefrontResponse;
 import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
 import com.myorderlynk.app.security.CurrentUser;
@@ -53,6 +54,13 @@ public class StorefrontController {
     @GetMapping("/{slug}")
     public StorefrontResponse storefront(@PathVariable String slug) {
         return vendorService.storefront(slug);
+    }
+
+    /** One product from a storefront — what the product page needs, without the rest of the catalog. */
+    @GetMapping("/{slug}/products/{productId}")
+    public StorefrontProductResponse storefrontProduct(@PathVariable String slug,
+                                                       @PathVariable java.util.UUID productId) {
+        return vendorService.storefrontProduct(slug, productId);
     }
 
     /** Submit (or update) the signed-in customer's rating for a vendor. */

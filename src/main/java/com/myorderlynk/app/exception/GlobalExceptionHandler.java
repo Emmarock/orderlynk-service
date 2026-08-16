@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -58,6 +59,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleIllegalArg(IllegalArgumentException ex) {
         log.warn("Bad request: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
+    }
+
+    /**
+     * A path variable or query param that can't be converted to its declared type — e.g. a public
+     * product URL whose UUID got truncated. A client error, not a 500: public routes are crawled and
+     * link-mangled constantly, and these would otherwise drown real faults in the error log.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Bad request parameter '{}': {}", ex.getName(), ex.getValue());
+        return build(HttpStatus.BAD_REQUEST, "Invalid value for '" + ex.getName() + "'", null);
     }
 
     /** Malformed/invalid request body (bad JSON, wrong types) — a client error, not a 500. */

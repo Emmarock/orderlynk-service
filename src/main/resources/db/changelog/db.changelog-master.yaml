@@ -110,3 +110,6 @@ databaseChangeLog:
   - include:
       file: changes/037-product-tags.xml
       relativeToChangelogFile: true
+  - include:
+      file: changes/038-backfill-product-images.xml
+      relativeToChangelogFile: true
