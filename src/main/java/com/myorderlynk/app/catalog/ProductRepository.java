@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
@@ -16,6 +17,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findByVendorId(UUID vendorId, Pageable pageable);
 
     List<Product> findByVendorIdAndActiveTrue(UUID vendorId);
+
+    /** One publicly visible product, scoped to its vendor so a foreign product id can't be fetched. */
+    Optional<Product> findByIdAndVendorIdAndActiveTrue(UUID id, UUID vendorId);
 
     /** Ids of vendors that currently have at least one active product in the given category. */
     @Query("select distinct p.vendorId from Product p where p.active = true and p.category = :category")

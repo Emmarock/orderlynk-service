@@ -187,6 +187,15 @@ public final class VendorDtos {
             List<BatchDtos.BatchCard> batches) {
     }
 
+    /**
+     * A single storefront product plus the vendor branding its page renders. Lets the product page
+     * fetch one product instead of the whole storefront.
+     */
+    public record StorefrontProductResponse(
+            VendorResponse vendor,
+            ProductDtos.ProductResponse product) {
+    }
+
     /** Returned after a user applies as a vendor: a refreshed token carrying the VENDOR role. */
     public record ApplyResponse(
             String token,

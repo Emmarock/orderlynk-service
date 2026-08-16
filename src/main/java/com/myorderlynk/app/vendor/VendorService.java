@@ -9,11 +9,13 @@ import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.common.enums.UserRole;
 import com.myorderlynk.app.common.enums.VendorStatus;
 import com.myorderlynk.app.identity.AuthDtos.AuthResponse;
+import com.myorderlynk.app.catalog.Product;
 import com.myorderlynk.app.catalog.ProductMapper;
 import com.myorderlynk.app.catalog.ProductDtos.ProductResponse;
 import com.myorderlynk.app.vendor.VendorDtos.ApplyResponse;
 import com.myorderlynk.app.vendor.VendorDtos.SellerRegistrationRequest;
 import com.myorderlynk.app.vendor.VendorDtos.ShareLinkResponse;
+import com.myorderlynk.app.vendor.VendorDtos.StorefrontProductResponse;
 import com.myorderlynk.app.vendor.VendorDtos.StorefrontResponse;
 import com.myorderlynk.app.vendor.VendorDtos.VendorApplicationRequest;
 import com.myorderlynk.app.vendor.VendorDtos.VendorResponse;
@@ -409,14 +411,24 @@ public class VendorService {
         }
     }
 
-    /** Public storefront by slug — only visible once approved + active (PRD §17). */
-    @Transactional(readOnly = true)
-    public StorefrontResponse storefront(String slug) {
+    /**
+     * Resolve a publicly visible storefront by slug. A vendor that isn't approved + active is
+     * reported as "not found" rather than "forbidden", so the existence of a pending store never
+     * leaks through the public API.
+     */
+    private Vendor publicStorefront(String slug) {
         Vendor vendor = vendors.findByStoreSlug(slug)
                 .orElseThrow(() -> ApiException.notFound("Store not found"));
         if (!vendor.isActive() || vendor.getVerificationStatus() != VendorStatus.APPROVED) {
             throw ApiException.notFound("Store not found");
         }
+        return vendor;
+    }
+
+    /** Public storefront by slug — only visible once approved + active (PRD §17). */
+    @Transactional(readOnly = true)
+    public StorefrontResponse storefront(String slug) {
+        Vendor vendor = publicStorefront(slug);
         List<ProductResponse> activeProducts = products.findByVendorIdAndActiveTrue(vendor.getId())
                 .stream().map(productMapper::product).toList();
         return new StorefrontResponse(
@@ -424,6 +436,19 @@ public class VendorService {
                 activeProducts,
                 serviceDiscovery.publicServices(vendor.getId()),
                 batchDiscovery.publicBatches(vendor.getId()));
+    }
+
+    /**
+     * A single product from a public storefront, with just enough vendor profile to render the
+     * product page's branding. The product page used to filter the whole {@link #storefront} payload
+     * client-side, which meant downloading every product (and its media) of a large store to show one.
+     */
+    @Transactional(readOnly = true)
+    public StorefrontProductResponse storefrontProduct(String slug, UUID productId) {
+        Vendor vendor = publicStorefront(slug);
+        Product product = products.findByIdAndVendorIdAndActiveTrue(productId, vendor.getId())
+                .orElseThrow(() -> ApiException.notFound("Product not found"));
+        return new StorefrontProductResponse(vendorMapper.publicVendor(vendor), productMapper.product(product));
     }
 
     /**
