@@ -156,11 +156,9 @@ public class ProductService {
         if (req.discountPercent() != null) p.setDiscountPercent(req.discountPercent());
         if (req.vatRatePercent() != null) p.setVatRatePercent(req.vatRatePercent());
         if (req.currency() != null && !req.currency().isBlank()) p.setCurrency(req.currency());
-        p.setQuantityAvailable(req.quantityAvailable());
         if (req.lowStockThreshold() != null) p.setLowStockThreshold(req.lowStockThreshold());
         applyMedia(p, req);
-        p.setColors(normalizeOptions(req.colors()));
-        p.setSizes(normalizeOptions(req.sizes()));
+        applyVariants(p, req);
         p.setTags(normalizeTags(req.tags()));
         p.setFulfillmentType(req.fulfillmentType());
         p.setOriginCountry(req.originCountry());
@@ -200,6 +198,78 @@ public class ProductService {
         p.setProductImageUrl(images.get(0));
         String video = req.videoUrl();
         p.setVideoUrl(video != null && !video.isBlank() ? video.trim() : null);
+    }
+
+    /**
+     * Resolve the product's stock model from the request.
+     *
+     * <p>With options: each row is a colour/size pair carrying its own stock, and the product-level
+     * fields become derived — {@code quantityAvailable} is their sum and {@code colors}/{@code sizes}
+     * are their distinct values in first-seen order. That keeps every existing product-level read
+     * (storefront cards, sold-out checks, low-stock alerts, the colour/size pickers) correct without
+     * it knowing options exist.
+     *
+     * <p>Without options: the legacy single-quantity product, untouched.
+     *
+     * <p>Existing rows are matched by colour/size so re-saving a product preserves variant ids (and
+     * therefore their link from past order lines) instead of churning them on every edit.
+     */
+    private void applyVariants(Product p, ProductRequest req) {
+        java.util.List<ProductDtos.VariantRequest> requested =
+                req.variants() == null ? java.util.List.of() : req.variants();
+        if (requested.isEmpty()) {
+            p.getVariants().clear();
+            p.setQuantityAvailable(req.quantityAvailable());
+            p.setColors(normalizeOptions(req.colors()));
+            p.setSizes(normalizeOptions(req.sizes()));
+            return;
+        }
+
+        java.util.List<ProductVariant> existing = new java.util.ArrayList<>(p.getVariants());
+        java.util.List<ProductVariant> resolved = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int position = 0;
+        for (ProductDtos.VariantRequest v : requested) {
+            String color = blankToNull(v.color());
+            String size = blankToNull(v.size());
+            if (color == null && size == null) {
+                throw ApiException.badRequest("Each option needs a colour, a size, or both");
+            }
+            if (v.quantityAvailable() < 0) {
+                throw ApiException.badRequest("Option quantity cannot be negative");
+            }
+            String key = (color == null ? "" : color.toLowerCase()) + "|" + (size == null ? "" : size.toLowerCase());
+            if (!seen.add(key)) {
+                throw ApiException.badRequest(
+                        "Duplicate option: " + (color == null ? size : (size == null ? color : color + " / " + size)));
+            }
+            // Reuse the row for this combination if the product already had it, so its id survives.
+            ProductVariant variant = existing.stream()
+                    .filter(e -> e.matches(color, size))
+                    .findFirst()
+                    .orElseGet(ProductVariant::new);
+            variant.setProduct(p);
+            variant.setColor(color);
+            variant.setSize(size);
+            variant.setQuantityAvailable(v.quantityAvailable());
+            variant.setPosition(position++);
+            resolved.add(variant);
+        }
+
+        p.getVariants().clear();
+        p.getVariants().addAll(resolved);
+        p.recalculateStockFromVariants();
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.length() > 64 ? trimmed.substring(0, 64).trim() : trimmed;
     }
 
     /**
