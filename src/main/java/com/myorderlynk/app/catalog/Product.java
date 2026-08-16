@@ -19,7 +19,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -78,7 +79,7 @@ public class Product extends BaseEntity {
     @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @OrderColumn(name = "position")
     @Column(name = "url", length = 1024)
-    @BatchSize(size = 50) // mitigate N+1 when mapping a page of products
+    @Fetch(FetchMode.SUBSELECT)
     private List<String> imageUrls = new ArrayList<>();
 
     /** Optional single product video. */
@@ -94,7 +95,7 @@ public class Product extends BaseEntity {
     @CollectionTable(name = "product_colors", joinColumns = @JoinColumn(name = "product_id"))
     @OrderColumn(name = "position")
     @Column(name = "color", length = 64)
-    @BatchSize(size = 50)
+    @Fetch(FetchMode.SUBSELECT)
     private List<String> colors = new ArrayList<>();
 
     /**
@@ -105,7 +106,7 @@ public class Product extends BaseEntity {
     @CollectionTable(name = "product_sizes", joinColumns = @JoinColumn(name = "product_id"))
     @OrderColumn(name = "position")
     @Column(name = "size", length = 64)
-    @BatchSize(size = 50)
+    @Fetch(FetchMode.SUBSELECT)
     private List<String> sizes = new ArrayList<>();
 
     /**
@@ -117,7 +118,7 @@ public class Product extends BaseEntity {
     @CollectionTable(name = "product_tags", joinColumns = @JoinColumn(name = "product_id"))
     @OrderColumn(name = "position")
     @Column(name = "tag", length = 40)
-    @BatchSize(size = 50)
+    @Fetch(FetchMode.SUBSELECT)
     private List<String> tags = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
