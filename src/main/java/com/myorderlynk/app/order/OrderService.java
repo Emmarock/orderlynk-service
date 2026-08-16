@@ -27,6 +27,7 @@ import com.myorderlynk.app.payment.PaymentClient;
 import com.myorderlynk.app.payment.PaymentServiceProperties;
 import com.myorderlynk.app.order.PaymentRecordRepository;
 import com.myorderlynk.app.catalog.ProductRepository;
+import com.myorderlynk.app.catalog.ProductVariant;
 import com.myorderlynk.app.identity.AuthService;
 import com.myorderlynk.app.identity.User;
 import com.myorderlynk.app.identity.UserRepository;
@@ -217,11 +218,29 @@ public class OrderService {
             if (!product.getVendorId().equals(vendor.getId()) || !product.isActive()) {
                 throw ApiException.badRequest("Product '" + product.getName() + "' is not available from this vendor");
             }
-            if (product.getQuantityAvailable() < line.quantity()) {
-                throw ApiException.badRequest("Insufficient stock for '" + product.getName() + "'");
+            String selectedColor;
+            String selectedSize;
+            ProductVariant variant = null;
+            if (product.hasVariants()) {
+                // Stock lives per option: the shopper's exact combination must exist and have enough
+                // left. One option selling out never blocks the others.
+                variant = product.findVariant(line.selectedColor(), line.selectedSize())
+                        .orElseThrow(() -> ApiException.badRequest(
+                                "That option isn't available for '" + product.getName()
+                                        + "'. Please choose from the options listed."));
+                if (variant.getQuantityAvailable() < line.quantity()) {
+                    throw ApiException.badRequest("Only " + variant.getQuantityAvailable() + " left of '"
+                            + product.getName() + "' (" + variant.label() + ")");
+                }
+                selectedColor = variant.getColor();
+                selectedSize = variant.getSize();
+            } else {
+                if (product.getQuantityAvailable() < line.quantity()) {
+                    throw ApiException.badRequest("Insufficient stock for '" + product.getName() + "'");
+                }
+                selectedColor = resolveOption("colour", product.getName(), product.getColors(), line.selectedColor());
+                selectedSize = resolveOption("size", product.getName(), product.getSizes(), line.selectedSize());
             }
-            String selectedColor = resolveOption("colour", product.getName(), product.getColors(), line.selectedColor());
-            String selectedSize = resolveOption("size", product.getName(), product.getSizes(), line.selectedSize());
             BigDecimal unitPrice = product.effectivePrice();
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(line.quantity()));
             OrderItem item = new OrderItem();
@@ -230,6 +249,7 @@ public class OrderService {
             item.setProductNameSnapshot(product.getName());
             item.setSelectedColor(selectedColor);
             item.setSelectedSize(selectedSize);
+            item.setVariantId(variant == null ? null : variant.getId());
             item.setQuantity(line.quantity());
             item.setUnitPrice(unitPrice);
             item.setLineTotal(lineTotal);
@@ -237,7 +257,13 @@ public class OrderService {
             subtotal = subtotal.add(lineTotal);
             vatAmount = vatAmount.add(product.vatFor(line.quantity()));
 
-            product.setQuantityAvailable(product.getQuantityAvailable() - line.quantity());
+            if (variant != null) {
+                // Draw down the chosen option, then refresh the product-level total from its options.
+                variant.setQuantityAvailable(variant.getQuantityAvailable() - line.quantity());
+                product.recalculateStockFromVariants();
+            } else {
+                product.setQuantityAvailable(product.getQuantityAvailable() - line.quantity());
+            }
             products.save(product);
 
             if (product.getLowStockThreshold() > 0 && product.getQuantityAvailable() <= product.getLowStockThreshold()) {

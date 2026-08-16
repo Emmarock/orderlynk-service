@@ -5,6 +5,7 @@ import com.myorderlynk.app.common.enums.FulfillmentType;
 import com.myorderlynk.app.common.enums.ProductCategory;
 import com.myorderlynk.app.shipping.DimensionUnit;
 import com.myorderlynk.app.shipping.WeightUnit;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -14,6 +15,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -120,6 +123,56 @@ public class Product extends BaseEntity {
     @Column(name = "tag", length = 40)
     @Fetch(FetchMode.SUBSELECT)
     private List<String> tags = new ArrayList<>();
+
+    /**
+     * Purchasable options, each with its own stock (e.g. Black/M ×10, White/L ×20). Empty means a
+     * simple product whose stock is {@link #quantityAvailable} alone.
+     *
+     * <p>When non-empty this is the source of truth for inventory: {@link #quantityAvailable} is
+     * maintained as the sum of these rows, and {@link #colors}/{@link #sizes} are derived from their
+     * distinct values — so every existing storefront, low-stock and sold-out check keeps working
+     * against the product-level fields without knowing about variants.
+     */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("position ASC")
+    @Fetch(FetchMode.SUBSELECT)
+    private List<ProductVariant> variants = new ArrayList<>();
+
+    /** Whether this product sells per-combination options rather than a single pooled stock. */
+    public boolean hasVariants() {
+        return variants != null && !variants.isEmpty();
+    }
+
+    /** The option matching a shopper's selection, or empty if that combination isn't sold. */
+    public java.util.Optional<ProductVariant> findVariant(String selectedColor, String selectedSize) {
+        return variants.stream().filter(v -> v.matches(selectedColor, selectedSize)).findFirst();
+    }
+
+    /**
+     * Re-derive the product-level stock view from the options: total quantity plus the distinct
+     * colours and sizes on offer. Call after any change to option stock so the fields the rest of
+     * the app reads stay true. No-op for a simple product.
+     */
+    public void recalculateStockFromVariants() {
+        if (!hasVariants()) {
+            return;
+        }
+        quantityAvailable = variants.stream().mapToInt(ProductVariant::getQuantityAvailable).sum();
+        colors = distinctInOrder(variants.stream().map(ProductVariant::getColor));
+        sizes = distinctInOrder(variants.stream().map(ProductVariant::getSize));
+    }
+
+    /** Distinct non-null values, preserving first-seen order and casing. */
+    private static List<String> distinctInOrder(java.util.stream.Stream<String> values) {
+        List<String> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        values.filter(java.util.Objects::nonNull).forEach(v -> {
+            if (seen.add(v.toLowerCase())) {
+                out.add(v);
+            }
+        });
+        return out;
+    }
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

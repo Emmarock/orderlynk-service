@@ -43,6 +43,13 @@ public class OrderItem extends BaseEntity {
     @Column(length = 64)
     private String selectedSize;
 
+    /**
+     * The product option this line was bought from, for stock traceability. Null for simple products
+     * and for lines placed before per-option stock existed.
+     */
+    @Column(name = "variant_id", length = 36)
+    private UUID variantId;
+
     @Column(nullable = false)
     private int quantity;
 

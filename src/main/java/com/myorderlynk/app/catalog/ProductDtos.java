@@ -37,6 +37,11 @@ public final class ProductDtos {
             String videoUrl,
             @Size(max = 30, message = "A product can have at most 30 colour options") List<String> colors,
             @Size(max = 30, message = "A product can have at most 30 size options") List<String> sizes,
+            /**
+             * Per-combination stock. When present and non-empty this replaces {@code quantityAvailable},
+             * {@code colors} and {@code sizes} — all three are derived from these rows.
+             */
+            @Size(max = 60, message = "A product can have at most 60 options") List<VariantRequest> variants,
             @Size(max = 20, message = "A product can have at most 20 tags") List<String> tags,
             @NotNull FulfillmentType fulfillmentType,
             String originCountry,
@@ -62,6 +67,22 @@ public final class ProductDtos {
     public record DescriptionResponse(String description) {
     }
 
+    /** One purchasable option the vendor is defining: a colour/size pair and its own stock. */
+    public record VariantRequest(
+            String color,
+            String size,
+            @PositiveOrZero int quantityAvailable) {
+    }
+
+    /** A purchasable option as shown to shoppers. {@code id} is stable across product edits. */
+    public record VariantResponse(
+            UUID id,
+            String color,
+            String size,
+            int quantityAvailable,
+            boolean inStock) {
+    }
+
     public record ProductResponse(
             UUID id,
             UUID vendorId,
@@ -81,6 +102,8 @@ public final class ProductDtos {
             String videoUrl,
             List<String> colors,
             List<String> sizes,
+            /** Per-combination stock; empty for a simple product pooling stock in quantityAvailable. */
+            List<VariantResponse> variants,
             List<String> tags,
             FulfillmentType fulfillmentType,
             String originCountry,
